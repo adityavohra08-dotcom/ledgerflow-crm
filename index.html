@@ -1619,6 +1619,16 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             return `<input type="${type}" id="${id}" placeholder="${placeholder}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm ${extraClass}">`;
         }
 
+        function escAttr(s) {
+            if (s == null) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        }
+
+        function escHtml(s) {
+            if (s == null || s === '') return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
         function openMasterFormModal({ title, subtitle, fieldsHtml, submitLabel, onSubmit }) {
             document.getElementById('master-form-title').textContent = title;
             document.getElementById('master-form-subtitle').textContent = subtitle || '';
@@ -1877,21 +1887,27 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             ensurePortalLogins(client);
             const pl = client.portalLogins;
             const isClient = isClientUser();
-            const readOnly = !isClient;
-            const ro = readOnly ? 'readonly' : '';
-            const disabled = readOnly ? 'disabled' : '';
+            const isFirm = isFirmUser();
+            const canEdit = isClient || isFirm;
+            const passType = 'password';
+
+            const portalSaveBtn = (type, label, color) => canEdit
+                ? `<button onclick="savePortalLogin('${type}')" class="w-full py-2 ${color} rounded-xl text-sm font-semibold">${label}</button>`
+                : '';
 
             container.innerHTML = `
                 <div class="mb-6">
                     <h2 class="text-2xl font-semibold tracking-tight">${isClient ? 'Share Government Portal Logins' : 'Client Portal Login Credentials'}</h2>
                     <p class="text-slate-400 text-sm">${isClient
                         ? 'Securely submit GST, Income Tax, TAN, MCA and other portal credentials to your CA'
-                        : `View login details submitted by ${client.name} — confidential, firm access only`}</p>
+                        : `View and edit portal credentials for ${client.name} — firm access only`}</p>
                 </div>
 
                 <div class="mb-4 p-4 bg-amber-900/20 border border-amber-800 rounded-2xl text-xs text-amber-300 flex items-start gap-2">
                     <i class="fa-solid fa-lock mt-0.5"></i>
-                    <span>Credentials are stored privately for this client. Only the client and your accounting firm can access this section. Never share passwords over unsecured channels.</span>
+                    <span>${isFirm
+                        ? 'As admin you can add, edit or correct portal logins on behalf of the client. Changes are saved to the client record immediately.'
+                        : 'Credentials are stored privately for this client. Only you and your accounting firm can access this section.'}</span>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -1903,12 +1919,12 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                         </div>
                         <div class="space-y-3 text-sm">
                             <div><label class="text-xs text-slate-400">GSTIN / Username</label>
-                                <input id="pl-gst-user" value="${pl.gst.username || pl.gst.gstin || ''}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
+                                <input id="pl-gst-user" value="${escAttr(pl.gst.username || pl.gst.gstin || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
                             <div><label class="text-xs text-slate-400">Password</label>
-                                <input id="pl-gst-pass" type="${readOnly ? 'text' : 'password'}" value="${pl.gst.password || ''}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
+                                <input id="pl-gst-pass" type="${passType}" value="${escAttr(pl.gst.password || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono" autocomplete="off"></div>
                             <div><label class="text-xs text-slate-400">Notes (e.g. registered mobile)</label>
-                                <input id="pl-gst-notes" value="${pl.gst.notes || ''}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"></div>
-                            ${isClient ? `<button onclick="savePortalLogin('gst')" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-semibold">Save GST Login</button>` : ''}
+                                <input id="pl-gst-notes" value="${escAttr(pl.gst.notes || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"></div>
+                            ${portalSaveBtn('gst', 'Save GST Login', 'bg-emerald-600 hover:bg-emerald-500')}
                         </div>
                     </div>
 
@@ -1921,15 +1937,15 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                         <div class="space-y-3 text-sm">
                             <div class="grid grid-cols-2 gap-3">
                                 <div><label class="text-xs text-slate-400">User ID / PAN</label>
-                                    <input id="pl-itr-user" value="${pl.incometax.username || ''}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
+                                    <input id="pl-itr-user" value="${escAttr(pl.incometax.username || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
                                 <div><label class="text-xs text-slate-400">PAN</label>
-                                    <input id="pl-itr-pan" value="${pl.incometax.pan || client.pan || ''}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
+                                    <input id="pl-itr-pan" value="${escAttr(pl.incometax.pan || client.pan || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
                             </div>
                             <div><label class="text-xs text-slate-400">Password</label>
-                                <input id="pl-itr-pass" type="${readOnly ? 'text' : 'password'}" value="${pl.incometax.password || ''}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
+                                <input id="pl-itr-pass" type="${passType}" value="${escAttr(pl.incometax.password || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono" autocomplete="off"></div>
                             <div><label class="text-xs text-slate-400">Notes</label>
-                                <input id="pl-itr-notes" value="${pl.incometax.notes || ''}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"></div>
-                            ${isClient ? `<button onclick="savePortalLogin('incometax')" class="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded-xl text-sm font-semibold">Save Income Tax Login</button>` : ''}
+                                <input id="pl-itr-notes" value="${escAttr(pl.incometax.notes || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"></div>
+                            ${portalSaveBtn('incometax', 'Save Income Tax Login', 'bg-blue-600 hover:bg-blue-500')}
                         </div>
                     </div>
 
@@ -1942,15 +1958,15 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                         <div class="space-y-3 text-sm">
                             <div class="grid grid-cols-2 gap-3">
                                 <div><label class="text-xs text-slate-400">TAN</label>
-                                    <input id="pl-tan-no" value="${pl.tan.tan || ''}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
+                                    <input id="pl-tan-no" value="${escAttr(pl.tan.tan || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
                                 <div><label class="text-xs text-slate-400">User ID</label>
-                                    <input id="pl-tan-user" value="${pl.tan.username || ''}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
+                                    <input id="pl-tan-user" value="${escAttr(pl.tan.username || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
                             </div>
                             <div><label class="text-xs text-slate-400">Password</label>
-                                <input id="pl-tan-pass" type="${readOnly ? 'text' : 'password'}" value="${pl.tan.password || ''}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
+                                <input id="pl-tan-pass" type="${passType}" value="${escAttr(pl.tan.password || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono" autocomplete="off"></div>
                             <div><label class="text-xs text-slate-400">Notes</label>
-                                <input id="pl-tan-notes" value="${pl.tan.notes || ''}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"></div>
-                            ${isClient ? `<button onclick="savePortalLogin('tan')" class="w-full py-2 bg-purple-600 hover:bg-purple-500 rounded-xl text-sm font-semibold">Save TAN Login</button>` : ''}
+                                <input id="pl-tan-notes" value="${escAttr(pl.tan.notes || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"></div>
+                            ${portalSaveBtn('tan', 'Save TAN Login', 'bg-purple-600 hover:bg-purple-500')}
                         </div>
                     </div>
 
@@ -1963,15 +1979,19 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                         <div class="space-y-3 text-sm">
                             <div class="grid grid-cols-2 gap-3">
                                 <div><label class="text-xs text-slate-400">User ID / Email</label>
-                                    <input id="pl-mca-user" value="${pl.mca.username || ''}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"></div>
+                                    <input id="pl-mca-user" value="${escAttr(pl.mca.username || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"></div>
                                 <div><label class="text-xs text-slate-400">CIN / LLPIN</label>
-                                    <input id="pl-mca-cin" value="${pl.mca.cin || ''}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
+                                    <input id="pl-mca-cin" value="${escAttr(pl.mca.cin || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
                             </div>
                             <div><label class="text-xs text-slate-400">Password</label>
-                                <input id="pl-mca-pass" type="${readOnly ? 'text' : 'password'}" value="${pl.mca.password || ''}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
-                            <div><label class="text-xs text-slate-400">DIN / Notes</label>
-                                <input id="pl-mca-notes" value="${pl.mca.din ? 'DIN: ' + pl.mca.din + (pl.mca.notes ? ' — ' + pl.mca.notes : '') : (pl.mca.notes || '')}" ${ro} class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"></div>
-                            ${isClient ? `<button onclick="savePortalLogin('mca')" class="w-full py-2 bg-cyan-700 hover:bg-cyan-600 rounded-xl text-sm font-semibold">Save MCA Login</button>` : ''}
+                                <input id="pl-mca-pass" type="${passType}" value="${escAttr(pl.mca.password || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono" autocomplete="off"></div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div><label class="text-xs text-slate-400">DIN (if applicable)</label>
+                                    <input id="pl-mca-din" value="${escAttr(pl.mca.din || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
+                                <div><label class="text-xs text-slate-400">Notes</label>
+                                    <input id="pl-mca-notes" value="${escAttr(pl.mca.notes || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"></div>
+                            </div>
+                            ${portalSaveBtn('mca', 'Save MCA Login', 'bg-cyan-700 hover:bg-cyan-600')}
                         </div>
                     </div>
                 </div>
@@ -1982,38 +2002,40 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                         <div class="font-semibold flex items-center gap-2">
                             <i class="fa-solid fa-globe text-amber-400"></i> Other Portal Logins
                         </div>
-                        ${isClient ? `<button onclick="addOtherPortalLogin()" class="text-xs px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded-xl font-semibold"><i class="fa-solid fa-plus"></i> Add Portal</button>` : ''}
+                        ${canEdit ? `<button onclick="openOtherPortalForm()" class="text-xs px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded-xl font-semibold"><i class="fa-solid fa-plus"></i> Add Portal</button>` : ''}
                     </div>
                     ${pl.other.length ? `
                     <table class="w-full data-table text-sm">
                         <thead><tr>
-                            <th>Portal Name</th><th>URL</th><th>Username</th><th>Password</th><th>Notes</th><th>Updated</th>${isClient ? '<th></th>' : ''}
+                            <th>Portal Name</th><th>URL</th><th>Username</th><th>Password</th><th>Notes</th><th>Updated</th>${canEdit ? '<th>Actions</th>' : ''}
                         </tr></thead>
                         <tbody>
                             ${pl.other.map(o => `
                                 <tr>
-                                    <td class="font-medium">${o.portalName}</td>
-                                    <td class="text-xs text-slate-400">${o.url || '—'}</td>
-                                    <td class="font-mono text-xs">${o.username || '—'}</td>
-                                    <td class="font-mono text-xs">${readOnly ? (o.password || '—') : '••••••'}</td>
-                                    <td class="text-xs">${o.notes || '—'}</td>
+                                    <td class="font-medium">${escHtml(o.portalName)}</td>
+                                    <td class="text-xs text-slate-400">${o.url ? `<a href="${escAttr(o.url)}" target="_blank" rel="noopener" class="text-emerald-400 hover:underline">${escHtml(o.url)}</a>` : '—'}</td>
+                                    <td class="font-mono text-xs">${escHtml(o.username) || '—'}</td>
+                                    <td class="font-mono text-xs">${isFirm ? (escHtml(o.password) || '—') : '••••••'}</td>
+                                    <td class="text-xs">${escHtml(o.notes) || '—'}</td>
                                     <td class="text-xs">${o.updatedAt || '—'}</td>
-                                    ${isClient ? `<td><button onclick="deleteOtherPortalLogin('${o.id}')" class="text-red-400 text-xs"><i class="fa-solid fa-trash"></i></button></td>` : ''}
+                                    ${canEdit ? `<td class="whitespace-nowrap">
+                                        <button onclick="openOtherPortalForm('${o.id}')" class="text-emerald-400 text-xs mr-2" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                                        <button onclick="deleteOtherPortalLogin('${o.id}')" class="text-red-400 text-xs" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                                    </td>` : ''}
                                 </tr>
                             `).join('')}
                         </tbody>
-                    </table>` : `<div class="text-sm text-slate-400 py-4 text-center">No other portal logins added yet.${isClient ? ' Click "Add Portal" for PF, ESIC, DGFT, etc.' : ''}</div>`}
+                    </table>` : `<div class="text-sm text-slate-400 py-4 text-center">No other portal logins added yet.${canEdit ? ' Click <strong>Add Portal</strong> for EPFO, ESIC, DGFT, bank net banking, etc.' : ''}</div>`}
                 </div>
 
-                ${isClient ? `
                 <div class="mt-4 p-4 bg-slate-800 border border-slate-700 rounded-2xl text-xs text-slate-400">
-                    <strong class="text-white">Common portals you can add:</strong> EPFO (UAN), ESIC, DGFT (IEC), ICEGATE, Udyam, Professional Tax, Shops & Establishment, State GST portals, Bank net banking, etc.
-                </div>` : ''}
+                    <strong class="text-white">Common portals:</strong> EPFO (UAN), ESIC, DGFT (IEC), ICEGATE, Udyam, Professional Tax, Shops & Establishment, State GST portals, Bank net banking, etc.
+                </div>
             `;
         }
 
         function savePortalLogin(type) {
-            if (!isClientUser()) return;
+            if (!isClientUser() && !isFirmUser()) return;
             const client = getCurrentClient();
             ensurePortalLogins(client);
             const today = new Date().toISOString().split('T')[0];
@@ -2043,20 +2065,22 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     updatedAt: today
                 };
             } else if (type === 'mca') {
-                const notesVal = document.getElementById('pl-mca-notes').value.trim();
                 client.portalLogins.mca = {
                     username: document.getElementById('pl-mca-user').value.trim(),
                     cin: document.getElementById('pl-mca-cin').value.trim(),
                     password: document.getElementById('pl-mca-pass').value,
-                    din: notesVal.startsWith('DIN:') ? notesVal.split('—')[0].replace('DIN:', '').trim() : '',
-                    notes: notesVal,
+                    din: document.getElementById('pl-mca-din').value.trim(),
+                    notes: document.getElementById('pl-mca-notes').value.trim(),
                     updatedAt: today
                 };
             }
 
             saveAppData();
-            notifyAdminPortalLoginUpdate(client, type);
-            showToast(`${type.toUpperCase()} login saved and shared with your CA`);
+            if (isClientUser()) notifyAdminPortalLoginUpdate(client, type);
+            const label = { gst: 'GST', incometax: 'Income Tax', tan: 'TAN', mca: 'MCA' }[type] || type;
+            showToast(isFirmUser()
+                ? `${label} login updated for ${client.name}`
+                : `${label} login saved and shared with your CA`);
             showSection('portal-logins');
         }
 
@@ -2067,37 +2091,97 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             window.open(`mailto:${adminEmail}?subject=${subject}&body=${body}`, '_blank');
         }
 
-        function addOtherPortalLogin() {
-            if (!isClientUser()) return;
-            const portalName = prompt('Portal name (e.g. EPFO, ESIC, DGFT, Bank Net Banking):');
-            if (!portalName) return;
-            const url = prompt('Portal URL (optional):') || '';
-            const username = prompt('Username / ID:') || '';
-            const password = prompt('Password:') || '';
-            const notes = prompt('Notes (optional):') || '';
+        const OTHER_PORTAL_PRESETS = [
+            { name: 'EPFO (UAN)', url: 'https://unifiedportal.epfindia.gov.in' },
+            { name: 'ESIC', url: 'https://www.esic.in' },
+            { name: 'DGFT (IEC)', url: 'https://www.dgft.gov.in' },
+            { name: 'ICEGATE', url: 'https://www.icegate.gov.in' },
+            { name: 'Udyam Registration', url: 'https://udyamregistration.gov.in' },
+            { name: 'Bank Net Banking', url: '' },
+            { name: 'Professional Tax', url: '' },
+            { name: 'Shops & Establishment', url: '' },
+            { name: 'Custom Portal', url: '' }
+        ];
 
+        function openOtherPortalForm(editId) {
+            if (!isClientUser() && !isFirmUser()) return;
             const client = getCurrentClient();
             ensurePortalLogins(client);
-            client.portalLogins.other.unshift({
-                id: 'opl_' + Date.now(),
-                portalName,
-                url,
-                username,
-                password,
-                notes,
-                updatedAt: new Date().toISOString().split('T')[0]
+            const existing = editId ? client.portalLogins.other.find(o => o.id === editId) : null;
+            const presetOptions = OTHER_PORTAL_PRESETS.map(p =>
+                `<option value="${escAttr(p.name)}" data-url="${escAttr(p.url)}">${escAttr(p.name)}</option>`
+            ).join('');
+
+            openMasterFormModal({
+                title: existing ? 'Edit Other Portal Login' : 'Add Other Portal Login',
+                subtitle: existing ? existing.portalName : 'EPFO, ESIC, DGFT, bank net banking, state portals, etc.',
+                submitLabel: existing ? 'Update Portal' : 'Add Portal',
+                fieldsHtml: `
+                    ${formField('Portal Type', `<select id="mf-opl-preset" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm" onchange="applyOtherPortalPreset()">
+                        <option value="">— Select common portal or type custom —</option>
+                        ${presetOptions}
+                    </select>`)}
+                    ${formField('Portal Name', formInput('mf-opl-name', 'text', 'EPFO (UAN)'), true)}
+                    ${formField('Portal URL', formInput('mf-opl-url', 'url', 'https://unifiedportal.epfindia.gov.in'))}
+                    ${formField('Username / ID / UAN', formInput('mf-opl-user', 'text', '', 'font-mono'), true)}
+                    ${formField('Password', formInput('mf-opl-pass', 'password', '', 'font-mono'))}
+                    ${formField('Notes', `<textarea id="mf-opl-notes" rows="2" placeholder="Registered mobile, filing frequency, etc." class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm"></textarea>`)}
+                `,
+                onSubmit: () => {
+                    const portalName = getFormVal('mf-opl-name');
+                    const username = getFormVal('mf-opl-user');
+                    if (!portalName) { showToast('Portal name is required', 'error'); return; }
+                    if (!username) { showToast('Username / ID is required', 'error'); return; }
+
+                    const entry = {
+                        portalName,
+                        url: getFormVal('mf-opl-url'),
+                        username,
+                        password: document.getElementById('mf-opl-pass').value,
+                        notes: getFormVal('mf-opl-notes'),
+                        updatedAt: new Date().toISOString().split('T')[0]
+                    };
+
+                    if (existing) {
+                        Object.assign(existing, entry);
+                    } else {
+                        client.portalLogins.other.unshift({ id: 'opl_' + Date.now(), ...entry });
+                    }
+
+                    saveAppData();
+                    if (isClientUser()) notifyAdminPortalLoginUpdate(client, portalName);
+                    closeMasterFormModal();
+                    showToast(existing ? 'Portal login updated' : 'Portal login added');
+                    showSection('portal-logins');
+                }
             });
-            saveAppData();
-            notifyAdminPortalLoginUpdate(client, portalName);
-            showToast('Portal login added');
-            showSection('portal-logins');
+
+            if (existing) {
+                document.getElementById('mf-opl-name').value = existing.portalName || '';
+                document.getElementById('mf-opl-url').value = existing.url || '';
+                document.getElementById('mf-opl-user').value = existing.username || '';
+                document.getElementById('mf-opl-pass').value = existing.password || '';
+                document.getElementById('mf-opl-notes').value = existing.notes || '';
+                const preset = OTHER_PORTAL_PRESETS.find(p => p.name === existing.portalName);
+                if (preset) document.getElementById('mf-opl-preset').value = preset.name;
+            }
+        }
+
+        function applyOtherPortalPreset() {
+            const sel = document.getElementById('mf-opl-preset');
+            if (!sel || !sel.value) return;
+            const opt = sel.options[sel.selectedIndex];
+            document.getElementById('mf-opl-name').value = sel.value;
+            if (opt.dataset.url) document.getElementById('mf-opl-url').value = opt.dataset.url;
         }
 
         function deleteOtherPortalLogin(id) {
+            if (!isClientUser() && !isFirmUser()) return;
             const client = getCurrentClient();
             if (!confirm('Delete this portal login?')) return;
             client.portalLogins.other = client.portalLogins.other.filter(o => o.id !== id);
             saveAppData();
+            showToast('Portal login removed');
             showSection('portal-logins');
         }
 
