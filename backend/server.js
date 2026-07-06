@@ -53,7 +53,7 @@ function getSampleUserPasswords() {
     return sampleUserPasswords;
 }
 
-function fillMissingUserPasswords(appData) {
+function fillMissingUserPasswords(tenantId, appData) {
     if (!appData?.users) return appData;
     const defaults = getSampleUserPasswords();
     let changed = false;
@@ -63,7 +63,7 @@ function fillMissingUserPasswords(appData) {
             changed = true;
         }
     });
-    if (changed) setTenantData(DEFAULT_TENANT_ID, appData);
+    if (changed) setTenantData(tenantId, appData);
     return appData;
 }
 
@@ -153,7 +153,7 @@ function ensureTenantData(tenantId) {
     if (!data.pendingSignups) data.pendingSignups = [];
     if (!data.users) data.users = {};
     if (!data.clients) data.clients = {};
-    fillMissingUserPasswords(data);
+    fillMissingUserPasswords(tenantId, data);
     return data;
 }
 
