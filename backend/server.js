@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
 const path = require('path');
 const {
     getTenantData,
@@ -37,6 +38,33 @@ function authMiddleware(req, res, next) {
     } catch {
         return res.status(401).json({ error: 'Invalid or expired token' });
     }
+}
+
+let sampleUserPasswords = null;
+function getSampleUserPasswords() {
+    if (!sampleUserPasswords) {
+        try {
+            const samplePath = path.join(__dirname, 'sample-app-data.json');
+            sampleUserPasswords = JSON.parse(fs.readFileSync(samplePath, 'utf8')).users || {};
+        } catch {
+            sampleUserPasswords = {};
+        }
+    }
+    return sampleUserPasswords;
+}
+
+function fillMissingUserPasswords(appData) {
+    if (!appData?.users) return appData;
+    const defaults = getSampleUserPasswords();
+    let changed = false;
+    Object.entries(appData.users).forEach(([id, u]) => {
+        if (u && !u.password && defaults[id]?.password) {
+            u.password = defaults[id].password;
+            changed = true;
+        }
+    });
+    if (changed) setTenantData(DEFAULT_TENANT_ID, appData);
+    return appData;
 }
 
 function prepareAppDataForRole(data, role) {
@@ -125,6 +153,7 @@ function ensureTenantData(tenantId) {
     if (!data.pendingSignups) data.pendingSignups = [];
     if (!data.users) data.users = {};
     if (!data.clients) data.clients = {};
+    fillMissingUserPasswords(data);
     return data;
 }
 
