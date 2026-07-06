@@ -84,6 +84,28 @@ function upsertUser({ id, tenantId, email, passwordHash, name, role, clientId })
     writeStore(store);
 }
 
+function deleteUser(id) {
+    const store = readStore();
+    if (store.users[id]) {
+        delete store.users[id];
+        writeStore(store);
+    }
+}
+
+function pruneTenantUsers(tenantId, validUserIds) {
+    const store = readStore();
+    const valid = new Set(validUserIds);
+    let changed = false;
+    Object.keys(store.users).forEach(id => {
+        const u = store.users[id];
+        if (u.tenant_id === tenantId && u.role !== 'firm' && !valid.has(id)) {
+            delete store.users[id];
+            changed = true;
+        }
+    });
+    if (changed) writeStore(store);
+}
+
 function ensureTenant(id, name) {
     const store = readStore();
     if (!store.tenants[id]) {
@@ -98,5 +120,7 @@ module.exports = {
     findUserByEmail,
     getUserById,
     upsertUser,
+    deleteUser,
+    pruneTenantUsers,
     ensureTenant
 };

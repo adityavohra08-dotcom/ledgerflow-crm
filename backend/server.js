@@ -10,6 +10,8 @@ const {
     findUserByEmail,
     getUserById,
     upsertUser,
+    deleteUser,
+    pruneTenantUsers,
     ensureTenant
 } = require('./db');
 
@@ -37,8 +39,9 @@ function authMiddleware(req, res, next) {
     }
 }
 
-function stripPasswords(data) {
+function prepareAppDataForRole(data, role) {
     const copy = JSON.parse(JSON.stringify(data));
+    if (role === 'firm') return copy;
     if (copy.users) {
         Object.values(copy.users).forEach(u => { delete u.password; });
     }
@@ -46,6 +49,25 @@ function stripPasswords(data) {
         copy.pendingSignups.forEach(s => { delete s.password; });
     }
     return copy;
+}
+
+function mergePreservedSecrets(tenantId, incoming) {
+    const existing = getTenantData(tenantId);
+    if (!existing || !incoming) return incoming;
+    if (existing.users && incoming.users) {
+        Object.entries(incoming.users).forEach(([id, u]) => {
+            if (u && !u.password && existing.users[id]?.password) {
+                u.password = existing.users[id].password;
+            }
+        });
+    }
+    if (existing.pendingSignups && incoming.pendingSignups) {
+        incoming.pendingSignups.forEach((s, i) => {
+            const prev = existing.pendingSignups.find(p => p.id === s.id);
+            if (prev?.password && !s.password) incoming.pendingSignups[i].password = prev.password;
+        });
+    }
+    return incoming;
 }
 
 function publicUser(dbUser) {
@@ -68,6 +90,7 @@ function findPendingSignup(appData, email) {
 
 function syncUsersFromAppData(tenantId, appData) {
     if (!appData?.users) return;
+    pruneTenantUsers(tenantId, Object.keys(appData.users));
     Object.entries(appData.users).forEach(([id, u]) => {
         if (!u?.email) return;
         const existing = findUserByEmail(tenantId, u.email);
@@ -86,6 +109,10 @@ function syncUsersFromAppData(tenantId, appData) {
             clientId: u.clientId || null
         });
     });
+}
+
+function isUserBlocked(appData, userId) {
+    return !!(appData?.users?.[userId]?.blocked);
 }
 
 function ensureTenantData(tenantId) {
@@ -122,6 +149,12 @@ app.post('/api/auth/login', (req, res) => {
     const dbUser = findUserByEmail(tenantId, email);
     if (dbUser && bcrypt.compareSync(password, dbUser.password_hash)) {
         const appData = ensureTenantData(tenantId);
+        if (isUserBlocked(appData, dbUser.id)) {
+            return res.status(403).json({
+                error: 'Your account has been blocked. Contact your accounting firm.',
+                code: 'account_blocked'
+            });
+        }
         const token = jwt.sign(
             { userId: dbUser.id, tenantId, role: dbUser.role, clientId: dbUser.client_id },
             JWT_SECRET,
@@ -130,7 +163,7 @@ app.post('/api/auth/login', (req, res) => {
         return res.json({
             token,
             user: publicUser(dbUser),
-            data: stripPasswords(appData)
+            data: prepareAppDataForRole(appData, dbUser.role)
         });
     }
 
@@ -168,20 +201,22 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
     const appData = ensureTenantData(req.auth.tenantId);
     res.json({
         user: publicUser(dbUser),
-        data: stripPasswords(appData)
+        data: prepareAppDataForRole(appData, dbUser.role)
     });
 });
 
 app.get('/api/data', authMiddleware, (req, res) => {
+    const dbUser = getUserById(req.auth.userId);
     const appData = ensureTenantData(req.auth.tenantId);
-    res.json({ data: stripPasswords(appData) });
+    res.json({ data: prepareAppDataForRole(appData, dbUser?.role || 'client') });
 });
 
 app.put('/api/data', authMiddleware, (req, res) => {
-    const incoming = req.body;
+    let incoming = req.body;
     if (!incoming || typeof incoming !== 'object') {
         return res.status(400).json({ error: 'Invalid data payload' });
     }
+    incoming = mergePreservedSecrets(req.auth.tenantId, incoming);
     saveTenantData(req.auth.tenantId, incoming);
     res.json({ ok: true, updatedAt: new Date().toISOString() });
 });

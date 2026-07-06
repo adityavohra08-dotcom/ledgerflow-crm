@@ -346,6 +346,11 @@
                             <i class="fa-solid fa-user-plus"></i>
                             <span>Add Client</span>
                         </button>
+                        <button onclick="showSection('client-management')" 
+                                class="flex items-center gap-x-2 px-4 py-2 text-sm font-medium bg-blue-900/50 hover:bg-blue-800 transition-colors rounded-xl border border-blue-700">
+                            <i class="fa-solid fa-user-gear"></i>
+                            <span>Manage Client</span>
+                        </button>
                     </div>
 
                     <div class="flex items-center gap-x-2 pl-3 border-l border-slate-700">
@@ -483,6 +488,10 @@
                     <span>My Profile &amp; Invoice Settings</span>
                 </a>
 
+                <a onclick="showSection('client-management')" data-firm-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-client-management">
+                    <i class="fa-solid fa-user-gear w-5 text-center"></i>
+                    <span>Manage Client</span>
+                </a>
                 <a onclick="showSection('firm-profile')" data-firm-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-firm-profile">
                     <i class="fa-solid fa-building-circle-check w-5"></i>
                     <span>Firm Profile &amp; GST Details</span>
@@ -963,7 +972,8 @@ Log in to Firm / Admin portal → Approve Signups to review.`
                 password: signup.password,
                 name: signup.businessName,
                 role: 'client',
-                clientId
+                clientId,
+                blocked: false
             };
 
             signup.adminApproved = true;
@@ -1387,6 +1397,9 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     } else if (err.code === 'pending_approval') {
                         showPendingPanel(email);
                         errorEl.classList.add('hidden');
+                    } else if (err.code === 'account_blocked') {
+                        errorEl.textContent = err.message || 'Your account has been blocked. Contact your accounting firm.';
+                        errorEl.classList.remove('hidden');
                     } else {
                         errorEl.textContent = err.message || 'Invalid email or password.';
                         errorEl.classList.remove('hidden');
@@ -1401,6 +1414,12 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             const user = Object.values(appData.users).find(u =>
                 u.email.toLowerCase() === email && u.password === password
             );
+
+            if (user?.blocked) {
+                errorEl.textContent = 'Your account has been blocked. Contact your accounting firm.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
 
             if (!user) {
                 const pending = findSignupByEmail(email);
@@ -1703,7 +1722,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                         documents: [], requests: [], bankTxns: [],
                         serviceOrders: [], adminInvoices: []
                     };
-                    appData.users[id] = { email, password, name, role: 'client', clientId: id };
+                    appData.users[id] = { email, password, name, role: 'client', clientId: id, blocked: false };
                     saveAppData();
                     currentClientId = id;
                     populateClientSwitcher();
@@ -1805,6 +1824,16 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             document.getElementById('mf-stock-reorder').value = '20';
         }
 
+        function findUserByClientId(clientId) {
+            const entry = Object.entries(appData.users || {}).find(([, u]) => u.clientId === clientId);
+            return entry ? { id: entry[0], user: entry[1] } : null;
+        }
+
+        function isClientAccountBlocked(clientId) {
+            const linked = findUserByClientId(clientId);
+            return !!(linked?.user?.blocked);
+        }
+
         function populateClientSwitcher() {
             const select = document.getElementById('client-switcher');
             if (!select) return;
@@ -1815,7 +1844,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 const client = appData.clients[id];
                 const option = document.createElement('option');
                 option.value = id;
-                option.textContent = client.name;
+                option.textContent = client.name + (isClientAccountBlocked(id) ? ' [BLOCKED]' : '');
                 if (id === currentClientId) option.selected = true;
                 select.appendChild(option);
             });
@@ -1860,6 +1889,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 case 'emi-calculator': renderEMICalculator(main); break;
                 case 'sales-purchase-report': renderSalesPurchaseReport(main); break;
                 case 'firm-profile': renderFirmProfile(main); break;
+                case 'client-management': renderAdminClientManagement(main); break;
                 default: renderDashboard(main);
             }
         }
@@ -1889,7 +1919,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             const isClient = isClientUser();
             const isFirm = isFirmUser();
             const canEdit = isClient || isFirm;
-            const passType = 'password';
+            const passType = 'text';
 
             const portalSaveBtn = (type, label, color) => canEdit
                 ? `<button onclick="savePortalLogin('${type}')" class="w-full py-2 ${color} rounded-xl text-sm font-semibold">${label}</button>`
@@ -1899,8 +1929,8 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 <div class="mb-6">
                     <h2 class="text-2xl font-semibold tracking-tight">${isClient ? 'Share Government Portal Logins' : 'Client Portal Login Credentials'}</h2>
                     <p class="text-slate-400 text-sm">${isClient
-                        ? 'Securely submit GST, Income Tax, TAN, MCA and other portal credentials to your CA'
-                        : `View and edit portal credentials for ${client.name} — firm access only`}</p>
+                        ? 'Submit and view GST, Income Tax, TAN, MCA and other portal credentials — passwords are visible for your reference'
+                        : `View and edit portal credentials for ${client.name} — passwords visible to admin and client`}</p>
                 </div>
 
                 <div class="mb-4 p-4 bg-amber-900/20 border border-amber-800 rounded-2xl text-xs text-amber-300 flex items-start gap-2">
@@ -1920,7 +1950,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                         <div class="space-y-3 text-sm">
                             <div><label class="text-xs text-slate-400">GSTIN / Username</label>
                                 <input id="pl-gst-user" value="${escAttr(pl.gst.username || pl.gst.gstin || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
-                            <div><label class="text-xs text-slate-400">Password</label>
+                            <div><label class="text-xs text-slate-400">Password <span class="text-slate-500">(visible)</span></label>
                                 <input id="pl-gst-pass" type="${passType}" value="${escAttr(pl.gst.password || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono" autocomplete="off"></div>
                             <div><label class="text-xs text-slate-400">Notes (e.g. registered mobile)</label>
                                 <input id="pl-gst-notes" value="${escAttr(pl.gst.notes || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"></div>
@@ -1941,7 +1971,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                                 <div><label class="text-xs text-slate-400">PAN</label>
                                     <input id="pl-itr-pan" value="${escAttr(pl.incometax.pan || client.pan || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
                             </div>
-                            <div><label class="text-xs text-slate-400">Password</label>
+                            <div><label class="text-xs text-slate-400">Password <span class="text-slate-500">(visible)</span></label>
                                 <input id="pl-itr-pass" type="${passType}" value="${escAttr(pl.incometax.password || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono" autocomplete="off"></div>
                             <div><label class="text-xs text-slate-400">Notes</label>
                                 <input id="pl-itr-notes" value="${escAttr(pl.incometax.notes || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"></div>
@@ -1962,7 +1992,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                                 <div><label class="text-xs text-slate-400">User ID</label>
                                     <input id="pl-tan-user" value="${escAttr(pl.tan.username || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
                             </div>
-                            <div><label class="text-xs text-slate-400">Password</label>
+                            <div><label class="text-xs text-slate-400">Password <span class="text-slate-500">(visible)</span></label>
                                 <input id="pl-tan-pass" type="${passType}" value="${escAttr(pl.tan.password || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono" autocomplete="off"></div>
                             <div><label class="text-xs text-slate-400">Notes</label>
                                 <input id="pl-tan-notes" value="${escAttr(pl.tan.notes || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"></div>
@@ -1983,7 +2013,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                                 <div><label class="text-xs text-slate-400">CIN / LLPIN</label>
                                     <input id="pl-mca-cin" value="${escAttr(pl.mca.cin || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono"></div>
                             </div>
-                            <div><label class="text-xs text-slate-400">Password</label>
+                            <div><label class="text-xs text-slate-400">Password <span class="text-slate-500">(visible)</span></label>
                                 <input id="pl-mca-pass" type="${passType}" value="${escAttr(pl.mca.password || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono" autocomplete="off"></div>
                             <div class="grid grid-cols-2 gap-3">
                                 <div><label class="text-xs text-slate-400">DIN (if applicable)</label>
@@ -2015,7 +2045,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                                     <td class="font-medium">${escHtml(o.portalName)}</td>
                                     <td class="text-xs text-slate-400">${o.url ? `<a href="${escAttr(o.url)}" target="_blank" rel="noopener" class="text-emerald-400 hover:underline">${escHtml(o.url)}</a>` : '—'}</td>
                                     <td class="font-mono text-xs">${escHtml(o.username) || '—'}</td>
-                                    <td class="font-mono text-xs">${isFirm ? (escHtml(o.password) || '—') : '••••••'}</td>
+                                    <td class="font-mono text-xs">${escHtml(o.password) || '—'}</td>
                                     <td class="text-xs">${escHtml(o.notes) || '—'}</td>
                                     <td class="text-xs">${o.updatedAt || '—'}</td>
                                     ${canEdit ? `<td class="whitespace-nowrap">
@@ -2124,7 +2154,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     ${formField('Portal Name', formInput('mf-opl-name', 'text', 'EPFO (UAN)'), true)}
                     ${formField('Portal URL', formInput('mf-opl-url', 'url', 'https://unifiedportal.epfindia.gov.in'))}
                     ${formField('Username / ID / UAN', formInput('mf-opl-user', 'text', '', 'font-mono'), true)}
-                    ${formField('Password', formInput('mf-opl-pass', 'password', '', 'font-mono'))}
+                    ${formField('Password (visible)', formInput('mf-opl-pass', 'text', '', 'font-mono'))}
                     ${formField('Notes', `<textarea id="mf-opl-notes" rows="2" placeholder="Registered mobile, filing frequency, etc." class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm"></textarea>`)}
                 `,
                 onSubmit: () => {
@@ -3660,6 +3690,278 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             }
         }
 
+        function renderAdminClientManagement(container) {
+            if (!isFirmUser()) {
+                container.innerHTML = '<div class="text-slate-400">Admin access required.</div>';
+                return;
+            }
+
+            const client = getCurrentClient();
+            if (!client) {
+                container.innerHTML = `
+                    <div class="max-w-xl text-center py-16">
+                        <i class="fa-solid fa-users text-4xl text-slate-600 mb-4"></i>
+                        <h2 class="text-xl font-semibold mb-2">No clients yet</h2>
+                        <p class="text-slate-400 text-sm mb-6">Add a client business to manage their profile and login access.</p>
+                        <button onclick="addNewClient()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold text-sm">
+                            <i class="fa-solid fa-user-plus mr-1"></i> Add Client
+                        </button>
+                    </div>`;
+                return;
+            }
+
+            const linked = findUserByClientId(client.id);
+            const user = linked?.user;
+            const blocked = !!(user?.blocked);
+            const loginEmail = user?.email || client.email || '';
+            const loginPassword = user?.password || '';
+            const clientCount = Object.keys(appData.clients).length;
+
+            container.innerHTML = `
+                <div class="max-w-4xl">
+                    <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+                        <div>
+                            <h2 class="text-2xl font-semibold tracking-tight mb-1">Manage Client</h2>
+                            <p class="text-slate-400 text-sm">Edit profile, CRM login credentials, and access for <strong class="text-white">${escHtml(client.name)}</strong></p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-3 py-1 rounded-full text-xs font-bold border ${blocked ? 'bg-red-900/40 text-red-300 border-red-700' : 'bg-emerald-900/40 text-emerald-300 border-emerald-700'}">
+                                <i class="fa-solid ${blocked ? 'fa-ban' : 'fa-circle-check'} mr-1"></i>
+                                ${blocked ? 'Login Blocked' : 'Login Active'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-700 rounded-3xl p-7 space-y-6">
+                        <div class="pb-4 border-b border-slate-700">
+                            <label class="text-xs font-medium text-slate-400 block mb-2">Company Logo</label>
+                            <div class="flex items-center gap-4">
+                                <div class="w-24 h-24 bg-slate-950 border border-slate-700 rounded-2xl flex items-center justify-center overflow-hidden cursor-pointer"
+                                     onclick="document.getElementById('prof-logo-upload').click()">
+                                    <img id="prof-logo-preview" src="${escAttr(client.logo || '')}" class="max-w-full max-h-full object-contain ${client.logo ? '' : 'hidden'}" alt="Logo">
+                                    <div id="prof-logo-placeholder" class="text-center text-xs text-slate-500 ${client.logo ? 'hidden' : ''}">
+                                        <i class="fa-solid fa-image text-2xl mb-1 block text-slate-600"></i> Upload
+                                    </div>
+                                </div>
+                                <div class="text-xs text-slate-400 space-y-2">
+                                    <input type="file" id="prof-logo-upload" accept="image/*" class="hidden" onchange="handleProfileLogoUpload(this)">
+                                    <button type="button" onclick="document.getElementById('prof-logo-upload').click()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl text-sm font-semibold block">
+                                        <i class="fa-solid fa-upload mr-1"></i> Upload Logo
+                                    </button>
+                                    ${client.logo ? `<button type="button" onclick="removeProfileLogo()" class="text-red-400 hover:text-red-300 text-xs">Remove logo</button>` : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="text-xs font-medium text-slate-400 block mb-1">Legal Business Name</label>
+                                <input id="adm-name" value="${escAttr(client.name)}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-slate-400 block mb-1">Business Email</label>
+                                <input id="adm-email" type="email" value="${escAttr(client.email || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-slate-400 block mb-1">GSTIN</label>
+                                <input id="adm-gstin" value="${escAttr(client.gstin || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm font-mono">
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-slate-400 block mb-1">PAN</label>
+                                <input id="adm-pan" value="${escAttr(client.pan || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm font-mono">
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-slate-400 block mb-1">Phone</label>
+                                <input id="adm-phone" value="${escAttr(client.phone || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-slate-400 block mb-1">State</label>
+                                <select id="adm-state" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm">
+                                    ${stateList.map(s => `<option value="${s.code}" ${s.code === client.stateCode ? 'selected' : ''}>${s.name} (${s.code})</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-medium text-slate-400 block mb-1">Address</label>
+                            <textarea id="adm-address" rows="2" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm">${escHtml(client.address || '')}</textarea>
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-700">
+                            <div class="font-semibold mb-3">Bank Details</div>
+                            <div class="grid grid-cols-2 gap-5">
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Bank Name</label>
+                                    <input id="adm-bank-name" value="${escAttr(client.bank?.name || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Account Number</label>
+                                    <input id="adm-bank-account" value="${escAttr(client.bank?.account || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm font-mono">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">IFSC Code</label>
+                                    <input id="adm-bank-ifsc" value="${escAttr(client.bank?.ifsc || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm font-mono">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Branch</label>
+                                    <input id="adm-bank-branch" value="${escAttr(client.bank?.branch || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-medium text-slate-400 block mb-1">Default Terms & Conditions</label>
+                            <textarea id="adm-terms" rows="3" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-xs">${escHtml(client.terms || '')}</textarea>
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-700">
+                            <div class="font-semibold mb-1 flex items-center gap-2">
+                                <i class="fa-solid fa-key text-amber-400"></i> CRM Portal Login Credentials
+                            </div>
+                            <p class="text-xs text-slate-500 mb-4">Client uses these to sign in to this portal. Password is stored visibly for admin reference.</p>
+                            ${user ? `
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Login Email</label>
+                                    <input id="adm-login-email" type="email" value="${escAttr(loginEmail)}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm font-mono">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Password <span class="text-slate-500">(visible)</span></label>
+                                    <input id="adm-login-password" type="text" value="${escAttr(loginPassword)}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm font-mono" autocomplete="off">
+                                </div>
+                            </div>` : `
+                            <div class="p-4 bg-amber-900/20 border border-amber-800 rounded-2xl text-sm text-amber-300">
+                                No CRM login account linked. Save profile with login email and password to create one.
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Login Email</label>
+                                    <input id="adm-login-email" type="email" value="${escAttr(client.email || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm font-mono">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Password <span class="text-slate-500">(visible)</span></label>
+                                    <input id="adm-login-password" type="text" value="client123" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm font-mono" autocomplete="off">
+                                </div>
+                            </div>`}
+                        </div>
+
+                        <button onclick="saveAdminClientProfile()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-semibold">
+                            <i class="fa-solid fa-floppy-disk mr-1"></i> Save Client Profile & Login
+                        </button>
+
+                        <div class="pt-4 border-t border-slate-700 flex flex-wrap gap-3">
+                            ${user ? `
+                            <button onclick="toggleClientBlocked()" class="flex-1 min-w-[200px] py-3 rounded-2xl font-semibold border ${blocked ? 'bg-emerald-900/40 hover:bg-emerald-800/60 border-emerald-700 text-emerald-300' : 'bg-amber-900/40 hover:bg-amber-800/60 border-amber-700 text-amber-300'}">
+                                <i class="fa-solid ${blocked ? 'fa-unlock' : 'fa-ban'} mr-1"></i>
+                                ${blocked ? 'Unblock Client Login' : 'Block Client from Logging In'}
+                            </button>` : ''}
+                            <button onclick="deleteCurrentClient()" class="flex-1 min-w-[200px] py-3 bg-red-900/40 hover:bg-red-800/60 border border-red-700 text-red-300 rounded-2xl font-semibold" ${clientCount <= 1 ? 'disabled title="Cannot delete the only client"' : ''}>
+                                <i class="fa-solid fa-trash mr-1"></i> Delete Client
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function saveAdminClientProfile() {
+            if (!isFirmUser()) return;
+            const client = getCurrentClient();
+            if (!client) return;
+
+            const name = getFormVal('adm-name');
+            const businessEmail = getFormVal('adm-email');
+            const loginEmail = getFormVal('adm-login-email').toLowerCase();
+            const loginPassword = document.getElementById('adm-login-password')?.value || '';
+
+            if (!name) { showToast('Business name is required', 'error'); return; }
+            if (!loginEmail) { showToast('Login email is required', 'error'); return; }
+            if (!loginPassword || loginPassword.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
+
+            const linked = findUserByClientId(client.id);
+            const dup = Object.entries(appData.users).some(([id, u]) =>
+                u.email?.toLowerCase() === loginEmail && id !== (linked?.id || client.id)
+            );
+            if (dup) { showToast('Login email already used by another account', 'error'); return; }
+
+            client.name = name;
+            client.email = businessEmail;
+            client.gstin = getFormVal('adm-gstin');
+            client.pan = getFormVal('adm-pan');
+            client.phone = getFormVal('adm-phone');
+            client.address = document.getElementById('adm-address')?.value || '';
+            client.stateCode = document.getElementById('adm-state')?.value || client.stateCode;
+            client.terms = document.getElementById('adm-terms')?.value || '';
+            if (!client.bank) client.bank = { name: '', account: '', ifsc: '', branch: '' };
+            client.bank.name = getFormVal('adm-bank-name');
+            client.bank.account = getFormVal('adm-bank-account');
+            client.bank.ifsc = getFormVal('adm-bank-ifsc');
+            client.bank.branch = getFormVal('adm-bank-branch');
+
+            const userId = linked?.id || client.id;
+            const prevBlocked = linked?.user?.blocked || false;
+            appData.users[userId] = {
+                email: loginEmail,
+                password: loginPassword,
+                name,
+                role: 'client',
+                clientId: client.id,
+                blocked: prevBlocked
+            };
+
+            saveAppData();
+            populateClientSwitcher();
+            showToast(`Client "${name}" profile and login saved`);
+            showSection('client-management');
+        }
+
+        function toggleClientBlocked() {
+            if (!isFirmUser()) return;
+            const client = getCurrentClient();
+            const linked = findUserByClientId(client.id);
+            if (!linked) {
+                showToast('No login account found for this client', 'error');
+                return;
+            }
+
+            const nowBlocked = !linked.user.blocked;
+            linked.user.blocked = nowBlocked;
+            saveAppData();
+            populateClientSwitcher();
+            showToast(nowBlocked
+                ? `${client.name} blocked from logging in`
+                : `${client.name} can log in again`);
+            showSection('client-management');
+        }
+
+        function deleteCurrentClient() {
+            if (!isFirmUser()) return;
+            const client = getCurrentClient();
+            if (!client) return;
+
+            const clientIds = Object.keys(appData.clients);
+            if (clientIds.length <= 1) {
+                showToast('Cannot delete the only remaining client', 'error');
+                return;
+            }
+
+            if (!confirm(`Delete "${client.name}" and all their data?\n\nThis removes the client record and CRM login. This cannot be undone.`)) {
+                return;
+            }
+
+            const linked = findUserByClientId(client.id);
+            delete appData.clients[client.id];
+            if (linked) delete appData.users[linked.id];
+            else if (appData.users[client.id]) delete appData.users[client.id];
+
+            const remaining = Object.keys(appData.clients);
+            currentClientId = remaining[0];
+            saveAppData();
+            populateClientSwitcher();
+            showToast(`Client "${client.name}" deleted`);
+            showSection('client-management');
+        }
+
         function renderProfile(container) {
             const client = getCurrentClient();
             
@@ -4475,7 +4777,7 @@ Sent via LedgerFlow CRM`;
             Object.values(appData.clients).forEach(c => {
                 const exists = Object.values(appData.users).some(u => u.clientId === c.id);
                 if (!exists && c.email) {
-                    appData.users[c.id] = { email: c.email, password: 'client123', name: c.name, role: 'client', clientId: c.id };
+                    appData.users[c.id] = { email: c.email, password: 'client123', name: c.name, role: 'client', clientId: c.id, blocked: false };
                 }
             });
         }
