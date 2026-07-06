@@ -1,0 +1,444 @@
+{
+  "firmSettings": {
+    "name": "Udyog Suvidha & Associates",
+    "email": "ca@udyogsuvidha.in",
+    "gstin": "07AABCU9603R1ZM",
+    "pan": "AABCU9603R",
+    "address": "Office 12, Mayur Vihar Phase-1, New Delhi - 110091",
+    "stateCode": "07",
+    "phone": "+91 98765 43210",
+    "logo": "",
+    "bank": {
+      "name": "HDFC Bank",
+      "account": "50100987654321",
+      "ifsc": "HDFC0001234",
+      "branch": "Mayur Vihar"
+    },
+    "terms": "1. Payment due within 7 days of invoice date.\n2. All disputes subject to Delhi jurisdiction.\n3. GST as applicable.",
+    "invoicePrefix": "CA-INV"
+  },
+  "users": {
+    "firm": {
+      "email": "ca@udyogsuvidha.in",
+      "password": "firm123",
+      "name": "CA Priya Sharma",
+      "role": "firm"
+    },
+    "c1": {
+      "email": "info@sharmatraders.in",
+      "password": "client123",
+      "name": "Sharma Traders",
+      "role": "client",
+      "clientId": "c1"
+    },
+    "c2": {
+      "email": "billing@technova.in",
+      "password": "client123",
+      "name": "TechNova Solutions",
+      "role": "client",
+      "clientId": "c2"
+    },
+    "c3": {
+      "email": "accounts@freshmart.in",
+      "password": "client123",
+      "name": "FreshMart Retail",
+      "role": "client",
+      "clientId": "c3"
+    }
+  },
+  "pendingSignups": [
+    {
+      "id": "signup_demo1",
+      "businessName": "Patel Enterprises",
+      "email": "patel.enterprises@example.com",
+      "password": "client123",
+      "phone": "+91 98100 11223",
+      "gstin": "24AABCP1234E1Z5",
+      "address": "Ahmedabad, Gujarat",
+      "stateCode": "24",
+      "verificationToken": "vf_demo_patel_token",
+      "verificationCode": "482910",
+      "emailVerified": true,
+      "adminApproved": false,
+      "status": "pending_approval",
+      "createdAt": "2026-07-01",
+      "verifiedAt": "2026-07-01"
+    }
+  ],
+  "clients": {
+    "c1": {
+      "id": "c1",
+      "name": "Sharma Traders",
+      "gstin": "07AABCT1234D1Z5",
+      "pan": "AABCT1234D",
+      "stateCode": "07",
+      "address": "A-42, Mayur Vihar Phase-1, New Delhi - 110091",
+      "phone": "+91 98765 43210",
+      "email": "info@sharmatraders.in",
+      "logo": "",
+      "bank": {
+        "name": "HDFC Bank",
+        "account": "50100234567890",
+        "ifsc": "HDFC0001234",
+        "branch": "Mayur Vihar Branch"
+      },
+      "terms": "1. Goods once sold will not be taken back.\n2. Subject to Delhi jurisdiction.\n3. Interest @24% p.a. on overdue invoices.",
+      "notes": "Thank you for your business!",
+      "serviceOrders": [],
+      "adminInvoices": [],
+      "customers": [
+        {
+          "id": "cust1",
+          "name": "Metro Retail Pvt Ltd",
+          "gstin": "07AABCM5678N1Z2",
+          "stateCode": "07",
+          "address": "C-12, Connaught Place, New Delhi",
+          "email": "purchase@metroretail.in",
+          "phone": "+91 11 4567 8900"
+        },
+        {
+          "id": "cust2",
+          "name": " Sunrise Distributors",
+          "gstin": "09AABCS9876P1Z3",
+          "stateCode": "09",
+          "address": "B-88, Industrial Area, Noida",
+          "email": "accounts@sunrisedist.com"
+        }
+      ],
+      "stock": [
+        {
+          "id": "st1",
+          "name": "Premium Widget X200",
+          "hsn": "9983",
+          "unit": "Nos",
+          "rate": 1250,
+          "gstPercent": 18,
+          "stockQty": 245,
+          "reorderLevel": 50
+        },
+        {
+          "id": "st2",
+          "name": "Industrial Fastener Kit",
+          "hsn": "7318",
+          "unit": "Set",
+          "rate": 380,
+          "gstPercent": 18,
+          "stockQty": 18,
+          "reorderLevel": 30
+        },
+        {
+          "id": "st3",
+          "name": "Packaging Box - Large",
+          "hsn": "4819",
+          "unit": "Nos",
+          "rate": 45,
+          "gstPercent": 12,
+          "stockQty": 1200,
+          "reorderLevel": 200
+        }
+      ],
+      "invoices": [
+        {
+          "id": "inv1",
+          "number": "INV-2026-0042",
+          "date": "2026-06-15",
+          "partyName": "Metro Retail Pvt Ltd",
+          "taxable": 125000,
+          "cgst": 11250,
+          "sgst": 11250,
+          "igst": 0,
+          "grandTotal": 147500,
+          "status": "Paid",
+          "items": 3
+        },
+        {
+          "id": "inv2",
+          "number": "INV-2026-0043",
+          "date": "2026-06-22",
+          "partyName": "Sunrise Distributors",
+          "taxable": 87500,
+          "cgst": 0,
+          "sgst": 0,
+          "igst": 15750,
+          "grandTotal": 103250,
+          "status": "Pending",
+          "items": 2
+        }
+      ],
+      "purchases": [
+        {
+          "id": "pur1",
+          "date": "2026-06-10",
+          "invoiceNo": "ABC/2026/118",
+          "supplier": "ABC Suppliers",
+          "gstin": "09AABCA1234B1Z8",
+          "taxable": 65000,
+          "cgst": 5850,
+          "sgst": 5850,
+          "igst": 0,
+          "itcEligible": true,
+          "uploadedBy": "client"
+        },
+        {
+          "id": "pur2",
+          "date": "2026-06-18",
+          "invoiceNo": "GT-8842",
+          "supplier": "Global Traders",
+          "gstin": "27AABCG5678C1Z2",
+          "taxable": 42000,
+          "cgst": 0,
+          "sgst": 0,
+          "igst": 7560,
+          "itcEligible": true,
+          "uploadedBy": "client"
+        }
+      ],
+      "documents": [
+        {
+          "id": "doc1",
+          "name": "GSTR-1_June2026_Filed.pdf",
+          "type": "GST Return",
+          "date": "2026-07-02",
+          "size": "245 KB",
+          "uploadedBy": "admin",
+          "uploadedByName": "CA Priya Sharma",
+          "notes": "GSTR-1 filed for June 2026 — please review"
+        },
+        {
+          "id": "doc2",
+          "name": "Bank_Statement_June2026.pdf",
+          "type": "Bank",
+          "date": "2026-07-01",
+          "size": "1.2 MB",
+          "uploadedBy": "admin",
+          "uploadedByName": "CA Priya Sharma",
+          "notes": "HDFC Bank statement for reconciliation"
+        },
+        {
+          "id": "doc2b",
+          "name": "ITR_Acknowledgement_FY2425.pdf",
+          "type": "Compliance",
+          "date": "2026-06-15",
+          "size": "89 KB",
+          "uploadedBy": "admin",
+          "uploadedByName": "CA Priya Sharma",
+          "notes": "ITR filed acknowledgement"
+        }
+      ],
+      "requests": [
+        {
+          "id": "req1",
+          "type": "ITC Claim Assistance",
+          "subject": "Help with transitional ITC refund claim",
+          "status": "In Progress",
+          "date": "2026-06-28",
+          "priority": "High"
+        }
+      ],
+      "bankTxns": [
+        {
+          "id": "bt1",
+          "date": "2026-06-20",
+          "description": "Payment from Metro Retail",
+          "amount": 147500,
+          "type": "credit",
+          "reconciled": true,
+          "source": "book"
+        },
+        {
+          "id": "bt2",
+          "date": "2026-06-25",
+          "description": "Vendor payment - ABC Suppliers",
+          "amount": 76700,
+          "type": "debit",
+          "reconciled": false,
+          "source": "book"
+        }
+      ],
+      "bankStatement": [],
+      "portalLogins": {
+        "gst": {
+          "username": "07AABCT1234D1Z5",
+          "gstin": "07AABCT1234D1Z5",
+          "password": "demo_gst_pass",
+          "notes": "Registered mobile: 98765 43210",
+          "updatedAt": "2026-06-15"
+        },
+        "incometax": {
+          "username": "AABCT1234D",
+          "pan": "AABCT1234D",
+          "password": "demo_itr_pass",
+          "notes": "Aadhaar linked",
+          "updatedAt": "2026-06-10"
+        },
+        "tan": {
+          "tan": "DELH12345A",
+          "username": "sharmatraders",
+          "password": "demo_tan_pass",
+          "notes": "TRACES portal",
+          "updatedAt": "2026-06-08"
+        },
+        "mca": {
+          "username": "director@sharmatraders.in",
+          "password": "demo_mca_pass",
+          "cin": "",
+          "din": "",
+          "notes": "Proprietorship — N/A",
+          "updatedAt": ""
+        },
+        "other": [
+          {
+            "id": "opl1",
+            "portalName": "EPFO (UAN)",
+            "url": "https://unifiedportal.epfindia.gov.in",
+            "username": "101234567890",
+            "password": "demo_epfo",
+            "notes": "PF filing",
+            "updatedAt": "2026-05-20"
+          }
+        ]
+      }
+    },
+    "c2": {
+      "id": "c2",
+      "name": "TechNova Solutions Pvt Ltd",
+      "gstin": "27AABCT9876E1Z3",
+      "pan": "AABCT9876E",
+      "stateCode": "27",
+      "address": "Unit 405, Technopark, Andheri East, Mumbai - 400069",
+      "phone": "+91 22 4000 1234",
+      "email": "billing@technova.in",
+      "logo": "",
+      "bank": {
+        "name": "ICICI Bank",
+        "account": "123405678901",
+        "ifsc": "ICIC0001234",
+        "branch": "Andheri East"
+      },
+      "terms": "1. Payment within 15 days.\n2. All disputes subject to Mumbai courts.",
+      "notes": "",
+      "serviceOrders": [],
+      "adminInvoices": [],
+      "customers": [
+        {
+          "id": "cust3",
+          "name": "Reliance Digital",
+          "gstin": "27AABCR1234F1Z5",
+          "stateCode": "27",
+          "address": "Bandra Kurla Complex, Mumbai",
+          "email": "vendor@reliance.com"
+        }
+      ],
+      "stock": [
+        {
+          "id": "st4",
+          "name": "Cloud Hosting - Annual",
+          "hsn": "9983",
+          "unit": "Year",
+          "rate": 48000,
+          "gstPercent": 18,
+          "stockQty": 12,
+          "reorderLevel": 5
+        },
+        {
+          "id": "st5",
+          "name": "Enterprise Software License",
+          "hsn": "9973",
+          "unit": "License",
+          "rate": 125000,
+          "gstPercent": 18,
+          "stockQty": 8,
+          "reorderLevel": 3
+        }
+      ],
+      "invoices": [
+        {
+          "id": "inv3",
+          "number": "INV-2026-0188",
+          "date": "2026-06-05",
+          "partyName": "Reliance Digital",
+          "taxable": 245000,
+          "cgst": 22050,
+          "sgst": 22050,
+          "igst": 0,
+          "grandTotal": 289100,
+          "status": "Paid",
+          "items": 1
+        }
+      ],
+      "purchases": [],
+      "documents": [],
+      "requests": [],
+      "bankTxns": []
+    },
+    "c3": {
+      "id": "c3",
+      "name": "FreshMart Retail LLP",
+      "gstin": "29AABCF4567G1Z8",
+      "pan": "AABCF4567G",
+      "stateCode": "29",
+      "address": "No. 18, 2nd Cross, Koramangala, Bengaluru - 560034",
+      "phone": "+91 80 4567 8901",
+      "email": "accounts@freshmart.in",
+      "logo": "",
+      "bank": {
+        "name": "Axis Bank",
+        "account": "910203040506",
+        "ifsc": "UTIB0000456",
+        "branch": "Koramangala"
+      },
+      "terms": "1. Perishable goods not returnable.\n2. Subject to Bengaluru jurisdiction.",
+      "notes": "E-way bill mandatory for inter-state.",
+      "serviceOrders": [],
+      "adminInvoices": [],
+      "customers": [],
+      "stock": [
+        {
+          "id": "st6",
+          "name": "Organic Almonds 1kg",
+          "hsn": "0802",
+          "unit": "Kg",
+          "rate": 850,
+          "gstPercent": 5,
+          "stockQty": 65,
+          "reorderLevel": 20
+        },
+        {
+          "id": "st7",
+          "name": "Cold Pressed Oil 5L",
+          "hsn": "1515",
+          "unit": "Ltr",
+          "rate": 1250,
+          "gstPercent": 5,
+          "stockQty": 42,
+          "reorderLevel": 15
+        }
+      ],
+      "invoices": [],
+      "purchases": [],
+      "documents": [
+        {
+          "id": "doc3",
+          "name": "GSTR-3B_May2026_Filed.pdf",
+          "type": "GST Return",
+          "date": "2026-06-20",
+          "size": "180 KB",
+          "uploadedBy": "admin",
+          "uploadedByName": "CA Priya Sharma",
+          "notes": "GSTR-3B filed copy"
+        }
+      ],
+      "requests": [
+        {
+          "id": "req2",
+          "type": "General Query",
+          "subject": "Clarification on new e-invoicing rules",
+          "status": "Open",
+          "date": "2026-07-01",
+          "priority": "Medium"
+        }
+      ],
+      "bankTxns": []
+    }
+  }
+}

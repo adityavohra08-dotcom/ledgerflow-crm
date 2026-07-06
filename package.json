@@ -1,0 +1,13 @@
+{
+  "name": "ledgerflow-crm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LedgerFlow CRM — full-stack deployment",
+  "scripts": {
+    "build": "cd backend && npm install",
+    "start": "cd backend && node seed.js && node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

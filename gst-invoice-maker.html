@@ -1,0 +1,2474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GST Invoice Maker • Wix Compatible</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="invoice-pdf-template.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+        
+        :root {
+            --primary: #0f172a;
+        }
+        
+        body {
+            font-family: 'Inter', system_ui, sans-serif;
+        }
+        
+        .font-display {
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            font-weight: 600;
+        }
+
+        .invoice-preview {
+            width: 794px;
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.15);
+            border: 1px solid #e2e8f0;
+            font-size: 13.5px;
+            line-height: 1.5;
+        }
+
+        .invoice-header {
+            border-bottom: 3px solid #0f172a;
+            padding-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+
+        .invoice-table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        
+        .invoice-table th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            font-size: 11px;
+            color: #334155;
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .invoice-table td {
+            padding: 9px 8px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+        
+        .invoice-table .amount-col {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .form-input {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+        }
+
+        .gst-badge {
+            font-size: 10px;
+            padding: 1px 8px;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+
+        .nav-active {
+            background-color: #0f172a;
+            color: white;
+            border-radius: 6px;
+        }
+
+        .item-row:hover {
+            background-color: #f8fafc;
+        }
+
+        .print-only {
+            display: none;
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            
+            .invoice-preview {
+                box-shadow: none;
+                border: 1px solid #cbd5e1;
+                width: 100%;
+                max-width: 100%;
+                margin: 0;
+                padding: 15mm;
+            }
+            
+            body {
+                background: white;
+            }
+        }
+
+        .amount {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .tax-highlight {
+            background-color: #fefce8;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200">
+    <!-- CRM Embed Toolbar (shown when opened from LedgerFlow CRM) -->
+    <div id="crm-toolbar" class="hidden bg-emerald-900 border-b border-emerald-700 px-6 py-2 flex items-center justify-between">
+        <div class="flex items-center gap-3 text-sm">
+            <i class="fa-solid fa-link text-emerald-400"></i>
+            <span>Connected to <strong>LedgerFlow CRM</strong> — <span id="crm-client-name">Client</span></span>
+        </div>
+        <div class="flex items-center gap-2">
+            <select id="crm-customer-pick" onchange="fillCustomerFromCRM(this.value)" class="text-xs bg-slate-900 border border-slate-600 rounded-xl px-3 py-1.5">
+                <option value="">Load Customer...</option>
+            </select>
+            <select id="crm-stock-pick" onchange="addStockFromCRM(this.value); this.value=''" class="text-xs bg-slate-900 border border-slate-600 rounded-xl px-3 py-1.5">
+                <option value="">+ From Stock...</option>
+            </select>
+            <button onclick="saveToCRM()" class="text-xs px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold flex items-center gap-1">
+                <i class="fa-solid fa-save"></i> Save to CRM
+            </button>
+            <button onclick="sendInvoiceEmailCRM()" class="text-xs px-4 py-1.5 bg-blue-700 hover:bg-blue-600 rounded-xl font-semibold flex items-center gap-1">
+                <i class="fa-solid fa-envelope"></i> Send Email
+            </button>
+        </div>
+    </div>
+
+    <!-- Wix Compatibility Banner -->
+    <div id="wix-banner" class="bg-yellow-500 text-yellow-900 text-center py-2 text-sm font-medium">
+        <i class="fa-solid fa-info-circle mr-2"></i>
+        <strong>Click <strong>"Open Full Version"</strong> button for best experience (recommended). 
+        Use <strong>"Print / Save as PDF"</strong> for quick invoices inside Wix.
+    </div>
+
+    <!-- Top Navigation -->
+    <nav class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
+        <div class="max-w-screen-2xl mx-auto">
+            <div class="px-8 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-x-3">
+                    <div class="w-11 h-11 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-inner">
+                        <i class="fa-solid fa-file-invoice-dollar text-white text-3xl"></i>
+                    </div>
+                    <div>
+                        <span class="font-display text-3xl font-semibold tracking-tighter">GST Invoice</span>
+                        <span class="font-display text-3xl font-semibold tracking-tighter text-emerald-400">Maker</span>
+                    </div>
+                    <div class="ml-3 px-3 py-1 bg-emerald-900 text-emerald-400 text-xs font-bold rounded-full flex items-center gap-x-1">
+                        <i class="fa-solid fa-check-double"></i>
+                        <span class="font-medium">CGST Ready</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-x-2">
+                    <!-- Action Buttons -->
+                    <button onclick="loadSampleData()" 
+                            class="flex items-center gap-x-2 px-4 py-2 text-sm font-medium bg-slate-800 hover:bg-slate-700 transition-colors rounded-xl border border-slate-700">
+                        <i class="fa-solid fa-magic mr-2"></i>
+                        <span>Load Sample</span>
+                    </button>
+                    
+                    <button onclick="saveToLocalStorage()" 
+                            class="flex items-center gap-x-2 px-4 py-2 text-sm font-medium bg-slate-800 hover:bg-slate-700 transition-colors rounded-xl border border-slate-700">
+                        <i class="fa-solid fa-save mr-2"></i>
+                        <span>Save</span>
+                    </button>
+                    
+                    <button onclick="exportToExcel()" 
+                            class="flex items-center gap-x-2 px-4 py-2 text-sm font-medium bg-slate-800 hover:bg-slate-700 transition-colors rounded-xl border border-slate-700">
+                        <i class="fa-solid fa-file-excel mr-2"></i>
+                        <span>Export Excel</span>
+                    </button>
+                    
+                    <button onclick="importFromExcel()" 
+                            class="flex items-center gap-x-2 px-4 py-2 text-sm font-medium bg-slate-800 hover:bg-slate-700 transition-colors rounded-xl border border-slate-700">
+                        <i class="fa-solid fa-upload mr-2"></i>
+                        <span>Import Excel</span>
+                    </button>
+
+                    <!-- Open Full Version in New Tab -->
+                    <button onclick="openFullVersion()" 
+                            class="flex items-center gap-x-2 px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 transition-colors text-white rounded-xl border border-blue-500">
+                        <i class="fa-solid fa-external-link-alt mr-2"></i>
+                        <span>Open Full Version</span>
+                    </button>
+                    
+                    <div class="w-px h-6 bg-slate-700 mx-1"></div>
+                    
+                    <button onclick="printInvoice()" 
+                            class="flex items-center gap-x-2 px-5 py-2 text-sm font-semibold bg-white text-slate-900 hover:bg-slate-100 transition-all rounded-xl shadow-sm">
+                        <i class="fa-solid fa-print mr-2"></i>
+                        <span>Print / Save as PDF</span>
+                    </button>
+                    
+                    <button onclick="showWixPDFNote()" 
+                            class="flex items-center gap-x-2 px-5 py-2 text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 transition-all text-white rounded-xl shadow-sm">
+                        <i class="fa-solid fa-file-pdf mr-2"></i>
+                        <span>Download PDF</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-screen-2xl mx-auto px-6 pt-6 pb-12">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- LEFT PANEL: FORM CONTROLS -->
+            <div class="lg:col-span-5 xl:col-span-5">
+                <div class="bg-slate-900 rounded-3xl border border-slate-800 shadow-xl overflow-hidden">
+                    
+                    <!-- Header -->
+                    <div class="px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center gap-x-3">
+                            <i class="fa-solid fa-edit text-emerald-400"></i>
+                            <h2 class="font-semibold text-lg tracking-tight">Invoice Details</h2>
+                        </div>
+                        <button onclick="resetForm()" 
+                                class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-red-900/30 text-red-400 hover:text-red-300 transition-colors flex items-center gap-x-1.5">
+                            <i class="fa-solid fa-undo text-xs"></i>
+                            <span class="font-medium">Reset</span>
+                        </button>
+                    </div>
+
+                    <div class="p-6 space-y-7 max-h-[calc(100vh-180px)] overflow-auto custom-scroll">
+                        
+                        <!-- SUPPLIER / YOUR DETAILS -->
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="section-title flex items-center gap-x-2">
+                                    <i class="fa-solid fa-building text-emerald-400"></i> 
+                                    <span>Your Business (Supplier)</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Logo Upload -->
+                            <div class="flex items-start gap-4 mb-4">
+                                <div>
+                                    <div id="logo-preview-container" 
+                                         class="w-20 h-20 border-2 border-dashed border-slate-700 rounded-2xl flex items-center justify-center overflow-hidden bg-slate-950 cursor-pointer hover:border-emerald-500 transition-colors"
+                                         onclick="document.getElementById('logo-upload').click()">
+                                        <img id="logo-preview" class="max-w-full max-h-full object-contain hidden" alt="Logo">
+                                        <div id="logo-placeholder" class="text-center">
+                                            <i class="fa-solid fa-image text-3xl text-slate-600"></i>
+                                            <div class="text-[10px] text-slate-500 mt-1 font-medium">Upload Logo</div>
+                                        </div>
+                                    </div>
+                                    <input type="file" id="logo-upload" accept="image/*" class="hidden" onchange="handleLogoUpload(event)">
+                                </div>
+                                
+                                <div class="flex-1 space-y-3">
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">Business / Legal Name *</label>
+                                        <input type="text" id="supplier-name" value="ABC" 
+                                               class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm"
+                                               oninput="updatePreview()">
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="text-xs font-medium text-slate-400 block mb-1">GSTIN *</label>
+                                            <input type="text" id="supplier-gstin" value="GSTIN" 
+                                                   class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm font-mono tracking-wider"
+                                                   oninput="updatePreview()">
+                                        </div>
+                                        <div>
+                                            <label class="text-xs font-medium text-slate-400 block mb-1">PAN</label>
+                                            <input type="text" id="supplier-pan" value="PAN" 
+                                                   class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm font-mono"
+                                                   oninput="updatePreview()">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Address *</label>
+                                    <textarea id="supplier-address" rows="2" 
+                                              class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm resize-y"
+                                              oninput="updatePreview()">ADDRESS</textarea>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">State *</label>
+                                        <select id="supplier-state" class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm" onchange="updatePreview(); updateSupplyType()">
+                                            <!-- Populated by JS -->
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">Phone</label>
+                                        <input type="tel" id="supplier-phone" value="+91 " 
+                                               class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm"
+                                               oninput="updatePreview()">
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Email</label>
+                                    <input type="email" id="supplier-email" value="EMAIL" 
+                                           class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm"
+                                           oninput="updatePreview()">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- INVOICE META -->
+                        <div>
+                            <div class="section-title flex items-center gap-x-2 mb-3">
+                                <i class="fa-solid fa-receipt text-emerald-400"></i> 
+                                <span>Invoice Information</span>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Invoice Number *</label>
+                                    <input type="text" id="invoice-number" value="INV-2026-0001" 
+                                           class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm font-semibold tracking-wider"
+                                           oninput="updatePreview()">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Invoice Date *</label>
+                                    <input type="date" id="invoice-date" value="2026-06-28" 
+                                           class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm"
+                                           oninput="updatePreview()">
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3 grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Due Date</label>
+                                    <input type="date" id="invoice-due-date" value="2026-07-25" 
+                                           class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm"
+                                           oninput="updatePreview()">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Place of Supply *</label>
+                                    <select id="place-of-supply" class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm" onchange="updatePreview(); updateSupplyType()">
+                                        <!-- Populated by JS -->
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <!-- Tax Treatment Override -->
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">Tax Treatment</label>
+                                        <select id="tax-treatment" value="auto" class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm font-medium" onchange="updateSupplyType(); updatePreview()">
+                                            <option value="auto">Auto (based on states)</option>
+                                            <option value="intra">Force Intra-State (CGST + SGST)</option>
+                                            <option value="inter">Force Inter-State (IGST)</option>
+                                        </select>
+                                        <div class="text-[10px] text-emerald-400 mt-0.5">Gives manual control over tax split</div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">Supply Type</label>
+                                        <div id="supply-type-badge" 
+                                             class="inline-flex items-center gap-x-2 px-4 h-9 bg-slate-800 border border-slate-700 rounded-2xl text-sm font-medium w-full">
+                                            <!-- Dynamic via JS -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3 flex items-center gap-3">
+                                <div class="pt-1">
+                                    <label class="flex items-center gap-x-2 cursor-pointer text-sm">
+                                        <input type="checkbox" id="reverse-charge" class="accent-emerald-500 w-4 h-4" onchange="updatePreview()">
+                                        <span class="text-xs font-medium text-slate-400">Reverse Charge Applicable</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Auto Round Off -->
+                            <div class="mt-2">
+                                <label class="flex items-center gap-x-2 cursor-pointer text-sm">
+                                    <input type="checkbox" id="auto-round-off" checked class="accent-emerald-500 w-4 h-4" onchange="updatePreview()">
+                                    <span class="text-xs font-medium text-emerald-600">Auto Round Off to nearest ₹1</span>
+                                </label>
+                            </div>
+
+                            <!-- TCS -->
+                            <div class="mt-3 pt-3 border-t border-slate-700">
+                                <label class="flex items-center gap-x-2 cursor-pointer text-sm mb-2">
+                                    <input type="checkbox" id="tcs-enabled" class="accent-purple-500 w-4 h-4" onchange="document.getElementById('tcs-fields').classList.toggle('hidden', !this.checked); updatePreview()">
+                                    <span class="text-xs font-medium text-purple-400">Apply TCS (Tax Collected at Source)</span>
+                                </label>
+                                <div id="tcs-fields" class="hidden grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">TCS Section</label>
+                                        <select id="tcs-section" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm" onchange="updatePreview()">
+                                            <option value="206C(1H)">206C(1H) - Sale of Goods</option>
+                                            <option value="206C(1)">206C(1) - Liquor, Timber, etc.</option>
+                                            <option value="206C(1F)">206C(1F) - Parking, Toll, Mining</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">TCS Rate (%)</label>
+                                        <select id="tcs-rate" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm" onchange="updatePreview()">
+                                            <option value="0.075">0.075%</option>
+                                            <option value="0.1" selected>0.1%</option>
+                                            <option value="1">1%</option>
+                                            <option value="2.5">2.5%</option>
+                                            <option value="5">5%</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- RECIPIENT / BILL TO -->
+                        <div>
+                            <div class="section-title flex items-center gap-x-2 mb-3">
+                                <i class="fa-solid fa-user-tie text-emerald-400"></i> 
+                                <span>Bill To (Recipient)</span>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Customer / Company Name *</label>
+                                    <input type="text" id="recipient-name" value="ABC" 
+                                           class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm"
+                                           oninput="updatePreview()">
+                                </div>
+                                
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Address</label>
+                                    <textarea id="recipient-address" rows="2" 
+                                              class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm resize-y"
+                                              oninput="updatePreview()">ADDRESS</textarea>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">GSTIN (if registered)</label>
+                                        <input type="text" id="recipient-gstin" value="GSTIN" 
+                                               class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm font-mono tracking-wider"
+                                               oninput="updatePreview()">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">State</label>
+                                        <select id="recipient-state" class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm" onchange="updateSupplyType(); updatePreview()">
+                                            <!-- Populated by JS -->
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- SHIP TO -->
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="section-title flex items-center gap-x-2">
+                                    <i class="fa-solid fa-truck text-emerald-400"></i> 
+                                    <span>Ship To</span>
+                                </div>
+                                <label class="flex items-center text-xs cursor-pointer">
+                                    <input type="checkbox" id="ship-same-as-bill" checked class="accent-emerald-500 mr-1.5" onchange="toggleShipTo(); updatePreview()">
+                                    <span class="font-medium text-emerald-400">Same as Bill To</span>
+                                </label>
+                            </div>
+                            
+                            <div id="ship-to-section" class="hidden space-y-3">
+                                <div>
+                                    <input type="text" id="shipto-name" placeholder="Shipping Name / Company" 
+                                           class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm"
+                                           oninput="updatePreview()">
+                                </div>
+                                <div>
+                                    <textarea id="shipto-address" rows="2" placeholder="Shipping Address" 
+                                              class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm resize-y"
+                                              oninput="updatePreview()"></textarea>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <select id="shipto-state" class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm" onchange="updateSupplyType(); updatePreview()">
+                                            <!-- Populated by JS -->
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- ITEMS SECTION -->
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="section-title flex items-center gap-x-2">
+                                    <i class="fa-solid fa-list-check text-emerald-400"></i> 
+                                    <span>Items / Services</span>
+                                </div>
+                                <button onclick="addItemRow()" 
+                                        class="text-xs flex items-center gap-x-1.5 px-3.5 h-8 bg-emerald-600 hover:bg-emerald-500 transition-colors rounded-2xl text-white font-semibold text-[13px]">
+                                    <i class="fa-solid fa-plus text-xs"></i>
+                                    <span>Add Item</span>
+                                </button>
+                            </div>
+                            
+                            <!-- Items Table -->
+                            <div class="border border-slate-700 rounded-2xl overflow-hidden bg-slate-950">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="bg-slate-900 text-xs">
+                                            <th class="w-8 px-3 py-2.5 text-left font-medium">#</th>
+                                            <th class="px-3 py-2.5 text-left font-medium min-w-[180px]">Description</th>
+                                            <th class="w-20 px-2 py-2.5 text-left font-medium">HSN/SAC</th>
+                                            <th class="w-14 px-2 py-2.5 text-center font-medium">Qty</th>
+                                            <th class="w-16 px-2 py-2.5 text-left font-medium">Unit</th>
+                                            <th class="w-20 px-2 py-2.5 text-right font-medium">Rate</th>
+                                            <th class="w-14 px-2 py-2.5 text-center font-medium">Disc%</th>
+                                            <th class="w-16 px-2 py-2.5 text-right font-medium">GST%</th>
+                                            <th class="w-8 px-1 py-2.5"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="items-tbody" class="divide-y divide-slate-800 text-sm">
+                                        <!-- Populated dynamically by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1.5 px-1">Taxable value &amp; tax amounts are auto-calculated in preview based on Place of Supply.</p>
+                        </div>
+                        
+                        <!-- BANK DETAILS -->
+                        <div>
+                            <div class="section-title flex items-center gap-x-2 mb-3">
+                                <i class="fa-solid fa-university text-emerald-400"></i> 
+                                <span>Bank Details (Optional)</span>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="col-span-2 sm:col-span-1">
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Bank Name</label>
+                                    <input type="text" id="bank-name" value="BANK NAME" 
+                                           class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2 text-sm"
+                                           oninput="updatePreview()">
+                                </div>
+                                <div class="col-span-2 sm:col-span-1">
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Account Number</label>
+                                    <input type="text" id="bank-account" value="A/C NUMBER" 
+                                           class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2 text-sm font-mono"
+                                           oninput="updatePreview()">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">IFSC Code</label>
+                                    <input type="text" id="bank-ifsc" value="IFSC CODE" 
+                                           class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2 text-sm font-mono tracking-wider"
+                                           oninput="updatePreview()">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Branch</label>
+                                    <input type="text" id="bank-branch" value="BRANCH ADDRESS" 
+                                           class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2 text-sm"
+                                           oninput="updatePreview()">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- TERMS & NOTES -->
+                        <div>
+                            <div class="section-title flex items-center gap-x-2 mb-3">
+                                <i class="fa-solid fa-file-lines text-emerald-400"></i> 
+                                <span>Terms, Notes &amp; Declaration</span>
+                            </div>
+                            
+                            <div>
+                                <label class="text-xs font-medium text-slate-400 block mb-1">Terms &amp; Conditions</label>
+                                <textarea id="terms" rows="3" class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-xs"
+                                          oninput="updatePreview()">1. Goods once sold will not be taken back.
+2. Subject to Noida jurisdiction.
+3. Interest @24% p.a. will be charged on overdue invoices.
+4. All disputes subject to Delhi courts.</textarea>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <label class="text-xs font-medium text-slate-400 block mb-1">Additional Notes</label>
+                                <textarea id="notes" rows="2" placeholder="E.g. Thank you for your business!" 
+                                          class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-xs"
+                                          oninput="updatePreview()"></textarea>
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+            
+            <!-- RIGHT PANEL: LIVE PREVIEW -->
+            <div class="lg:col-span-7 xl:col-span-7">
+                <div class="sticky top-6">
+                    <div class="flex items-center justify-between mb-3 px-1">
+                        <div class="flex items-center gap-x-2">
+                            <i class="fa-solid fa-eye text-emerald-400"></i>
+                            <h2 class="font-semibold text-lg tracking-tight">Live Preview</h2>
+                            <span class="text-xs px-2.5 py-px bg-emerald-900 text-emerald-400 rounded font-bold">A4</span>
+                        </div>
+                        <div class="text-xs text-slate-400 flex items-center gap-x-1">
+                            <i class="fa-solid fa-sync fa-spin-pulse text-emerald-500"></i>
+                            <span>Auto-updates</span>
+                        </div>
+                    </div>
+                    
+                    <!-- The Invoice Preview -->
+                    <div id="invoice-preview" class="invoice-preview p-8 text-slate-900 rounded-3xl overflow-hidden">
+                        <!-- Content injected by JavaScript -->
+                        <div class="text-center py-12 text-slate-400">
+                            <i class="fa-solid fa-file-invoice text-6xl mb-4 opacity-30"></i>
+                            <p class="text-sm">Your invoice preview will appear here.<br>Fill the form on the left to get started.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 flex justify-end gap-x-2 text-xs">
+                        <div onclick="updatePreview()" class="cursor-pointer flex items-center gap-x-1 text-emerald-400 hover:text-emerald-300 transition-colors">
+                            <i class="fa-solid fa-sync text-xs"></i>
+                            <span class="font-medium">Refresh Preview</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    
+    <footer class="border-t border-slate-800 bg-slate-900 py-5 text-center text-xs text-slate-500">
+        <div class="max-w-screen-2xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-y-1">
+            <div>
+                Professional GST Invoice Maker • Compliant with CGST Rules, 2017 (Rule 46)
+            </div>
+            <div class="flex items-center gap-x-4">
+                <span>Free • No signup • Data stays in your browser</span>
+                <span class="hidden md:inline">•</span>
+                <span class="text-emerald-400">v2.1 • 2026</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Tailwind script
+        function initializeTailwind() {
+            document.documentElement.style.setProperty('--accent', '#10b981');
+            
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            'display': ['Space Grotesk', 'Inter', 'system-ui', 'sans-serif']
+                        }
+                    }
+                }
+            };
+        }
+        
+        // Indian States with GST codes
+        const stateList = [
+            { code: "01", name: "Jammu and Kashmir" },
+            { code: "02", name: "Himachal Pradesh" },
+            { code: "03", name: "Punjab" },
+            { code: "04", name: "Chandigarh" },
+            { code: "05", name: "Uttarakhand" },
+            { code: "06", name: "Haryana" },
+            { code: "07", name: "Delhi" },
+            { code: "08", name: "Rajasthan" },
+            { code: "09", name: "Uttar Pradesh" },
+            { code: "10", name: "Bihar" },
+            { code: "11", name: "Sikkim" },
+            { code: "12", name: "Arunachal Pradesh" },
+            { code: "13", name: "Nagaland" },
+            { code: "14", name: "Manipur" },
+            { code: "15", name: "Mizoram" },
+            { code: "16", name: "Tripura" },
+            { code: "17", name: "Meghalaya" },
+            { code: "18", name: "Assam" },
+            { code: "19", name: "West Bengal" },
+            { code: "20", name: "Jharkhand" },
+            { code: "21", name: "Odisha" },
+            { code: "22", name: "Chhattisgarh" },
+            { code: "23", name: "Madhya Pradesh" },
+            { code: "24", name: "Gujarat" },
+            { code: "26", name: "Dadra and Nagar Haveli and Daman and Diu" },
+            { code: "27", name: "Maharashtra" },
+            { code: "28", name: "Andhra Pradesh" },
+            { code: "29", name: "Karnataka" },
+            { code: "30", name: "Goa" },
+            { code: "31", name: "Lakshadweep" },
+            { code: "32", name: "Kerala" },
+            { code: "33", name: "Tamil Nadu" },
+            { code: "34", name: "Puducherry" },
+            { code: "35", name: "Andaman and Nicobar Islands" },
+            { code: "36", name: "Telangana" },
+            { code: "37", name: "Ladakh" },
+            { code: "38", name: "Other Territory" }
+        ];
+        
+        // Common GST Rates
+        const gstRates = [0, 0.25, 3, 5, 12, 18, 28];
+        
+        // Common Units of Measurement
+        const units = ["Nos", "Kg", "Ltr", "Mtr", "Sq.mtr", "Box", "Set", "Pair", "Hour", "Day", "Month", "Year", "Other"];
+        
+        // CRM integration
+        const urlParams = new URLSearchParams(window.location.search);
+        const isCRMMode = urlParams.get('crm') === '1';
+        const crmClientId = urlParams.get('clientId') || null;
+        let crmClientData = null;
+
+        // Global invoice state
+        let invoiceData = {
+            supplier: {
+                name: "",
+                address: "",
+                gstin: "",
+                pan: "",
+                phone: "",
+                email: "",
+                stateCode: "09",
+                logo: ""
+            },
+            invoice: {
+                number: "",
+                date: "",
+                dueDate: "",
+                placeOfSupplyCode: "07",
+                reverseCharge: false,
+                taxTreatment: "auto",
+                autoRoundOff: true
+            },
+            recipient: {
+                name: "",
+                address: "",
+                gstin: "",
+                stateCode: "04"
+            },
+            shipTo: {
+                sameAsBillTo: true,
+                name: "",
+                address: "",
+                stateCode: ""
+            },
+            items: [],
+            bank: {
+                name: "",
+                account: "",
+                ifsc: "",
+                branch: ""
+            },
+            terms: "",
+            notes: "",
+            tcs: { enabled: false, section: "206C(1H)", rate: 0.1 }
+        };
+        
+        // Populate state dropdowns
+        function populateStateSelects() {
+            const selects = [
+                document.getElementById('supplier-state'),
+                document.getElementById('place-of-supply'),
+                document.getElementById('recipient-state'),
+                document.getElementById('shipto-state')
+            ];
+            
+            selects.forEach(select => {
+                if (!select) return;
+                select.innerHTML = '';
+                
+                // Default empty option
+                const defaultOpt = document.createElement('option');
+                defaultOpt.value = '';
+                defaultOpt.textContent = '-- Select State --';
+                select.appendChild(defaultOpt);
+                
+                stateList.forEach(state => {
+                    const option = document.createElement('option');
+                    option.value = state.code;
+                    option.textContent = `${state.name} (${state.code})`;
+                    select.appendChild(option);
+                });
+            });
+            
+            // Set default values after populating
+            setTimeout(() => {
+                const supplierState = document.getElementById('supplier-state');
+                const posSelect = document.getElementById('place-of-supply');
+                const recipientState = document.getElementById('recipient-state');
+                
+                if (supplierState) supplierState.value = invoiceData.supplier.stateCode || '09';
+                if (posSelect) posSelect.value = invoiceData.invoice.placeOfSupplyCode || '07';
+                if (recipientState) recipientState.value = invoiceData.recipient.stateCode || '04';
+                
+                updateSupplyType();
+            }, 50);
+        }
+        
+        // Update supply type badge (Intra / Inter State)
+        function updateSupplyType() {
+            const supplierStateEl = document.getElementById('supplier-state');
+            const posEl = document.getElementById('place-of-supply');
+            const taxTreatmentEl = document.getElementById('tax-treatment');
+            const badge = document.getElementById('supply-type-badge');
+            
+            if (!supplierStateEl || !posEl || !badge) return;
+            
+            const supplierCode = supplierStateEl.value;
+            const posCode = posEl.value;
+            const taxTreatment = taxTreatmentEl ? taxTreatmentEl.value : 'auto';
+            
+            // Get Bill To and Ship To for smarter detection
+            const billToEl = document.getElementById('recipient-state');
+            const shipSameEl = document.getElementById('ship-same-as-bill');
+            const shipToEl = document.getElementById('shipto-state');
+            
+            const billToCode = billToEl ? billToEl.value : '';
+            const shipToSame = shipSameEl ? shipSameEl.checked : true;
+            const shipToCode = shipToSame 
+                ? billToCode 
+                : (shipToEl ? shipToEl.value : billToCode);
+            
+            if (!supplierCode || !posCode) {
+                badge.innerHTML = `<span class="text-amber-400">Select states to determine</span>`;
+                return;
+            }
+            
+            // Auto logic: Intra only if ALL three match supplier
+            const posDiffers = posCode && posCode !== supplierCode;
+            const billToDiffers = billToCode && billToCode !== supplierCode;
+            const shipToDiffers = shipToCode && shipToCode !== supplierCode;
+            
+            const autoIntra = !(posDiffers || billToDiffers || shipToDiffers);
+            let displayText = '';
+            let isForced = false;
+            
+            if (taxTreatment === 'intra') {
+                displayText = `
+                    <span class="gst-badge bg-emerald-100 text-emerald-700">INTRA-STATE</span>
+                    <span class="text-xs text-emerald-600 font-medium">CGST + SGST <span class="text-emerald-500">(Forced)</span></span>
+                `;
+                isForced = true;
+            } else if (taxTreatment === 'inter') {
+                displayText = `
+                    <span class="gst-badge bg-blue-100 text-blue-700">INTER-STATE</span>
+                    <span class="text-xs text-blue-600 font-medium">IGST <span class="text-blue-500">(Forced)</span></span>
+                `;
+                isForced = true;
+            } else {
+                // Auto mode
+                if (autoIntra) {
+                    displayText = `
+                        <span class="gst-badge bg-emerald-100 text-emerald-700">INTRA-STATE</span>
+                        <span class="text-xs text-emerald-600 font-medium">CGST + SGST</span>
+                    `;
+                } else {
+                    displayText = `
+                        <span class="gst-badge bg-blue-100 text-blue-700">INTER-STATE</span>
+                        <span class="text-xs text-blue-600 font-medium">IGST</span>
+                    `;
+                }
+            }
+            
+            badge.innerHTML = displayText;
+            
+            // Update preview immediately
+            updatePreview();
+        }
+        
+        // Toggle Ship To section visibility
+        function toggleShipTo() {
+            const checkbox = document.getElementById('ship-same-as-bill');
+            const section = document.getElementById('ship-to-section');
+            
+            if (!checkbox || !section) return;
+            
+            if (checkbox.checked) {
+                section.classList.add('hidden');
+                invoiceData.shipTo.sameAsBillTo = true;
+            } else {
+                section.classList.remove('hidden');
+                invoiceData.shipTo.sameAsBillTo = false;
+            }
+            
+            updatePreview();
+        }
+        
+        // Handle logo upload
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const logoDataUrl = e.target.result;
+                invoiceData.supplier.logo = logoDataUrl;
+                
+                // Update preview image
+                const previewImg = document.getElementById('logo-preview');
+                const placeholder = document.getElementById('logo-placeholder');
+                
+                if (previewImg && placeholder) {
+                    previewImg.src = logoDataUrl;
+                    previewImg.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                }
+                
+                updatePreview();
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // Add a new item row to the table
+        function addItemRow(itemData = null) {
+            const tbody = document.getElementById('items-tbody');
+            if (!tbody) return;
+            
+            const rowId = 'item-' + Date.now();
+            const row = document.createElement('tr');
+            row.id = rowId;
+            row.className = `item-row bg-white hover:bg-slate-50 transition-colors text-slate-700`;
+            
+            const defaultItem = itemData || {
+                desc: "Premium Widget - Model X200",
+                hsn: "9983",
+                qty: 10,
+                unit: "Nos",
+                rate: 1250,
+                discPercent: 5,
+                gstPercent: 18
+            };
+            
+            row.innerHTML = `
+                <td class="px-3 py-2 text-center text-xs font-semibold text-slate-400">${tbody.children.length + 1}</td>
+                <td class="px-3 py-1.5">
+                    <input type="text" value="${defaultItem.desc}" 
+                           class="w-full border border-slate-200 focus:border-emerald-400 rounded-lg px-2.5 py-1 text-xs"
+                           data-field="desc" oninput="updateItemFromRow('${rowId}', this)">
+                </td>
+                <td class="px-2 py-1.5">
+                    <input type="text" value="${defaultItem.hsn}" 
+                           class="w-full border border-slate-200 focus:border-emerald-400 rounded-lg px-2 py-1 text-xs font-mono"
+                           data-field="hsn" oninput="updateItemFromRow('${rowId}', this)">
+                </td>
+                <td class="px-2 py-1.5">
+                    <input type="number" value="${defaultItem.qty}" step="0.01" min="0"
+                           class="w-full border border-slate-200 focus:border-emerald-400 rounded-lg px-2 py-1 text-xs text-center"
+                           data-field="qty" oninput="updateItemFromRow('${rowId}', this)">
+                </td>
+                <td class="px-2 py-1.5">
+                    <select class="w-full border border-slate-200 focus:border-emerald-400 rounded-lg px-1.5 py-1 text-xs" 
+                            data-field="unit" onchange="updateItemFromRow('${rowId}', this)">
+                        ${units.map(u => `<option value="${u}" ${u === defaultItem.unit ? 'selected' : ''}>${u}</option>`).join('')}
+                    </select>
+                </td>
+                <td class="px-2 py-1.5">
+                    <input type="number" value="${defaultItem.rate}" step="0.01" min="0"
+                           class="w-full border border-slate-200 focus:border-emerald-400 rounded-lg px-2 py-1 text-xs text-right font-mono"
+                           data-field="rate" oninput="updateItemFromRow('${rowId}', this)">
+                </td>
+                <td class="px-2 py-1.5">
+                    <input type="number" value="${defaultItem.discPercent}" step="0.1" min="0" max="100"
+                           class="w-full border border-slate-200 focus:border-emerald-400 rounded-lg px-2 py-1 text-xs text-center"
+                           data-field="discPercent" oninput="updateItemFromRow('${rowId}', this)">
+                </td>
+                <td class="px-2 py-1.5">
+                    <select class="w-full border border-slate-200 focus:border-emerald-400 rounded-lg px-1 py-1 text-xs" 
+                            data-field="gstPercent" onchange="updateItemFromRow('${rowId}', this)">
+                        ${gstRates.map(r => `<option value="${r}" ${r === defaultItem.gstPercent ? 'selected' : ''}>${r}%</option>`).join('')}
+                    </select>
+                </td>
+                <td class="px-1 py-1.5 text-center">
+                    <button onclick="deleteItemRow('${rowId}')" 
+                            class="text-red-400 hover:text-red-600 p-1 transition-colors">
+                        <i class="fa-solid fa-trash-can text-sm"></i>
+                    </button>
+                </td>
+            `;
+            
+            tbody.appendChild(row);
+            
+            // Add to state
+            if (!itemData) {
+                invoiceData.items.push({
+                    id: rowId,
+                    ...defaultItem
+                });
+            } else {
+                invoiceData.items.push({
+                    id: rowId,
+                    ...itemData
+                });
+            }
+            
+            updatePreview();
+        }
+        
+        // Update single item from row inputs
+        function updateItemFromRow(rowId, inputElement) {
+            const itemIndex = invoiceData.items.findIndex(item => item.id === rowId);
+            if (itemIndex === -1) return;
+            
+            const field = inputElement.dataset.field;
+            let value = inputElement.value;
+            
+            if (['qty', 'rate', 'discPercent', 'gstPercent'].includes(field)) {
+                value = parseFloat(value) || 0;
+            }
+            
+            invoiceData.items[itemIndex][field] = value;
+            
+            // Re-render preview
+            updatePreview();
+        }
+        
+        // Delete item row
+        function deleteItemRow(rowId) {
+            // Remove from DOM
+            const row = document.getElementById(rowId);
+            if (row) row.remove();
+            
+            // Remove from state
+            invoiceData.items = invoiceData.items.filter(item => item.id !== rowId);
+            
+            // Re-number rows
+            renumberItemRows();
+            
+            updatePreview();
+        }
+        
+        function renumberItemRows() {
+            const tbody = document.getElementById('items-tbody');
+            if (!tbody) return;
+            
+            Array.from(tbody.children).forEach((row, index) => {
+                const firstCell = row.querySelector('td:first-child');
+                if (firstCell) firstCell.textContent = index + 1;
+            });
+        }
+        
+        // Calculate item values
+        function calculateItem(item) {
+            const qty = parseFloat(item.qty) || 0;
+            const rate = parseFloat(item.rate) || 0;
+            const disc = parseFloat(item.discPercent) || 0;
+            const gst = parseFloat(item.gstPercent) || 0;
+            
+            const gross = qty * rate;
+            const discountAmt = gross * (disc / 100);
+            const taxable = gross - discountAmt;
+            const taxAmount = taxable * (gst / 100);
+            
+            return {
+                taxable: parseFloat(taxable.toFixed(2)),
+                taxAmount: parseFloat(taxAmount.toFixed(2)),
+                total: parseFloat((taxable + taxAmount).toFixed(2)),
+                gross: parseFloat(gross.toFixed(2))
+            };
+        }
+        
+        // Calculate all totals + tax split
+        function calculateTotals() {
+            const supplierState = document.getElementById('supplier-state')?.value || invoiceData.supplier.stateCode;
+            const posState = document.getElementById('place-of-supply')?.value || invoiceData.invoice.placeOfSupplyCode;
+            const taxTreatment = document.getElementById('tax-treatment')?.value || invoiceData.invoice.taxTreatment || 'auto';
+            
+            // Get Bill To and Ship To states for smarter auto detection
+            const billToState = document.getElementById('recipient-state')?.value || invoiceData.recipient.stateCode;
+            const shipToSame = document.getElementById('ship-same-as-bill')?.checked !== false;
+            const shipToState = shipToSame 
+                ? billToState 
+                : (document.getElementById('shipto-state')?.value || invoiceData.shipTo.stateCode || billToState);
+            
+            // Determine effective tax mode
+            let effectiveIntra = true;
+            
+            if (taxTreatment === 'intra') {
+                effectiveIntra = true;
+            } else if (taxTreatment === 'inter') {
+                effectiveIntra = false;
+            } else {
+                // Auto mode: IGST if Place of Supply, Bill To, OR Ship To differs from Supplier
+                const posDiffers = posState && posState !== supplierState;
+                const billToDiffers = billToState && billToState !== supplierState;
+                const shipToDiffers = shipToState && shipToState !== supplierState;
+                
+                effectiveIntra = !(posDiffers || billToDiffers || shipToDiffers);
+            }
+            
+            let totalTaxable = 0;
+            let totalCGST = 0;
+            let totalSGST = 0;
+            let totalIGST = 0;
+            let grandTotal = 0;
+            
+            const computedItems = invoiceData.items.map(item => {
+                const calc = calculateItem(item);
+                
+                let cgst = 0, sgst = 0, igst = 0;
+                
+                if (effectiveIntra) {
+                    cgst = parseFloat((calc.taxAmount / 2).toFixed(2));
+                    sgst = parseFloat((calc.taxAmount / 2).toFixed(2));
+                } else {
+                    igst = calc.taxAmount;
+                }
+                
+                totalTaxable += calc.taxable;
+                totalCGST += cgst;
+                totalSGST += sgst;
+                totalIGST += igst;
+                grandTotal += calc.total;
+                
+                return {
+                    ...item,
+                    ...calc,
+                    cgst,
+                    sgst,
+                    igst
+                };
+            });
+            
+            // === Auto Round Off Logic ===
+            const autoRoundOffEnabled = document.getElementById('auto-round-off')?.checked !== false;
+            let roundOff = 0;
+            let finalGrandTotal = parseFloat(grandTotal.toFixed(2));
+
+            if (autoRoundOffEnabled && grandTotal > 0) {
+                const rounded = Math.round(grandTotal);
+                roundOff = parseFloat((rounded - grandTotal).toFixed(2));
+                finalGrandTotal = rounded;
+            }
+
+            const tcsEnabled = document.getElementById('tcs-enabled')?.checked || false;
+            const tcsRate = tcsEnabled ? parseFloat(document.getElementById('tcs-rate')?.value || 0) : 0;
+            const tcsSection = document.getElementById('tcs-section')?.value || '';
+            const tcsAmount = tcsEnabled ? parseFloat((totalTaxable * tcsRate / 100).toFixed(2)) : 0;
+            finalGrandTotal = parseFloat((finalGrandTotal + tcsAmount).toFixed(2));
+
+            return {
+                items: computedItems,
+                totalTaxable: parseFloat(totalTaxable.toFixed(2)),
+                totalCGST: parseFloat(totalCGST.toFixed(2)),
+                totalSGST: parseFloat(totalSGST.toFixed(2)),
+                totalIGST: parseFloat(totalIGST.toFixed(2)),
+                tcsEnabled, tcsRate, tcsSection, tcsAmount,
+                grandTotal: parseFloat(grandTotal.toFixed(2)),
+                roundOff: roundOff,
+                finalGrandTotal: finalGrandTotal,
+                isIntraState: effectiveIntra,
+                taxTreatment: taxTreatment
+            };
+        }
+        
+        // Convert number to Indian words (lakhs, crores)
+        function numberToWords(num) {
+            if (num === 0) return "Zero";
+            
+            const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+                "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+            const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+            
+            function convertLessThanOneThousand(n) {
+                if (n >= 100) {
+                    return ones[Math.floor(n / 100)] + " Hundred " + convertLessThanOneThousand(n % 100);
+                }
+                if (n >= 20) {
+                    return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? " " + ones[n % 10] : "");
+                }
+                return ones[n];
+            }
+            
+            const crore = Math.floor(num / 10000000);
+            const lakh = Math.floor((num % 10000000) / 100000);
+            const thousand = Math.floor((num % 100000) / 1000);
+            const remainder = num % 1000;
+            
+            let result = "";
+            
+            if (crore > 0) result += convertLessThanOneThousand(crore) + " Crore ";
+            if (lakh > 0) result += convertLessThanOneThousand(lakh) + " Lakh ";
+            if (thousand > 0) result += convertLessThanOneThousand(thousand) + " Thousand ";
+            if (remainder > 0) result += convertLessThanOneThousand(remainder);
+            
+            return result.trim() + " Rupees Only";
+        }
+        
+        // Main function: Update the live preview
+        function updatePreview() {
+            const preview = document.getElementById('invoice-preview');
+            if (!preview) return;
+            
+            // Sync form values into invoiceData
+            syncFormToState();
+            
+            const totals = calculateTotals();
+            const isIntra = totals.isIntraState;
+            
+            // Build preview HTML
+            let html = `
+                <div class="max-w-[794px] mx-auto">
+                    <!-- Header -->
+                    <div class="flex justify-between items-start border-b-2 border-slate-900 pb-5">
+                        <div class="flex gap-4">
+                            ${invoiceData.supplier.logo ? 
+                                `<img src="${invoiceData.supplier.logo}" class="w-16 h-16 object-contain rounded-xl border border-slate-200 p-1" alt="Company Logo">` : 
+                                `<div class="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-200">
+                                    <i class="fa-solid fa-building text-3xl text-slate-400"></i>
+                                </div>`
+                            }
+                            
+                            <div>
+                                <div class="text-2xl font-bold tracking-tighter text-slate-900">${invoiceData.supplier.name || 'Your Company Name'}</div>
+                                <div class="text-xs text-slate-600 mt-0.5 whitespace-pre-line leading-tight">${invoiceData.supplier.address || 'Address not provided'}</div>
+                                <div class="mt-1.5 flex flex-wrap gap-x-4 text-xs">
+                                    <div><span class="font-semibold text-slate-700">GSTIN:</span> <span class="font-mono">${invoiceData.supplier.gstin || 'N/A'}</span></div>
+                                    ${invoiceData.supplier.pan ? `<div><span class="font-semibold text-slate-700">PAN:</span> <span class="font-mono">${invoiceData.supplier.pan}</span></div>` : ''}
+                                </div>
+                                <div class="text-xs text-slate-600 mt-0.5">${invoiceData.supplier.phone || ''} ${invoiceData.supplier.email ? '• ' + invoiceData.supplier.email : ''}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-right">
+                            <div class="text-3xl font-extrabold tracking-[-1px] text-slate-900">TAX INVOICE</div>
+                            
+                            <div class="mt-3 text-right">
+                                <div class="text-xs text-slate-500">Invoice No.</div>
+                                <div class="font-mono text-xl font-bold text-slate-900">${invoiceData.invoice.number || 'INV-0000'}</div>
+                                
+                                <div class="mt-2 grid grid-cols-2 gap-x-4 text-xs">
+                                    <div>
+                                        <div class="text-slate-500">Date</div>
+                                        <div class="font-medium">${invoiceData.invoice.date || 'DD/MM/YYYY'}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-slate-500">Due Date</div>
+                                        <div class="font-medium">${invoiceData.invoice.dueDate || '-'}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Meta row -->
+                    <div class="flex justify-between items-end mt-4 text-xs">
+                        <div>
+                            <div class="flex items-center gap-x-2">
+                                <div class="section-title">Place of Supply</div>
+                                <div class="font-semibold">${getStateName(invoiceData.invoice.placeOfSupplyCode)}</div>
+                            </div>
+                            
+                            ${invoiceData.invoice.reverseCharge ? 
+                                `<div class="mt-1 inline-flex items-center px-3 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">REVERSE CHARGE APPLICABLE</div>` : 
+                                ''}
+                        </div>
+                        
+                        <div class="text-right">
+                            <div class="text-xs text-slate-500">Supply Type</div>
+                            <div class="font-bold ${totals.isIntraState ? 'text-emerald-600' : 'text-blue-600'}">
+                                ${totals.isIntraState ? 'INTRA-STATE (CGST + SGST)' : 'INTER-STATE (IGST)'}
+                                ${totals.taxTreatment !== 'auto' ? 
+                                    `<span class="ml-1 text-[10px] font-normal px-1.5 py-px rounded bg-yellow-100 text-yellow-700">(Forced)</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bill To & Ship To -->
+                    <div class="grid grid-cols-2 gap-4 mt-5">
+                        <!-- Bill To -->
+                        <div class="border border-slate-200 rounded-2xl p-4 bg-slate-50">
+                            <div class="uppercase text-emerald-700 text-xs font-extrabold tracking-widest mb-1">BILL TO</div>
+                            <div class="font-semibold text-base leading-tight">${invoiceData.recipient.name || 'Customer Name'}</div>
+                            <div class="text-xs whitespace-pre-line text-slate-600 mt-1">${invoiceData.recipient.address || ''}</div>
+                            
+                            <div class="mt-2 text-xs">
+                                ${invoiceData.recipient.gstin ? 
+                                    `<span class="font-mono bg-white px-2 py-px rounded border border-slate-200">${invoiceData.recipient.gstin}</span>` : 
+                                    `<span class="text-amber-600 text-xs font-medium">Unregistered</span>`}
+                                <span class="ml-2 text-slate-500">${getStateName(invoiceData.recipient.stateCode)}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Ship To -->
+                        <div class="border border-slate-200 rounded-2xl p-4 bg-slate-50">
+                            <div class="uppercase text-emerald-700 text-xs font-extrabold tracking-widest mb-1">SHIP TO</div>
+                            
+                            ${invoiceData.shipTo.sameAsBillTo ? 
+                                `<div class="text-xs italic text-slate-500">Same as Bill To address</div>` : 
+                                `<div>
+                                    <div class="font-semibold text-base leading-tight">${invoiceData.shipTo.name || invoiceData.recipient.name || 'Shipping Name'}</div>
+                                    <div class="text-xs whitespace-pre-line text-slate-600 mt-1">${invoiceData.shipTo.address || invoiceData.recipient.address || ''}</div>
+                                    <div class="mt-1 text-xs text-slate-500">${getStateName(invoiceData.shipTo.stateCode || invoiceData.recipient.stateCode)}</div>
+                                </div>`
+                            }
+                        </div>
+                    </div>
+                    
+                    <!-- Items Table -->
+                    <div class="mt-6">
+                        <table class="invoice-table w-full text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="w-8 text-center">#</th>
+                                    <th>Description of Goods / Services</th>
+                                    <th class="w-20">HSN / SAC</th>
+                                    <th class="w-12 text-center">Qty</th>
+                                    <th class="w-14">Unit</th>
+                                    <th class="w-20 text-right">Rate (₹)</th>
+                                    <th class="w-16 text-center">Disc %</th>
+                                    <th class="w-24 text-right">Taxable Value (₹)</th>
+                                    <th class="w-14 text-center">GST %</th>
+                                    <th class="w-20 text-right">CGST (₹)</th>
+                                    <th class="w-20 text-right">SGST (₹)</th>
+                                    <th class="w-20 text-right">IGST (₹)</th>
+                                    <th class="w-24 text-right font-bold">Total (₹)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            if (totals.items.length === 0) {
+                html += `
+                    <tr>
+                        <td colspan="13" class="py-8 text-center text-slate-400 italic">
+                            No items added yet. Add items from the form on the left.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                totals.items.forEach((item, index) => {
+                    html += `
+                        <tr class="hover:bg-slate-50">
+                            <td class="text-center font-semibold text-xs text-slate-500">${index + 1}</td>
+                            <td class="font-medium pr-2">${item.desc || '-'}</td>
+                            <td class="font-mono text-xs text-slate-600">${item.hsn || '-'}</td>
+                            <td class="text-center font-medium">${item.qty}</td>
+                            <td class="text-xs">${item.unit}</td>
+                            <td class="text-right font-mono">${item.rate.toLocaleString('en-IN')}</td>
+                            <td class="text-center">${item.discPercent}%</td>
+                            <td class="text-right font-medium amount">${item.taxable.toLocaleString('en-IN')}</td>
+                            <td class="text-center">
+                                <span class="inline-block px-1.5 py-px bg-yellow-100 text-yellow-700 text-xs font-bold rounded">${item.gstPercent}%</span>
+                            </td>
+                            <td class="text-right font-mono text-emerald-700">${item.cgst > 0 ? item.cgst.toLocaleString('en-IN') : '-'}</td>
+                            <td class="text-right font-mono text-emerald-700">${item.sgst > 0 ? item.sgst.toLocaleString('en-IN') : '-'}</td>
+                            <td class="text-right font-mono text-blue-700">${item.igst > 0 ? item.igst.toLocaleString('en-IN') : '-'}</td>
+                            <td class="text-right font-bold amount">${item.total.toLocaleString('en-IN')}</td>
+                        </tr>
+                    `;
+                });
+            }
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Totals Section -->
+                    <div class="flex justify-end mt-4">
+                        <div class="w-full max-w-[380px]">
+                            <table class="w-full text-sm border border-slate-200 rounded-2xl overflow-hidden">
+                                <tr class="border-b border-slate-200">
+                                    <td class="pl-5 py-2.5 text-slate-600">Total Taxable Value</td>
+                                    <td class="pr-5 py-2.5 text-right font-semibold amount">₹ ${totals.totalTaxable.toLocaleString('en-IN')}</td>
+                                </tr>
+            `;
+            
+            if (isIntra) {
+                html += `
+                                <tr class="border-b border-slate-200">
+                                    <td class="pl-5 py-2 text-emerald-700">CGST</td>
+                                    <td class="pr-5 py-2 text-right font-semibold text-emerald-700 amount">₹ ${totals.totalCGST.toLocaleString('en-IN')}</td>
+                                </tr>
+                                <tr class="border-b border-slate-200">
+                                    <td class="pl-5 py-2 text-emerald-700">SGST</td>
+                                    <td class="pr-5 py-2 text-right font-semibold text-emerald-700 amount">₹ ${totals.totalSGST.toLocaleString('en-IN')}</td>
+                                </tr>
+                `;
+            } else {
+                html += `
+                                <tr class="border-b border-slate-200">
+                                    <td class="pl-5 py-2 text-blue-700">IGST</td>
+                                    <td class="pr-5 py-2 text-right font-semibold text-blue-700 amount">₹ ${totals.totalIGST.toLocaleString('en-IN')}</td>
+                                </tr>
+                `;
+            }
+            
+            html += `
+                                ${totals.roundOff !== 0 ? `
+                                <tr class="border-b border-slate-200">
+                                    <td class="pl-5 py-2 text-slate-600">Round Off</td>
+                                    <td class="pr-5 py-2 text-right font-semibold amount ${totals.roundOff > 0 ? 'text-emerald-600' : 'text-red-600'}">
+                                        ${totals.roundOff > 0 ? '+' : ''}₹ ${totals.roundOff.toLocaleString('en-IN')}
+                                    </td>
+                                </tr>` : ''}
+                                ${totals.tcsEnabled ? `
+                                <tr class="border-b border-slate-200">
+                                    <td class="pl-5 py-2 text-purple-700">TCS @ ${totals.tcsRate}% (${totals.tcsSection})</td>
+                                    <td class="pr-5 py-2 text-right font-semibold text-purple-700 amount">₹ ${totals.tcsAmount.toLocaleString('en-IN')}</td>
+                                </tr>` : ''}
+                                <tr class="bg-emerald-100 border-t-2 border-emerald-600 font-bold">
+                                    <td class="pl-5 py-3 rounded-bl-2xl text-emerald-800">GRAND TOTAL${totals.tcsEnabled ? ' (incl. TCS)' : ''}</td>
+                                    <td class="pr-5 py-3 text-right text-lg amount rounded-br-2xl text-emerald-800">₹ ${totals.finalGrandTotal.toLocaleString('en-IN')}</td>
+                                </tr>
+                            </table>
+                            
+                            <div class="mt-2 text-xs bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 py-2 rounded-2xl">
+                                <span class="font-semibold">Amount in words:</span><br>
+                                <span class="font-medium">${numberToWords(Math.round(totals.finalGrandTotal))}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bank + Terms -->
+                    <div class="grid grid-cols-2 gap-4 mt-6 text-xs">
+                        <!-- Bank Details -->
+                        <div class="border border-slate-200 rounded-2xl p-4 bg-white">
+                            <div class="font-extrabold text-emerald-700 tracking-wider text-xs mb-2">BANK DETAILS</div>
+                            
+                            ${invoiceData.bank.name ? `
+                                <div class="space-y-0.5 text-xs">
+                                    <div><span class="font-semibold">Bank:</span> ${invoiceData.bank.name}</div>
+                                    <div><span class="font-semibold">A/c No:</span> <span class="font-mono">${invoiceData.bank.account}</span></div>
+                                    <div><span class="font-semibold">IFSC:</span> <span class="font-mono">${invoiceData.bank.ifsc}</span></div>
+                                    <div><span class="font-semibold">Branch:</span> ${invoiceData.bank.branch}</div>
+                                </div>
+                            ` : `<div class="italic text-slate-400 text-xs">Bank details not provided</div>`}
+                        </div>
+                        
+                        <!-- Terms -->
+                        <div class="border border-slate-200 rounded-2xl p-4 bg-white text-xs">
+                            <div class="font-extrabold text-emerald-700 tracking-wider text-xs mb-1.5">TERMS &amp; CONDITIONS</div>
+                            <div class="whitespace-pre-line text-[11px] leading-snug text-slate-600">${invoiceData.terms || 'Standard terms apply.'}</div>
+                            
+                            ${invoiceData.notes ? `
+                                <div class="mt-3 pt-3 border-t border-dashed border-slate-300">
+                                    <span class="font-semibold text-emerald-700">Note:</span> ${invoiceData.notes}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- Signature & Declaration -->
+                    <div class="mt-7 pt-5 border-t border-slate-300 flex justify-between items-end">
+                        <div class="text-xs max-w-[260px]">
+                            <div class="font-bold">Declaration</div>
+                            <div class="text-slate-600 leading-tight mt-0.5">
+                                We declare that this invoice shows the actual price of the goods/services described and that all particulars are true and correct.
+                            </div>
+                            <div class="mt-3 text-[10px] text-slate-500">This is a computer generated invoice and does not require physical signature.</div>
+                        </div>
+                        
+                        <div class="text-right">
+                            <div class="text-xs text-slate-500 mb-1">For <span class="font-bold text-slate-800">${invoiceData.supplier.name || 'Supplier'}</span></div>
+                            
+                            <div class="h-12"></div>
+                            
+                            <div class="border-t border-slate-400 pt-1 px-8">
+                                <div class="font-semibold text-sm">Authorized Signatory</div>
+                                <div class="text-xs text-slate-600">${invoiceData.supplier.name ? invoiceData.supplier.name.split(' ').slice(0,2).join(' ') : ''}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-5 text-[9px] text-slate-400 tracking-wider">
+                        GST Compliant Invoice • Generated on ${new Date().toLocaleDateString('en-IN')} • Udyog Suvidha Kendra GST Invoice Maker
+                    </div>
+                </div>
+            `;
+            
+            preview.innerHTML = html;
+        }
+        
+        function getStateName(code) {
+            const found = stateList.find(s => s.code === code);
+            return found ? found.name : code;
+        }
+        
+        // Sync all form fields into the global state object
+        function syncFormToState() {
+            // Supplier
+            invoiceData.supplier.name = document.getElementById('supplier-name')?.value || '';
+            invoiceData.supplier.address = document.getElementById('supplier-address')?.value || '';
+            invoiceData.supplier.gstin = document.getElementById('supplier-gstin')?.value || '';
+            invoiceData.supplier.pan = document.getElementById('supplier-pan')?.value || '';
+            invoiceData.supplier.phone = document.getElementById('supplier-phone')?.value || '';
+            invoiceData.supplier.email = document.getElementById('supplier-email')?.value || '';
+            invoiceData.supplier.stateCode = document.getElementById('supplier-state')?.value || '09';
+            
+            // Invoice
+            invoiceData.invoice.number = document.getElementById('invoice-number')?.value || '';
+            invoiceData.invoice.date = document.getElementById('invoice-date')?.value || '';
+            invoiceData.invoice.dueDate = document.getElementById('invoice-due-date')?.value || '';
+            invoiceData.invoice.placeOfSupplyCode = document.getElementById('place-of-supply')?.value || '07';
+            invoiceData.invoice.reverseCharge = document.getElementById('reverse-charge')?.checked || false;
+            invoiceData.invoice.taxTreatment = document.getElementById('tax-treatment')?.value || 'auto';
+            invoiceData.invoice.autoRoundOff = document.getElementById('auto-round-off')?.checked !== false;
+            
+            // Recipient
+            invoiceData.recipient.name = document.getElementById('recipient-name')?.value || '';
+            invoiceData.recipient.address = document.getElementById('recipient-address')?.value || '';
+            invoiceData.recipient.gstin = document.getElementById('recipient-gstin')?.value || '';
+            invoiceData.recipient.stateCode = document.getElementById('recipient-state')?.value || '04';
+            
+            // Ship To
+            const shipSame = document.getElementById('ship-same-as-bill')?.checked;
+            invoiceData.shipTo.sameAsBillTo = shipSame !== undefined ? shipSame : true;
+            
+            if (!invoiceData.shipTo.sameAsBillTo) {
+                invoiceData.shipTo.name = document.getElementById('shipto-name')?.value || '';
+                invoiceData.shipTo.address = document.getElementById('shipto-address')?.value || '';
+                invoiceData.shipTo.stateCode = document.getElementById('shipto-state')?.value || '';
+            }
+            
+            // Bank
+            invoiceData.bank.name = document.getElementById('bank-name')?.value || '';
+            invoiceData.bank.account = document.getElementById('bank-account')?.value || '';
+            invoiceData.bank.ifsc = document.getElementById('bank-ifsc')?.value || '';
+            invoiceData.bank.branch = document.getElementById('bank-branch')?.value || '';
+            
+            // Terms & Notes
+            invoiceData.terms = document.getElementById('terms')?.value || '';
+            invoiceData.notes = document.getElementById('notes')?.value || '';
+        }
+        
+        // Load sample data (useful for demo)
+        function loadSampleData() {
+            // Supplier
+            document.getElementById('supplier-name').value = "ABC";
+            document.getElementById('supplier-address').value = "ADDRESS";
+            document.getElementById('supplier-gstin').value = "GSTIN";
+            document.getElementById('supplier-pan').value = "PAN";
+            document.getElementById('supplier-phone').value = "+91 ";
+            document.getElementById('supplier-email').value = "EMAIL";
+            document.getElementById('supplier-state').value = "00";
+            
+            // Invoice
+            document.getElementById('invoice-number').value = "INV-2026-0001";
+            document.getElementById('invoice-date').value = "2026-06-28";
+            document.getElementById('invoice-due-date').value = "2026-06-28";
+            document.getElementById('place-of-supply').value = "00";
+            document.getElementById('reverse-charge').checked = false;
+            
+            // Recipient
+            document.getElementById('recipient-name').value = "ABC";
+            document.getElementById('recipient-address').value = "ADDRESS";
+            document.getElementById('recipient-gstin').value = "GSTIN";
+            document.getElementById('recipient-state').value = "00";
+            
+            // Ship To same
+            document.getElementById('ship-same-as-bill').checked = true;
+            document.getElementById('ship-to-section').classList.add('hidden');
+            
+            // Bank
+            document.getElementById('bank-name').value = "BANK NAME";
+            document.getElementById('bank-account').value = "A/C NUMBER";
+            document.getElementById('bank-ifsc').value = "IFSC CODE";
+            document.getElementById('bank-branch').value = "BRANCH ADDRESS";
+            
+            // Terms
+            document.getElementById('terms').value = "1. Goods once sold will not be taken back.\n2. Subject to Noida jurisdiction only.\n3. Interest @ 24% p.a. will be charged on all overdue invoices.\n4. All disputes are subject to the exclusive jurisdiction of courts in Delhi.";
+            document.getElementById('notes').value = "Thank you for your continued business! E-way bill no. will be provided separately if required.";
+            
+            // Clear existing items
+            document.getElementById('items-tbody').innerHTML = '';
+            invoiceData.items = [];
+            
+            // Add sample items
+            addItemRow({ desc: "ITEM 1", hsn: "9999", qty: 1, unit: "PCS", rate: 100, discPercent: 10, gstPercent: 18 });
+            addItemRow({ desc: "ITEM 2", hsn: "9999", qty: 1, unit: "PCS", rate: 100, discPercent: 5, gstPercent: 18 });
+            addItemRow({ desc: "ITEM 3", hsn: "9999", qty: 1, unit: "PCS", rate: 100, discPercent: 15, gstPercent: 18 });
+            
+            // Update everything
+            updateSupplyType();
+            updatePreview();
+            
+            // Toast notification
+            showToast("Sample data loaded successfully!");
+        }
+        
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-5 right-5 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-x-3 text-sm font-medium z-[999]`;
+            toast.innerHTML = `
+                <i class="fa-solid fa-check-circle"></i>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.transition = 'all 0.3s ease';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.parentNode.removeChild(toast), 200);
+            }, 2400);
+        }
+        
+        function getStorageKey() {
+            return isCRMMode && crmClientId ? `gstInvoiceData_${crmClientId}` : 'gstInvoiceData';
+        }
+
+        // Save current invoice to localStorage
+        function saveToLocalStorage() {
+            syncFormToState();
+            try {
+                localStorage.setItem(getStorageKey(), JSON.stringify(invoiceData));
+                showToast("Invoice saved to browser storage!");
+            } catch (e) {
+                showToast("Could not save (storage blocked)");
+            }
+        }
+        
+        // Load from localStorage if available
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem(getStorageKey());
+            if (!saved) return false;
+            
+            try {
+                const parsed = JSON.parse(saved);
+                invoiceData = { ...invoiceData, ...parsed };
+                
+                // Populate form fields from loaded data
+                populateFormFromState();
+                
+                // Rebuild items table
+                const tbody = document.getElementById('items-tbody');
+                tbody.innerHTML = '';
+                
+                invoiceData.items.forEach(item => {
+                    const rowId = item.id || ('item-' + Date.now() + Math.random());
+                    item.id = rowId;
+                    
+                    const row = document.createElement('tr');
+                    row.id = rowId;
+                    row.className = `item-row bg-white hover:bg-slate-50 transition-colors text-slate-700`;
+                    
+                    row.innerHTML = `
+                        <td class="px-3 py-2 text-center text-xs font-semibold text-slate-400">${tbody.children.length + 1}</td>
+                        <td class="px-3 py-1.5">
+                            <input type="text" value="${item.desc || ''}" class="w-full border border-slate-200 focus:border-emerald-400 rounded-lg px-2.5 py-1 text-xs" data-field="desc" oninput="updateItemFromRow('${rowId}', this)">
+                        </td>
+                        <td class="px-2 py-1.5">
+                            <input type="text" value="${item.hsn || ''}" class="w-full border border-slate-200 focus:border-emerald-400 rounded-lg px-2 py-1 text-xs font-mono" data-field="hsn" oninput="updateItemFromRow('${rowId}', this)">
+                        </td>
+                        <td class="px-2 py-1.5">
+                            <input type="number" value="${item.qty || 0}" step="0.01" class="w-full border border-slate-200 focus:border-emerald-400 rounded-lg px-2 py-1 text-xs text-center" data-field="qty" oninput="updateItemFromRow('${rowId}', this)">
+                        </td>
+                        <td class="px-2 py-1.5">
+                            <select class="w-full border border-slate-200 focus:border-emerald-400 rounded-lg px-1.5 py-1 text-xs" data-field="unit" onchange="updateItemFromRow('${rowId}', this)">
+                                ${units.map(u => `<option value="${u}" ${u === (item.unit || 'Nos') ? 'selected' : ''}>${u}</option>`).join('')}
+                            </select>
+                        </td>
+                        <td class="px-2 py-1.5">
+                            <input type="number" value="${item.rate || 0}" step="0.01" class="w-full border border-slate-200 focus:border-emerald-400 rounded-lg px-2 py-1 text-xs text-right font-mono" data-field="rate" oninput="updateItemFromRow('${rowId}', this)">
+                        </td>
+                        <td class="px-2 py-1.5">
+                            <input type="number" value="${item.discPercent || 0}" step="0.1" class="w-full border border-slate-200 focus:border-emerald-400 rounded-lg px-2 py-1 text-xs text-center" data-field="discPercent" oninput="updateItemFromRow('${rowId}', this)">
+                        </td>
+                        <td class="px-2 py-1.5">
+                            <select class="w-full border border-slate-200 focus:border-emerald-400 rounded-lg px-1 py-1 text-xs" data-field="gstPercent" onchange="updateItemFromRow('${rowId}', this)">
+                                ${gstRates.map(r => `<option value="${r}" ${r === (item.gstPercent || 18) ? 'selected' : ''}>${r}%</option>`).join('')}
+                            </select>
+                        </td>
+                        <td class="px-1 py-1.5 text-center">
+                            <button onclick="deleteItemRow('${rowId}')" class="text-red-400 hover:text-red-600 p-1"><i class="fa-solid fa-trash-can text-sm"></i></button>
+                        </td>
+                    `;
+                    
+                    tbody.appendChild(row);
+                });
+                
+                updateSupplyType();
+                updatePreview();
+                return true;
+            } catch (e) {
+                console.error("Failed to load saved invoice", e);
+                return false;
+            }
+        }
+        
+        function populateFormFromState() {
+            // Supplier
+            if (document.getElementById('supplier-name')) document.getElementById('supplier-name').value = invoiceData.supplier.name || '';
+            if (document.getElementById('supplier-address')) document.getElementById('supplier-address').value = invoiceData.supplier.address || '';
+            if (document.getElementById('supplier-gstin')) document.getElementById('supplier-gstin').value = invoiceData.supplier.gstin || '';
+            if (document.getElementById('supplier-pan')) document.getElementById('supplier-pan').value = invoiceData.supplier.pan || '';
+            if (document.getElementById('supplier-phone')) document.getElementById('supplier-phone').value = invoiceData.supplier.phone || '';
+            if (document.getElementById('supplier-email')) document.getElementById('supplier-email').value = invoiceData.supplier.email || '';
+            if (document.getElementById('supplier-state')) document.getElementById('supplier-state').value = invoiceData.supplier.stateCode || '09';
+            
+            // Logo
+            if (invoiceData.supplier.logo) {
+                const previewImg = document.getElementById('logo-preview');
+                const placeholder = document.getElementById('logo-placeholder');
+                if (previewImg && placeholder) {
+                    previewImg.src = invoiceData.supplier.logo;
+                    previewImg.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                }
+            }
+            
+            // Invoice
+            if (document.getElementById('invoice-number')) document.getElementById('invoice-number').value = invoiceData.invoice.number || '';
+            if (document.getElementById('invoice-date')) document.getElementById('invoice-date').value = invoiceData.invoice.date || '';
+            if (document.getElementById('invoice-due-date')) document.getElementById('invoice-due-date').value = invoiceData.invoice.dueDate || '';
+            if (document.getElementById('place-of-supply')) document.getElementById('place-of-supply').value = invoiceData.invoice.placeOfSupplyCode || '07';
+            if (document.getElementById('reverse-charge')) document.getElementById('reverse-charge').checked = invoiceData.invoice.reverseCharge || false;
+            if (document.getElementById('tax-treatment')) document.getElementById('tax-treatment').value = invoiceData.invoice.taxTreatment || 'auto';
+            if (document.getElementById('auto-round-off')) document.getElementById('auto-round-off').checked = invoiceData.invoice.autoRoundOff !== false;
+            
+            // Recipient
+            if (document.getElementById('recipient-name')) document.getElementById('recipient-name').value = invoiceData.recipient.name || '';
+            if (document.getElementById('recipient-address')) document.getElementById('recipient-address').value = invoiceData.recipient.address || '';
+            if (document.getElementById('recipient-gstin')) document.getElementById('recipient-gstin').value = invoiceData.recipient.gstin || '';
+            if (document.getElementById('recipient-state')) document.getElementById('recipient-state').value = invoiceData.recipient.stateCode || '04';
+            
+            // Ship To
+            const shipCheckbox = document.getElementById('ship-same-as-bill');
+            if (shipCheckbox) {
+                shipCheckbox.checked = invoiceData.shipTo.sameAsBillTo !== false;
+                if (!shipCheckbox.checked) {
+                    document.getElementById('ship-to-section').classList.remove('hidden');
+                    if (document.getElementById('shipto-name')) document.getElementById('shipto-name').value = invoiceData.shipTo.name || '';
+                    if (document.getElementById('shipto-address')) document.getElementById('shipto-address').value = invoiceData.shipTo.address || '';
+                    if (document.getElementById('shipto-state')) document.getElementById('shipto-state').value = invoiceData.shipTo.stateCode || '';
+                }
+            }
+            
+            // Bank
+            if (document.getElementById('bank-name')) document.getElementById('bank-name').value = invoiceData.bank.name || '';
+            if (document.getElementById('bank-account')) document.getElementById('bank-account').value = invoiceData.bank.account || '';
+            if (document.getElementById('bank-ifsc')) document.getElementById('bank-ifsc').value = invoiceData.bank.ifsc || '';
+            if (document.getElementById('bank-branch')) document.getElementById('bank-branch').value = invoiceData.bank.branch || '';
+            
+            // Terms
+            if (document.getElementById('terms')) document.getElementById('terms').value = invoiceData.terms || '';
+            if (document.getElementById('notes')) document.getElementById('notes').value = invoiceData.notes || '';
+        }
+        
+        // Export current invoice as JSON file
+        // ==================== EXCEL EXPORT / IMPORT ====================
+        function exportToExcel() {
+            syncFormToState();
+            const totals = calculateTotals();
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+
+            // Sheet 1: Invoice Details
+            const invoiceSheetData = [
+                ["GST TAX INVOICE"],
+                [""],
+                ["Invoice Number", invoiceData.invoice.number || ""],
+                ["Invoice Date", invoiceData.invoice.date || ""],
+                ["Due Date", invoiceData.invoice.dueDate || ""],
+                ["Place of Supply", getStateName(invoiceData.invoice.placeOfSupplyCode)],
+                ["Supply Type", totals.isIntraState ? "Intra-State (CGST + SGST)" : "Inter-State (IGST)"],
+                ["Reverse Charge", invoiceData.invoice.reverseCharge ? "Yes" : "No"],
+                [""],
+                ["SUPPLIER DETAILS"],
+                ["Company Name", invoiceData.supplier.name || ""],
+                ["Address", invoiceData.supplier.address || ""],
+                ["GSTIN", invoiceData.supplier.gstin || ""],
+                ["PAN", invoiceData.supplier.pan || ""],
+                ["Phone", invoiceData.supplier.phone || ""],
+                ["Email", invoiceData.supplier.email || ""],
+                ["State", getStateName(invoiceData.supplier.stateCode)],
+                [""],
+                ["BILL TO (RECIPIENT)"],
+                ["Name", invoiceData.recipient.name || ""],
+                ["Address", invoiceData.recipient.address || ""],
+                ["GSTIN", invoiceData.recipient.gstin || ""],
+                ["State", getStateName(invoiceData.recipient.stateCode)],
+                [""],
+                ["SHIP TO"],
+                ["Same as Bill To", invoiceData.shipTo.sameAsBillTo ? "Yes" : "No"],
+                ["Name", invoiceData.shipTo.name || ""],
+                ["Address", invoiceData.shipTo.address || ""],
+                ["State", getStateName(invoiceData.shipTo.stateCode)],
+                [""],
+                ["BANK DETAILS"],
+                ["Bank Name", invoiceData.bank.name || ""],
+                ["Account Number", invoiceData.bank.account || ""],
+                ["IFSC Code", invoiceData.bank.ifsc || ""],
+                ["Branch", invoiceData.bank.branch || ""],
+                [""],
+                ["TAX SUMMARY"],
+                ["Total Taxable Value", totals.totalTaxable],
+                ["Total CGST", totals.totalCGST],
+                ["Total SGST", totals.totalSGST],
+                ["Total IGST", totals.totalIGST],
+                ["Round Off", totals.roundOff],
+                ["GRAND TOTAL", totals.finalGrandTotal],
+                ["Amount in Words", numberToWords(Math.round(totals.finalGrandTotal))],
+            ];
+
+            const ws1 = XLSX.utils.aoa_to_sheet(invoiceSheetData);
+            XLSX.utils.book_append_sheet(wb, ws1, "Invoice Details");
+
+            // Sheet 2: Items
+            const itemsHeader = ["#", "Description", "HSN/SAC", "Qty", "Unit", "Rate (₹)", "Disc %", "GST %", "Taxable Value (₹)", "CGST (₹)", "SGST (₹)", "IGST (₹)", "Total (₹)"];
+            const itemsRows = [itemsHeader];
+
+            totals.items.forEach((item, index) => {
+                itemsRows.push([
+                    index + 1,
+                    item.desc || "",
+                    item.hsn || "",
+                    item.qty || 0,
+                    item.unit || "",
+                    item.rate || 0,
+                    item.discPercent || 0,
+                    item.gstPercent || 0,
+                    item.taxable || 0,
+                    item.cgst || 0,
+                    item.sgst || 0,
+                    item.igst || 0,
+                    item.total || 0
+                ]);
+            });
+
+            const ws2 = XLSX.utils.aoa_to_sheet(itemsRows);
+            XLSX.utils.book_append_sheet(wb, ws2, "Items");
+
+            // Auto column width
+            const colWidths = itemsHeader.map(() => ({ wch: 18 }));
+            ws2['!cols'] = colWidths;
+
+            // Save file
+            const fileName = `GST_Invoice_${invoiceData.invoice.number || 'Export'}_${new Date().toISOString().slice(0,10)}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+
+            showToast("Invoice exported as Excel file successfully!");
+        }
+
+        // Import from Excel
+        function importFromExcel() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.xlsx, .xls';
+
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    try {
+                        const data = new Uint8Array(ev.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+
+                        // Read from "Invoice Details" sheet
+                        const ws1 = workbook.Sheets["Invoice Details"] || workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(ws1, { header: 1 });
+
+                        // Basic parsing (you can enhance this further)
+                        const newData = { ...invoiceData };
+
+                        // Simple key-value extraction from first sheet
+                        jsonData.forEach(row => {
+                            if (row[0] === "Invoice Number") newData.invoice.number = row[1] || "";
+                            if (row[0] === "Invoice Date") newData.invoice.date = row[1] || "";
+                            if (row[0] === "Due Date") newData.invoice.dueDate = row[1] || "";
+                            if (row[0] === "Company Name") newData.supplier.name = row[1] || "";
+                            if (row[0] === "GSTIN" && !newData.supplier.gstin) newData.supplier.gstin = row[1] || "";
+                            if (row[0] === "Name" && !newData.recipient.name) newData.recipient.name = row[1] || "";
+                        });
+
+                        invoiceData = newData;
+
+                        populateFormFromState();
+                        updateSupplyType();
+                        updatePreview();
+
+                        showToast("Excel imported successfully! (Basic fields loaded)");
+
+                    } catch (err) {
+                        console.error(err);
+                        alert("Failed to import Excel file. Please make sure it's a valid GST Invoice Excel file.");
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            };
+
+            input.click();
+        }
+
+        // Wix-friendly PDF note
+        function showWixPDFNote() {
+            const confirmed = confirm(
+                "In Wix Embed, direct PDF download may not work perfectly.\n\n" +
+                "✅ Recommended: Click 'Print / Save as PDF' button instead.\n\n" +
+                "Do you want to open this tool in a new tab for full Download PDF feature?"
+            );
+            
+            if (confirmed) {
+                window.open(window.location.href, '_blank');
+            } else {
+                // Fallback: trigger print
+                printInvoice();
+            }
+        }
+
+        // Open full version in new tab
+        function openFullVersion() {
+            window.open(window.location.href, '_blank');
+        }
+        
+        // Print the invoice (uses browser print with clean styles)
+        function printInvoice() {
+            const preview = document.getElementById('invoice-preview');
+            if (!preview) return;
+
+            const printWindow = window.open('', '_blank');
+            
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>GST Invoice - ${invoiceData.invoice.number || ''}</title>
+                    <meta charset="UTF-8">
+                    <style>
+                        @page {
+                            size: A4;
+                            margin: 12mm 10mm;
+                        }
+                        
+                        * {
+                            box-sizing: border-box;
+                        }
+                        
+                        body {
+                            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                            margin: 0;
+                            padding: 0;
+                            color: #1e2937;
+                            background: white;
+                            font-size: 11.5px;
+                            line-height: 1.45;
+                        }
+                        
+                        .invoice-preview {
+                            width: 100%;
+                            max-width: 100%;
+                            padding: 0;
+                            margin: 0;
+                            box-shadow: none;
+                            border: none;
+                            background: white;
+                        }
+                        
+                        /* Header */
+                        .invoice-preview > div > div:first-child {
+                            border-bottom: 2.5px solid #0f172a !important;
+                            padding-bottom: 12px !important;
+                        }
+                        
+                        /* TAX INVOICE title */
+                        .text-3xl.font-extrabold {
+                            font-size: 26px !important;
+                            font-weight: 800 !important;
+                            color: #0f172a !important;
+                        }
+                        
+                        /* Tables */
+                        table {
+                            border-collapse: collapse;
+                            width: 100%;
+                            margin: 8px 0;
+                            font-size: 10.5px;
+                        }
+                        
+                        th, td {
+                            border: 1px solid #64748b;
+                            padding: 6px 7px;
+                            text-align: left;
+                            vertical-align: top;
+                        }
+                        
+                        th {
+                            background-color: #f1f5f9;
+                            font-weight: 600;
+                            color: #334155;
+                            font-size: 10px;
+                        }
+                        
+                        .amount {
+                            font-variant-numeric: tabular-nums;
+                            text-align: right !important;
+                        }
+                        
+                        /* Section boxes */
+                        .border.border-slate-200 {
+                            border: 1px solid #e2e8f0 !important;
+                            background: #f8fafc;
+                            padding: 8px 10px;
+                            border-radius: 6px;
+                        }
+                        
+                        /* Totals table */
+                        .bg-emerald-100 {
+                            background-color: #d1fae5 !important;
+                        }
+                        
+                        .border-emerald-600 {
+                            border-color: #059669 !important;
+                        }
+                        
+                        /* Text sizes */
+                        .text-xs { font-size: 10px !important; }
+                        .text-sm { font-size: 11px !important; }
+                        
+                        /* Signature area */
+                        .mt-7 {
+                            margin-top: 18px !important;
+                        }
+                        
+                        /* Footer */
+                        .text-\\[9px\\] {
+                            font-size: 9px !important;
+                            color: #64748b !important;
+                        }
+                        
+                        /* Hide any interactive elements if present */
+                        button, .no-print {
+                            display: none !important;
+                        }
+                        
+                        /* Better spacing */
+                        .mt-4 { margin-top: 10px !important; }
+                        .mt-5 { margin-top: 12px !important; }
+                        .mt-6 { margin-top: 14px !important; }
+                    </style>
+                </head>
+                <body>
+                    ${preview.outerHTML}
+                    
+                    <script>
+                        window.onload = function() {
+                            // Give time for rendering
+                            setTimeout(function() {
+                                window.print();
+                                // Close after print dialog
+                                setTimeout(function() {
+                                    window.close();
+                                }, 500);
+                            }, 400);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+        }
+        
+        function invoiceStateToPDFData() {
+            syncFormToState();
+            const totals = calculateTotals();
+            return {
+                supplier: { ...invoiceData.supplier },
+                recipient: { ...invoiceData.recipient },
+                shipTo: { ...invoiceData.shipTo },
+                invoice: {
+                    number: invoiceData.invoice.number,
+                    date: invoiceData.invoice.date,
+                    dueDate: invoiceData.invoice.dueDate,
+                    placeOfSupplyCode: invoiceData.invoice.placeOfSupplyCode
+                },
+                bank: { ...invoiceData.bank },
+                terms: invoiceData.terms,
+                notes: invoiceData.notes,
+                items: totals.items,
+                totals: {
+                    totalTaxable: totals.totalTaxable,
+                    totalCGST: totals.totalCGST,
+                    totalSGST: totals.totalSGST,
+                    totalIGST: totals.totalIGST,
+                    roundOff: totals.roundOff,
+                    tcsEnabled: totals.tcsEnabled,
+                    tcsRate: totals.tcsRate,
+                    tcsSection: totals.tcsSection,
+                    tcsAmount: totals.tcsAmount,
+                    finalGrandTotal: totals.finalGrandTotal,
+                    isIntraState: totals.isIntraState
+                }
+            };
+        }
+
+        // Download as high-quality PDF — same format as CRM invoice downloads
+        async function downloadPDF() {
+            const btns = document.querySelectorAll('button');
+            btns.forEach(b => b.disabled = true);
+            try {
+                updatePreview();
+                const preview = document.getElementById('invoice-preview');
+                if (preview && typeof html2canvas !== 'undefined') {
+                    const canvas = await html2canvas(preview, {
+                        scale: 2.2, useCORS: true, backgroundColor: '#ffffff', logging: false
+                    });
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const margin = 8;
+                    const ratio = Math.min(
+                        (pdfWidth - margin * 2) / (canvas.width * 0.264583),
+                        (pdfHeight - margin * 2) / (canvas.height * 0.264583)
+                    );
+                    const imgWidth = canvas.width * 0.264583 * ratio;
+                    const imgHeight = canvas.height * 0.264583 * ratio;
+                    pdf.addImage(canvas.toDataURL('image/png', 0.95), 'PNG', (pdfWidth - imgWidth) / 2, margin, imgWidth, imgHeight);
+                    const invNo = invoiceData.invoice.number || 'INV';
+                    const invDate = invoiceData.invoice.date || new Date().toISOString().slice(0, 10);
+                    pdf.save(`GST_Invoice_${invNo}_${invDate}.pdf`);
+                    showToast('PDF downloaded successfully!');
+                } else if (typeof downloadGSTInvoicePDF === 'function') {
+                    const pdfData = invoiceStateToPDFData();
+                    const invNo = pdfData.invoice.number || 'INV';
+                    const invDate = pdfData.invoice.date || new Date().toISOString().slice(0, 10);
+                    await downloadGSTInvoicePDF(pdfData, `GST_Invoice_${invNo}_${invDate}.pdf`);
+                }
+            } catch (error) {
+                console.error('PDF generation failed:', error);
+                alert('Failed to generate PDF. Please try the Print button instead and choose Save as PDF.');
+            } finally {
+                btns.forEach(b => b.disabled = false);
+            }
+        }
+        
+        // Reset entire form
+        function resetForm() {
+            if (!confirm("Reset all fields and items? This cannot be undone.")) return;
+            
+            // Clear items
+            document.getElementById('items-tbody').innerHTML = '';
+            invoiceData.items = [];
+            
+            // Reset most fields to empty/defaults
+            const fieldsToClear = [
+                'supplier-name', 'supplier-address', 'supplier-gstin', 'supplier-pan', 
+                'supplier-phone', 'supplier-email',
+                'invoice-number', 'invoice-due-date',
+                'recipient-name', 'recipient-address', 'recipient-gstin',
+                'shipto-name', 'shipto-address',
+                'bank-name', 'bank-account', 'bank-ifsc', 'bank-branch',
+                'notes'
+            ];
+            
+            fieldsToClear.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            
+            // Reset dates to today
+            const today = new Date().toISOString().split('T')[0];
+            if (document.getElementById('invoice-date')) document.getElementById('invoice-date').value = today;
+            
+            // Default states
+            if (document.getElementById('supplier-state')) document.getElementById('supplier-state').value = '09';
+            if (document.getElementById('place-of-supply')) document.getElementById('place-of-supply').value = '07';
+            if (document.getElementById('recipient-state')) document.getElementById('recipient-state').value = '04';
+            
+            // Reset checkboxes
+            if (document.getElementById('ship-same-as-bill')) document.getElementById('ship-same-as-bill').checked = true;
+            document.getElementById('ship-to-section').classList.add('hidden');
+            if (document.getElementById('reverse-charge')) document.getElementById('reverse-charge').checked = false;
+            
+            // Reset logo
+            invoiceData.supplier.logo = '';
+            const previewImg = document.getElementById('logo-preview');
+            const placeholder = document.getElementById('logo-placeholder');
+            if (previewImg) previewImg.classList.add('hidden');
+            if (placeholder) placeholder.classList.remove('hidden');
+            
+            // Reset terms to default
+            if (document.getElementById('terms')) {
+                document.getElementById('terms').value = "1. Goods once sold will not be taken back.\n2. Subject to Noida jurisdiction.\n3. Interest @24% p.a. will be charged on overdue invoices.\n4. All disputes subject to Delhi courts.";
+            }
+            
+            // Clear localStorage version too? Optional
+            // localStorage.removeItem('gstInvoiceData');
+            
+            updateSupplyType();
+            updatePreview();
+            
+            showToast("Form has been reset.");
+        }
+        
+        // ==================== CRM INTEGRATION ====================
+        function getCRMAppData() {
+            if (window.parent !== window && window.parent.LedgerFlow?.getAppData) {
+                return window.parent.LedgerFlow.getAppData();
+            }
+            try {
+                const raw = localStorage.getItem('ledgerflow_crm_data');
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) { return null; }
+        }
+
+        function persistCRMAppData(appData) {
+            try {
+                localStorage.setItem('ledgerflow_crm_data', JSON.stringify(appData));
+                return true;
+            } catch (e) { return false; }
+        }
+
+        function loadCRMClientProfile() {
+            if (!isCRMMode || !crmClientId) return false;
+            try {
+                const appData = getCRMAppData();
+                if (!appData) return false;
+                crmClientData = appData.clients[crmClientId];
+                if (!crmClientData) return false;
+
+                document.getElementById('crm-toolbar')?.classList.remove('hidden');
+                document.getElementById('wix-banner')?.classList.add('hidden');
+                document.getElementById('crm-client-name').textContent = crmClientData.name;
+
+                document.getElementById('supplier-name').value = crmClientData.name || '';
+                document.getElementById('supplier-address').value = crmClientData.address || '';
+                document.getElementById('supplier-gstin').value = crmClientData.gstin || '';
+                document.getElementById('supplier-pan').value = crmClientData.pan || '';
+                document.getElementById('supplier-phone').value = crmClientData.phone || '';
+                document.getElementById('supplier-email').value = crmClientData.email || '';
+                if (document.getElementById('supplier-state')) document.getElementById('supplier-state').value = crmClientData.stateCode || '07';
+
+                if (crmClientData.bank) {
+                    document.getElementById('bank-name').value = crmClientData.bank.name || '';
+                    document.getElementById('bank-account').value = crmClientData.bank.account || '';
+                    document.getElementById('bank-ifsc').value = crmClientData.bank.ifsc || '';
+                    document.getElementById('bank-branch').value = crmClientData.bank.branch || '';
+                }
+                if (crmClientData.terms) document.getElementById('terms').value = crmClientData.terms;
+                if (crmClientData.notes) document.getElementById('notes').value = crmClientData.notes;
+                if (crmClientData.logo) invoiceData.supplier.logo = crmClientData.logo;
+
+                const invCount = (crmClientData.invoices || []).length;
+                document.getElementById('invoice-number').value = `INV-${new Date().getFullYear()}-${String(invCount + 1).padStart(4, '0')}`;
+
+                const custPick = document.getElementById('crm-customer-pick');
+                if (custPick && crmClientData.customers) {
+                    custPick.innerHTML = '<option value="">Load Customer...</option>' +
+                        crmClientData.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                }
+                const stockPick = document.getElementById('crm-stock-pick');
+                if (stockPick && crmClientData.stock) {
+                    stockPick.innerHTML = '<option value="">+ From Stock...</option>' +
+                        crmClientData.stock.map(s => `<option value="${s.id}">${s.name} (₹${s.rate})</option>`).join('');
+                }
+                syncFormToState();
+                return true;
+            } catch (e) { console.error(e); return false; }
+        }
+
+        function fillCustomerFromCRM(custId) {
+            if (!custId || !crmClientData) return;
+            const c = crmClientData.customers.find(x => x.id === custId);
+            if (!c) return;
+            document.getElementById('recipient-name').value = c.name || '';
+            document.getElementById('recipient-address').value = c.address || '';
+            document.getElementById('recipient-gstin').value = c.gstin || '';
+            if (document.getElementById('recipient-state')) document.getElementById('recipient-state').value = c.stateCode || '';
+            updateSupplyType();
+            updatePreview();
+        }
+
+        function addStockFromCRM(stockId) {
+            if (!stockId || !crmClientData) return;
+            const s = crmClientData.stock.find(x => x.id === stockId);
+            if (!s) return;
+            addItemRow({ desc: s.name, hsn: s.hsn, qty: 1, unit: s.unit || 'Nos', rate: s.rate, discPercent: 0, gstPercent: s.gstPercent || 18 });
+            updatePreview();
+        }
+
+        function saveToCRM() {
+            if (!isCRMMode || !crmClientId) { saveToLocalStorage(); return; }
+            syncFormToState();
+            const totals = calculateTotals();
+            if (!totals.items.length) { showToast('Add at least one item'); return; }
+
+            try {
+                const appData = getCRMAppData() || { clients: {} };
+                const client = appData.clients[crmClientId];
+                if (!client) { showToast('Client not found in CRM'); return; }
+
+                const inv = {
+                    id: 'inv_' + Date.now(),
+                    number: document.getElementById('invoice-number').value,
+                    date: document.getElementById('invoice-date').value,
+                    partyName: document.getElementById('recipient-name').value,
+                    partyEmail: crmClientData?.customers?.find(c => c.name === document.getElementById('recipient-name').value)?.email || '',
+                    taxable: totals.totalTaxable,
+                    cgst: totals.totalCGST,
+                    sgst: totals.totalSGST,
+                    igst: totals.totalIGST,
+                    tcs: totals.tcsAmount || 0,
+                    tcsRate: totals.tcsRate || 0,
+                    tcsSection: totals.tcsSection || '',
+                    grandTotal: totals.finalGrandTotal,
+                    status: 'Pending',
+                    items: totals.items.length,
+                    itemDetails: totals.items
+                };
+                if (window.parent !== window && window.parent.LedgerFlow?.getAppData) {
+                    const parentData = window.parent.LedgerFlow.getAppData();
+                    const parentClient = parentData?.clients?.[crmClientId];
+                    if (!parentClient) { showToast('Client not found in CRM'); return; }
+                    if (!parentClient.invoices) parentClient.invoices = [];
+                    parentClient.invoices.unshift(inv);
+                    window.parent.LedgerFlow.saveAppData();
+                } else {
+                    if (!client.invoices) client.invoices = [];
+                    client.invoices.unshift(inv);
+                    persistCRMAppData(appData);
+                }
+
+                saveToLocalStorage();
+                showToast('Invoice saved to CRM!');
+                if (window.parent !== window) {
+                    window.parent.postMessage({ type: 'ledgerflow-invoice-saved', invoiceId: inv.id }, '*');
+                }
+            } catch (e) {
+                showToast('Failed to save to CRM');
+            }
+        }
+
+        function sendInvoiceEmailCRM() {
+            syncFormToState();
+            const totals = calculateTotals();
+            const supplier = invoiceData.supplier.name;
+            const invNo = document.getElementById('invoice-number').value;
+            const party = document.getElementById('recipient-name').value;
+            let to = crmClientData?.customers?.find(c => c.name === party)?.email || '';
+            if (!to) to = prompt('Recipient email:') || '';
+            if (!to) return;
+            const tcsLine = totals.tcsEnabled ? `\nTCS: ₹${totals.tcsAmount}` : '';
+            const body = encodeURIComponent(`Dear ${party},\n\nTax Invoice ${invNo} from ${supplier}.\n\nTaxable: ₹${totals.totalTaxable}\nGrand Total: ₹${totals.finalGrandTotal}${tcsLine}\n\nUse Print/Save as PDF and attach to this email.\n\nRegards,\n${supplier}`);
+            const subject = encodeURIComponent(`Tax Invoice ${invNo} - ${supplier}`);
+            window.open(`mailto:${to}?subject=${subject}&body=${body}`, '_blank');
+            showToast('Email client opened — attach PDF before sending');
+        }
+
+        // Initialize everything
+        function initializeApp() {
+            initializeTailwind();
+            if (isCRMMode) loadCRMClientProfile();
+            
+            // Populate states
+            populateStateSelects();
+            
+            // Set default dates
+            const today = new Date().toISOString().split('T')[0];
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 30);
+            const dueDateStr = dueDate.toISOString().split('T')[0];
+            
+            const dateInput = document.getElementById('invoice-date');
+            const dueInput = document.getElementById('invoice-due-date');
+            
+            if (dateInput && !dateInput.value) dateInput.value = today;
+            if (dueInput && !dueInput.value) dueInput.value = dueDateStr;
+            
+            // Set initial invoice number suggestion
+            const invNum = document.getElementById('invoice-number');
+            if (invNum && !invNum.value) {
+                const year = new Date().getFullYear();
+                invNum.value = `INV-${year}-0001`;
+            }
+            
+            // Initial sample items (3 items)
+            setTimeout(() => {
+                const tbody = document.getElementById('items-tbody');
+                if (tbody && tbody.children.length === 0) {
+                    addItemRow({ desc: "ITEM 1", hsn: "9999", qty: 1, unit: "PCS", rate: 100, discPercent: 10, gstPercent: 18 });
+                    addItemRow({ desc: "ITEM 2", hsn: "9999", qty: 1, unit: "PCS", rate: 100, discPercent: 5, gstPercent: 18 });
+                    addItemRow({ desc: "ITEM 3", hsn: "9999", qty: 1, unit: "PCS", rate: 100, discPercent: 15, gstPercent: 18 });
+                }
+                
+                const hadSaved = loadFromLocalStorage();
+                if (!hadSaved && !isCRMMode) syncFormToState();
+                if (isCRMMode && !hadSaved) syncFormToState();
+                
+                updateSupplyType();
+                updatePreview();
+            }, 180);
+            
+            // Add listeners for live update on key fields
+            const liveUpdateIds = [
+                'supplier-name', 'supplier-address', 'supplier-gstin', 'supplier-state',
+                'invoice-number', 'invoice-date', 'place-of-supply', 'reverse-charge',
+                'recipient-name', 'recipient-address', 'recipient-gstin', 'recipient-state',
+                'bank-name', 'bank-account', 'terms', 'notes'
+            ];
+            
+            liveUpdateIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('input', () => updatePreview());
+                    el.addEventListener('change', () => updatePreview());
+                }
+            });
+            
+            // Special listener for ship to checkbox
+            const shipCheck = document.getElementById('ship-same-as-bill');
+            if (shipCheck) {
+                shipCheck.addEventListener('change', () => {
+                    toggleShipTo();
+                    updateSupplyType();
+                    updatePreview();
+                });
+            }
+            
+            // Keyboard shortcut hint
+            document.addEventListener('keydown', function(e) {
+                if (e.metaKey && e.key === "Enter") {
+                    e.preventDefault();
+                    updatePreview();
+                }
+            });
+            
+            // Make logo container nicer on hover
+            const logoContainer = document.getElementById('logo-preview-container');
+            if (logoContainer) {
+                logoContainer.addEventListener('mouseenter', () => {
+                    logoContainer.style.borderColor = '#10b981';
+                });
+                logoContainer.addEventListener('mouseleave', () => {
+                    logoContainer.style.borderColor = '#475569';
+                });
+            }
+            
+            // Final initial preview
+            setTimeout(() => {
+                updatePreview();
+            }, 400);
+            
+            console.log('%c[GST Invoice Maker] Initialized successfully. All fields from standard GST Tax Invoice (Rule 46) included.', 'color:#64748b');
+        }
+        
+        // Boot the application
+        window.onload = initializeApp;
+        
+        // Expose some functions for debugging if needed
+        window.GSTInvoiceMaker = {
+            updatePreview: () => updatePreview(),
+            loadSample: () => loadSampleData(),
+            reset: () => resetForm()
+        };
+    </script>
+</body>
