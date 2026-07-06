@@ -40,6 +40,14 @@ function authMiddleware(req, res, next) {
     }
 }
 
+const API_VERSION = '2.2.0-admin-client-mgmt';
+const INLINE_USER_PASSWORDS = {
+    firm: 'firm123',
+    c1: 'client123',
+    c2: 'client123',
+    c3: 'client123'
+};
+
 let sampleUserPasswords = null;
 function getSampleUserPasswords() {
     if (!sampleUserPasswords) {
@@ -58,9 +66,12 @@ function fillMissingUserPasswords(tenantId, appData) {
     const defaults = getSampleUserPasswords();
     let changed = false;
     Object.entries(appData.users).forEach(([id, u]) => {
-        if (u && !u.password && defaults[id]?.password) {
-            u.password = defaults[id].password;
-            changed = true;
+        if (u && !u.password) {
+            const pwd = defaults[id]?.password || INLINE_USER_PASSWORDS[id];
+            if (pwd) {
+                u.password = pwd;
+                changed = true;
+            }
         }
     });
     if (changed) setTenantData(tenantId, appData);
@@ -163,7 +174,7 @@ function saveTenantData(tenantId, data) {
 }
 
 app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, service: 'ledgerflow-crm-api', tenant: DEFAULT_TENANT_ID });
+    res.json({ ok: true, service: 'ledgerflow-crm-api', tenant: DEFAULT_TENANT_ID, version: API_VERSION });
 });
 
 app.post('/api/auth/login', (req, res) => {
@@ -189,10 +200,11 @@ app.post('/api/auth/login', (req, res) => {
             JWT_SECRET,
             { expiresIn: '7d' }
         );
+        const userRole = appData.users?.[dbUser.id]?.role || dbUser.role || 'client';
         return res.json({
             token,
             user: publicUser(dbUser),
-            data: prepareAppDataForRole(appData, dbUser.role)
+            data: prepareAppDataForRole(appData, userRole)
         });
     }
 
