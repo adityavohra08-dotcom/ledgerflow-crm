@@ -288,13 +288,6 @@
                         <span class="font-mono text-emerald-400">accounts@freshmart.in</span>
                     </button>
                 </div>
-                <div id="demo-firm-creds" class="hidden text-xs">
-                    <button type="button" onclick="fillDemoLogin('adityavohra08@gmail.com','2004Aditya@')"
-                            class="w-full bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
-                        <span class="text-slate-300">ADITYA VOHRA — WEALTH BUILDERS AND CONSULTANTS</span>
-                        <span class="font-mono text-emerald-400">adityavohra08@gmail.com / 2004Aditya@</span>
-                    </button>
-                </div>
             </div>
         </div>
     </div>
@@ -605,8 +598,7 @@
                 tabFirm.className = 'flex-1 py-2.5 text-sm font-semibold rounded-xl transition-colors text-slate-400 hover:text-white';
                 document.getElementById('login-client-hint').classList.remove('hidden');
                 document.getElementById('login-firm-hint').classList.add('hidden');
-                document.getElementById('demo-client-creds').classList.remove('hidden');
-                document.getElementById('demo-firm-creds').classList.add('hidden');
+                document.getElementById('auth-demo-section').classList.remove('hidden');
                 document.getElementById('demo-creds-title').textContent = 'Demo Client Logins (click to fill)';
                 btn.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-2"></i> Client Sign In';
                 btn.className = 'w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-semibold transition-colors';
@@ -615,9 +607,7 @@
                 tabClient.className = 'flex-1 py-2.5 text-sm font-semibold rounded-xl transition-colors text-slate-400 hover:text-white';
                 document.getElementById('login-firm-hint').classList.remove('hidden');
                 document.getElementById('login-client-hint').classList.add('hidden');
-                document.getElementById('demo-firm-creds').classList.remove('hidden');
-                document.getElementById('demo-client-creds').classList.add('hidden');
-                document.getElementById('demo-creds-title').textContent = 'Demo Firm Login (click to fill)';
+                document.getElementById('auth-demo-section').classList.add('hidden');
                 btn.innerHTML = '<i class="fa-solid fa-building mr-2"></i> Firm / Admin Sign In';
                 btn.className = 'w-full py-3.5 bg-blue-600 hover:bg-blue-500 rounded-2xl font-semibold transition-colors';
             }
