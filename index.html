@@ -584,9 +584,63 @@
         let currentUser = null;
         let loginMode = 'client';
         let activeSignupId = null;
+        const CLIENT_SESSION_MS = 15 * 60 * 1000;
+        let clientSessionTimer = null;
 
         function isFirmUser() { return currentUser && currentUser.role === 'firm'; }
         function isClientUser() { return currentUser && currentUser.role === 'client'; }
+
+        function getStoredSession() {
+            const saved = safeGetItem('ledgerflow_session');
+            if (!saved) return null;
+            try { return JSON.parse(saved); } catch { return null; }
+        }
+
+        function saveUserSession(user) {
+            const payload = { email: user.email, role: user.role };
+            if (user.role === 'client') payload.loginAt = Date.now();
+            safeSetItem('ledgerflow_session', JSON.stringify(payload));
+        }
+
+        function isClientSessionExpired(loginAt) {
+            if (!loginAt) return false;
+            return Date.now() - loginAt >= CLIENT_SESSION_MS;
+        }
+
+        function clearClientSessionTimer() {
+            if (clientSessionTimer) {
+                clearTimeout(clientSessionTimer);
+                clientSessionTimer = null;
+            }
+        }
+
+        function scheduleClientSessionLogout(loginAt) {
+            clearClientSessionTimer();
+            if (!currentUser || currentUser.role !== 'client') return;
+            const startedAt = loginAt || Date.now();
+            const remaining = CLIENT_SESSION_MS - (Date.now() - startedAt);
+            if (remaining <= 0) {
+                handleAutoClientLogout();
+                return;
+            }
+            clientSessionTimer = setTimeout(handleAutoClientLogout, remaining);
+        }
+
+        function handleAutoClientLogout() {
+            if (!currentUser || currentUser.role !== 'client') return;
+            showToast('Session expired after 15 minutes. Please sign in again.', 'error');
+            handleLogout();
+        }
+
+        function beginClientSessionIfNeeded(user, loginAt) {
+            if (user?.role !== 'client') {
+                clearClientSessionTimer();
+                return;
+            }
+            const startedAt = loginAt || Date.now();
+            if (!loginAt) saveUserSession(user);
+            scheduleClientSessionLogout(startedAt);
+        }
 
         function updateDemoSectionVisibility() {
             const demo = document.getElementById('auth-demo-section');
@@ -1369,13 +1423,14 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     appData = result.data;
                     currentUser = user;
                     errorEl.classList.add('hidden');
-                    safeSetItem('ledgerflow_session', JSON.stringify({ email: user.email, role: user.role }));
+                    saveUserSession(user);
                     normalizeLoadedAppData();
                     currentClientId = user.role === 'client' ? user.clientId : Object.keys(appData.clients)[0];
                     showAppShell();
                     populateClientSwitcher();
                     updateHeaderForUser();
                     applyRoleBasedUI();
+                    beginClientSessionIfNeeded(user);
                     showSection('dashboard');
                     showToast(user.role === 'client'
                         ? `Welcome to your Client Portal, ${user.name}!`
@@ -1454,7 +1509,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
 
             currentUser = user;
             errorEl.classList.add('hidden');
-            safeSetItem('ledgerflow_session', JSON.stringify({ email: user.email, role: user.role }));
+            saveUserSession(user);
 
             if (user.role === 'client') {
                 currentClientId = user.clientId;
@@ -1466,6 +1521,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             populateClientSwitcher();
             updateHeaderForUser();
             applyRoleBasedUI();
+            beginClientSessionIfNeeded(user);
             showSection('dashboard');
             showToast(user.role === 'client'
                 ? `Welcome to your Client Portal, ${user.name}!`
@@ -1473,6 +1529,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         }
 
         function handleLogout() {
+            clearClientSessionTimer();
             currentUser = null;
             if (isBackendMode()) LedgerFlowBackend.clearToken();
             safeSetItem('ledgerflow_session', '');
@@ -1530,12 +1587,25 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         }
 
         async function restoreSession() {
+            const stored = getStoredSession();
+
             if (isBackendMode()) {
                 if (!LedgerFlowBackend.token) return false;
+                if (stored?.role === 'client' && isClientSessionExpired(stored.loginAt)) {
+                    LedgerFlowBackend.clearToken();
+                    safeSetItem('ledgerflow_session', '');
+                    return false;
+                }
                 try {
                     const result = await LedgerFlowBackend.me();
                     appData = result.data;
                     currentUser = mapApiUser(result.user);
+                    if (currentUser.role === 'client' && isClientSessionExpired(stored?.loginAt)) {
+                        LedgerFlowBackend.clearToken();
+                        safeSetItem('ledgerflow_session', '');
+                        currentUser = null;
+                        return false;
+                    }
                     normalizeLoadedAppData();
                     currentClientId = currentUser.role === 'client'
                         ? currentUser.clientId
@@ -1543,6 +1613,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     showAppShell();
                     updateHeaderForUser();
                     applyRoleBasedUI();
+                    beginClientSessionIfNeeded(currentUser, stored?.loginAt);
                     return true;
                 } catch (e) {
                     LedgerFlowBackend.clearToken();
@@ -1551,11 +1622,13 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 }
             }
 
-            const saved = safeGetItem('ledgerflow_session');
-            if (!saved) return false;
+            if (!stored?.email) return false;
             try {
-                const { email } = JSON.parse(saved);
-                const user = Object.values(appData.users).find(u => u.email === email);
+                if (stored.role === 'client' && isClientSessionExpired(stored.loginAt)) {
+                    safeSetItem('ledgerflow_session', '');
+                    return false;
+                }
+                const user = Object.values(appData.users).find(u => u.email === stored.email);
                 if (!user) return false;
                 currentUser = user;
                 if (user.role === 'client') currentClientId = user.clientId;
@@ -1563,6 +1636,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 showAppShell();
                 updateHeaderForUser();
                 applyRoleBasedUI();
+                beginClientSessionIfNeeded(user, stored.loginAt);
                 return true;
             } catch (e) { return false; }
         }
