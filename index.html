@@ -588,6 +588,13 @@
         function isFirmUser() { return currentUser && currentUser.role === 'firm'; }
         function isClientUser() { return currentUser && currentUser.role === 'client'; }
 
+        function updateDemoSectionVisibility() {
+            const demo = document.getElementById('auth-demo-section');
+            if (!demo) return;
+            const loginPanelVisible = !document.getElementById('auth-panel-login').classList.contains('hidden');
+            demo.classList.toggle('hidden', loginMode !== 'client' || !loginPanelVisible);
+        }
+
         function setLoginMode(mode) {
             loginMode = mode;
             const tabClient = document.getElementById('tab-client');
@@ -598,8 +605,6 @@
                 tabFirm.className = 'flex-1 py-2.5 text-sm font-semibold rounded-xl transition-colors text-slate-400 hover:text-white';
                 document.getElementById('login-client-hint').classList.remove('hidden');
                 document.getElementById('login-firm-hint').classList.add('hidden');
-                document.getElementById('auth-demo-section').classList.remove('hidden');
-                document.getElementById('demo-creds-title').textContent = 'Demo Client Logins (click to fill)';
                 btn.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-2"></i> Client Sign In';
                 btn.className = 'w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-semibold transition-colors';
             } else {
@@ -607,13 +612,13 @@
                 tabClient.className = 'flex-1 py-2.5 text-sm font-semibold rounded-xl transition-colors text-slate-400 hover:text-white';
                 document.getElementById('login-firm-hint').classList.remove('hidden');
                 document.getElementById('login-client-hint').classList.add('hidden');
-                document.getElementById('auth-demo-section').classList.add('hidden');
                 btn.innerHTML = '<i class="fa-solid fa-building mr-2"></i> Firm / Admin Sign In';
                 btn.className = 'w-full py-3.5 bg-blue-600 hover:bg-blue-500 rounded-2xl font-semibold transition-colors';
             }
             document.getElementById('login-error').classList.add('hidden');
             document.getElementById('client-signup-link')?.classList.toggle('hidden', mode !== 'client');
             if (mode !== 'client') showLoginPanel();
+            updateDemoSectionVisibility();
         }
 
         function showLoginPanel() {
@@ -621,8 +626,8 @@
             document.getElementById('auth-panel-signup').classList.add('hidden');
             document.getElementById('auth-panel-verify').classList.add('hidden');
             document.getElementById('auth-panel-pending').classList.add('hidden');
-            document.getElementById('auth-demo-section').classList.toggle('hidden', loginMode !== 'client');
             document.querySelector('.flex.bg-slate-950.border')?.classList.remove('hidden');
+            updateDemoSectionVisibility();
         }
 
         function showSignupPanel() {
@@ -631,8 +636,8 @@
             document.getElementById('auth-panel-signup').classList.remove('hidden');
             document.getElementById('auth-panel-verify').classList.add('hidden');
             document.getElementById('auth-panel-pending').classList.add('hidden');
-            document.getElementById('auth-demo-section').classList.add('hidden');
             document.getElementById('signup-error').classList.add('hidden');
+            updateDemoSectionVisibility();
         }
 
         function showVerifyPanel(signup) {
@@ -641,7 +646,6 @@
             document.getElementById('auth-panel-signup').classList.add('hidden');
             document.getElementById('auth-panel-verify').classList.remove('hidden');
             document.getElementById('auth-panel-pending').classList.add('hidden');
-            document.getElementById('auth-demo-section').classList.add('hidden');
             document.querySelector('.flex.bg-slate-950.border')?.classList.add('hidden');
             document.getElementById('login-client-hint').classList.add('hidden');
             document.getElementById('verify-email-display').textContent = signup.email;
@@ -649,6 +653,7 @@
             const box = document.getElementById('verify-link-box');
             box.classList.remove('hidden');
             box.innerHTML = `<div class="text-slate-400 mb-1">Verification link (also sent via email):</div><a href="${link}" class="text-emerald-400 hover:underline">${link}</a><div class="mt-2 text-slate-500">Code: <strong class="text-white font-mono">${signup.verificationCode}</strong></div>`;
+            updateDemoSectionVisibility();
         }
 
         function showPendingPanel(email) {
@@ -656,8 +661,8 @@
             document.getElementById('auth-panel-signup').classList.add('hidden');
             document.getElementById('auth-panel-verify').classList.add('hidden');
             document.getElementById('auth-panel-pending').classList.remove('hidden');
-            document.getElementById('auth-demo-section').classList.add('hidden');
             document.getElementById('pending-email-display').textContent = email;
+            updateDemoSectionVisibility();
         }
 
         function ensurePendingSignups() {
@@ -1474,6 +1479,8 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             document.getElementById('app-shell').classList.add('hidden');
             document.getElementById('login-screen').classList.remove('hidden');
             document.getElementById('login-password').value = '';
+            showLoginPanel();
+            updateDemoSectionVisibility();
         }
 
         function showAppShell() {
@@ -4787,6 +4794,7 @@ Sent via LedgerFlow CRM`;
 
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('mode') === 'client') setLoginMode('client');
+            else updateDemoSectionVisibility();
 
             const verifyToken = urlParams.get('verify');
             if (verifyToken) {
