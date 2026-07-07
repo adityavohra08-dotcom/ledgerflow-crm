@@ -1740,6 +1740,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             currentUser = null;
             if (isBackendMode()) LedgerFlowBackend.clearToken();
             safeSetItem('ledgerflow_session', '');
+            if (typeof resetSidebarNav === 'function') resetSidebarNav();
             document.getElementById('app-shell').classList.add('hidden');
             document.getElementById('login-screen').classList.remove('hidden');
             document.getElementById('login-password').value = '';
@@ -1783,6 +1784,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         function applyRoleBasedUI() {
             const isClient = isClientUser();
             const isTeam = isTeamUser();
+            if (!isTeam && typeof resetSidebarNav === 'function') resetSidebarNav();
             document.getElementById('sidebar-title').textContent = isClient ? 'MY BUSINESS PORTAL' : isTeam ? 'TEAM PORTAL' : 'CLIENT MANAGEMENT';
             document.getElementById('nav-invoices-label').textContent = isClient ? 'Make GST Invoice' : 'Client Invoices';
             document.getElementById('nav-documents-label').textContent = isClient ? 'Documents from CA' : isTeam ? 'Documents' : 'Documents Center';
