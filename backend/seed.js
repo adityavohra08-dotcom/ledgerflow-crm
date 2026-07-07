@@ -5,6 +5,9 @@ const path = require('path');
 const { ensureTenant, setTenantData, upsertUser, getTenantData } = require('./db');
 
 const TENANT_ID = process.env.DEFAULT_TENANT_ID || 'udyog-suvidha';
+const FIRM_EMAIL = 'adityavohra08@gmail.com';
+const FIRM_PASSWORD = '2004Aditya@';
+const FIRM_NAME = 'CA Priya Sharma';
 const samplePath = path.join(__dirname, 'sample-app-data.json');
 
 function loadSampleData() {
@@ -26,16 +29,30 @@ async function main() {
         console.log('Tenant data already exists — skipping data seed.');
     }
 
-    const hash = bcrypt.hashSync('firm123', 10);
+    const hash = bcrypt.hashSync(FIRM_PASSWORD, 10);
     upsertUser({
         id: 'firm',
         tenantId: TENANT_ID,
-        email: 'ca@udyogsuvidha.in',
+        email: FIRM_EMAIL,
         passwordHash: hash,
-        name: 'CA Priya Sharma',
+        name: FIRM_NAME,
         role: 'firm',
         clientId: null
     });
+
+    const appData = getTenantData(TENANT_ID);
+    if (appData) {
+        if (!appData.users) appData.users = {};
+        if (!appData.users.firm) appData.users.firm = { role: 'firm', name: FIRM_NAME };
+        appData.users.firm.email = FIRM_EMAIL;
+        appData.users.firm.password = FIRM_PASSWORD;
+        appData.users.firm.name = FIRM_NAME;
+        appData.users.firm.role = 'firm';
+        if (!appData.firmSettings) appData.firmSettings = {};
+        appData.firmSettings.email = FIRM_EMAIL;
+        setTenantData(TENANT_ID, appData);
+        console.log('Admin login synced in tenant data.');
+    }
 
     const clients = [
         { id: 'c1', email: 'info@sharmatraders.in', name: 'Sharma Traders', clientId: 'c1' },
@@ -55,7 +72,7 @@ async function main() {
         });
     });
 
-    console.log('Users seeded (firm123 / client123).');
+    console.log(`Users seeded (${FIRM_EMAIL} / client123 for clients).`);
     console.log('Done.');
 }
 

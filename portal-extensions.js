@@ -37,7 +37,7 @@
     window.ensureFirmSettings = function () {
         const defaults = {
             name: 'LedgerFlow Accounting Firm',
-            email: 'ca@udyogsuvidha.in',
+            email: 'adityavohra08@gmail.com',
             gstin: '',
             pan: '',
             address: '',
@@ -264,7 +264,7 @@
     };
 
     function notifyAdminNewServiceOrder(client, order) {
-        const adminEmail = appData.firmSettings?.email || 'ca@udyogsuvidha.in';
+        const adminEmail = appData.firmSettings?.email || 'adityavohra08@gmail.com';
         const subject = encodeURIComponent(`[LedgerFlow] New service purchase request — ${client.name}`);
         const body = encodeURIComponent(`Client: ${client.name}\nService: ${order.serviceName}\nCategory: ${order.categoryName}\nNotes: ${order.notes || '—'}\n\nLog in to Firm portal → Service Orders to approve.`);
         window.open(`mailto:${adminEmail}?subject=${subject}&body=${body}`, '_blank');

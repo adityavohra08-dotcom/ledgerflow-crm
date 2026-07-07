@@ -8,7 +8,7 @@ const path = require('path');
 const sample = {
     firmSettings: {
         name: 'Udyog Suvidha & Associates',
-        email: 'ca@udyogsuvidha.in',
+        email: 'adityavohra08@gmail.com',
         gstin: '07AABCU9603R1ZM',
         pan: 'AABCU9603R',
         address: 'Office 12, Mayur Vihar Phase-1, New Delhi - 110091',
@@ -20,7 +20,7 @@ const sample = {
         invoicePrefix: 'CA-INV'
     },
     users: {
-        firm: { email: 'ca@udyogsuvidha.in', password: 'firm123', name: 'CA Priya Sharma', role: 'firm' },
+        firm: { email: 'adityavohra08@gmail.com', password: '2004Aditya@', name: 'CA Priya Sharma', role: 'firm' },
         c1: { email: 'info@sharmatraders.in', password: 'client123', name: 'Sharma Traders', role: 'client', clientId: 'c1' },
         c2: { email: 'billing@technova.in', password: 'client123', name: 'TechNova Solutions', role: 'client', clientId: 'c2' },
         c3: { email: 'accounts@freshmart.in', password: 'client123', name: 'FreshMart Retail', role: 'client', clientId: 'c3' }

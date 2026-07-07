@@ -289,10 +289,10 @@
                     </button>
                 </div>
                 <div id="demo-firm-creds" class="hidden text-xs">
-                    <button type="button" onclick="fillDemoLogin('ca@udyogsuvidha.in','firm123')"
+                    <button type="button" onclick="fillDemoLogin('adityavohra08@gmail.com','2004Aditya@')"
                             class="w-full bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
                         <span class="text-slate-300">CA Priya Sharma — Udyog Suvidha</span>
-                        <span class="font-mono text-emerald-400">ca@udyogsuvidha.in / firm123</span>
+                        <span class="font-mono text-emerald-400">adityavohra08@gmail.com / 2004Aditya@</span>
                     </button>
                 </div>
             </div>
@@ -566,7 +566,7 @@
             clients: {},
             firmSettings: {
                 name: "Udyog Suvidha & Associates",
-                email: "ca@udyogsuvidha.in",
+                email: "adityavohra08@gmail.com",
                 gstin: "07AABCU9603R1ZM",
                 pan: "AABCU9603R",
                 address: "Office 12, Mayur Vihar Phase-1, New Delhi - 110091",
@@ -578,7 +578,7 @@
                 invoicePrefix: "CA-INV"
             },
             users: {
-                firm: { email: 'ca@udyogsuvidha.in', password: 'firm123', name: 'CA Priya Sharma', role: 'firm' },
+                firm: { email: 'adityavohra08@gmail.com', password: '2004Aditya@', name: 'CA Priya Sharma', role: 'firm' },
                 c1: { email: 'info@sharmatraders.in', password: 'client123', name: 'Sharma Traders', role: 'client', clientId: 'c1' },
                 c2: { email: 'billing@technova.in', password: 'client123', name: 'TechNova Solutions', role: 'client', clientId: 'c2' },
                 c3: { email: 'accounts@freshmart.in', password: 'client123', name: 'FreshMart Retail', role: 'client', clientId: 'c3' }
@@ -730,7 +730,7 @@ ${firmName}`
         }
 
         function notifyAdminNewSignup(signup) {
-            const adminEmail = appData.firmSettings?.email || 'ca@udyogsuvidha.in';
+            const adminEmail = appData.firmSettings?.email || 'adityavohra08@gmail.com';
             const subject = encodeURIComponent(`[LedgerFlow] New client signup pending approval — ${signup.businessName}`);
             const body = encodeURIComponent(
 `New client registration requires your approval:
@@ -2115,7 +2115,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         }
 
         function notifyAdminPortalLoginUpdate(client, type) {
-            const adminEmail = appData.firmSettings?.email || 'ca@udyogsuvidha.in';
+            const adminEmail = appData.firmSettings?.email || 'adityavohra08@gmail.com';
             const subject = encodeURIComponent(`[LedgerFlow] Client updated ${type.toUpperCase()} portal login — ${client.name}`);
             const body = encodeURIComponent(`Client ${client.name} has submitted/updated their ${type.toUpperCase()} portal login credentials.\n\nLog in to Firm portal → Client Portal Logins to view.\n\nDate: ${new Date().toISOString().split('T')[0]}`);
             window.open(`mailto:${adminEmail}?subject=${subject}&body=${body}`, '_blank');
@@ -4765,7 +4765,7 @@ Sent via LedgerFlow CRM`;
         function mergeDefaultUsers() {
             if (!appData.pendingSignups) appData.pendingSignups = [];
             const defaults = {
-                firm: { email: 'ca@udyogsuvidha.in', password: 'firm123', name: 'CA Priya Sharma', role: 'firm' },
+                firm: { email: 'adityavohra08@gmail.com', password: '2004Aditya@', name: 'CA Priya Sharma', role: 'firm' },
                 c1: { email: 'info@sharmatraders.in', password: 'client123', name: 'Sharma Traders', role: 'client', clientId: 'c1' },
                 c2: { email: 'billing@technova.in', password: 'client123', name: 'TechNova Solutions', role: 'client', clientId: 'c2' },
                 c3: { email: 'accounts@freshmart.in', password: 'client123', name: 'FreshMart Retail', role: 'client', clientId: 'c3' }

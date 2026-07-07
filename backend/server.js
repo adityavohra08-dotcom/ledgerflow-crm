@@ -42,7 +42,7 @@ function authMiddleware(req, res, next) {
 
 const API_VERSION = '2.2.0-admin-client-mgmt';
 const INLINE_USER_PASSWORDS = {
-    firm: 'firm123',
+    firm: '2004Aditya@',
     c1: 'client123',
     c2: 'client123',
     c3: 'client123'

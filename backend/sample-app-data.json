@@ -1,7 +1,7 @@
 {
   "firmSettings": {
     "name": "Udyog Suvidha & Associates",
-    "email": "ca@udyogsuvidha.in",
+    "email": "adityavohra08@gmail.com",
     "gstin": "07AABCU9603R1ZM",
     "pan": "AABCU9603R",
     "address": "Office 12, Mayur Vihar Phase-1, New Delhi - 110091",
@@ -19,8 +19,8 @@
   },
   "users": {
     "firm": {
-      "email": "ca@udyogsuvidha.in",
-      "password": "firm123",
+      "email": "adityavohra08@gmail.com",
+      "password": "2004Aditya@",
       "name": "CA Priya Sharma",
       "role": "firm"
     },

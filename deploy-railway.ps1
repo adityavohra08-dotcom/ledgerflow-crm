@@ -37,7 +37,7 @@ Write-Host "Generating public domain..."
 
 Write-Host ""
 Write-Host "Done! Open your Railway URL (run 'railway open' or check dashboard)."
-Write-Host "Demo logins: ca@udyogsuvidha.in / firm123  |  client123 for clients"
+Write-Host "Demo logins: adityavohra08@gmail.com / 2004Aditya@  |  client123 for clients"
 Write-Host ""
 Write-Host "IMPORTANT: Add a Volume in Railway dashboard:"
 Write-Host "  Service -> Settings -> Volumes -> Mount path: /data"
