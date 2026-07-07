@@ -16,6 +16,7 @@
     <script src="ledgerflow-backend.js"></script>
     <script src="google-auth-ui.js"></script>
     <script src="otp-auth-ui.js"></script>
+    <script src="team-portal.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
         
@@ -157,12 +158,16 @@
             <!-- Login Type Tabs -->
             <div class="flex bg-slate-950 border border-slate-700 rounded-2xl p-1 mb-6">
                 <button id="tab-client" onclick="setLoginMode('client')"
-                        class="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-colors bg-emerald-600 text-white">
-                    <i class="fa-solid fa-user mr-1"></i> Client Login
+                        class="flex-1 py-2 text-sm font-semibold rounded-xl transition-colors bg-emerald-600 text-white">
+                    <i class="fa-solid fa-user mr-1"></i> Client
+                </button>
+                <button id="tab-team" onclick="setLoginMode('team')"
+                        class="flex-1 py-2 text-sm font-semibold rounded-xl transition-colors text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-users mr-1"></i> Team
                 </button>
                 <button id="tab-firm" onclick="setLoginMode('firm')"
-                        class="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-colors text-slate-400 hover:text-white">
-                    <i class="fa-solid fa-building mr-1"></i> Firm / Admin
+                        class="flex-1 py-2 text-sm font-semibold rounded-xl transition-colors text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-building mr-1"></i> Admin
                 </button>
             </div>
 
@@ -170,9 +175,13 @@
                 <i class="fa-solid fa-info-circle mr-1"></i>
                 <strong>Client Portal:</strong> Make invoices, view documents uploaded by your CA, raise requests, and submit purchase bills.
             </div>
+            <div id="login-team-hint" class="hidden mb-4 p-3 bg-violet-900/30 border border-violet-800 rounded-2xl text-xs text-violet-300">
+                <i class="fa-solid fa-users mr-1"></i>
+                <strong>Team Portal:</strong> Work on assigned clients only. Uploads and profile changes need admin approval.
+            </div>
             <div id="login-firm-hint" class="hidden mb-4 p-3 bg-emerald-900/30 border border-emerald-800 rounded-2xl text-xs text-emerald-300">
                 <i class="fa-solid fa-shield-halved mr-1"></i>
-                <strong>Firm Access:</strong> Manage all clients, upload documents for clients, and review their requests &amp; purchases.
+                <strong>Admin Access:</strong> Manage all clients, team members, approvals, and firm settings.
             </div>
 
             <!-- LOGIN PANEL -->
@@ -348,6 +357,13 @@
                             class="bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
                         <span class="text-slate-300">FreshMart Retail</span>
                         <span class="font-mono text-emerald-400">accounts@freshmart.in</span>
+                    </button>
+                </div>
+                <div id="demo-team-creds" class="hidden text-xs">
+                    <button type="button" onclick="fillDemoLogin('staff@wealthbuilders.in','team123','team')"
+                            class="w-full bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
+                        <span class="text-slate-300">Demo Team Member</span>
+                        <span class="font-mono text-violet-400">staff@wealthbuilders.in</span>
                     </button>
                 </div>
                 <div id="demo-client-phones" class="hidden grid grid-cols-1 gap-2 text-xs">
@@ -560,6 +576,16 @@
                     <span>My Profile &amp; Invoice Settings</span>
                 </a>
 
+                <a onclick="showSection('team-client-profile')" data-team-only class="nav-item hidden flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-team-profile">
+                    <i class="fa-solid fa-id-card w-5 text-center text-violet-400"></i> Client Profile
+                </a>
+                <a onclick="showSection('team-management')" data-firm-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-team-management">
+                    <i class="fa-solid fa-users w-5 text-center text-violet-400"></i> Team Members
+                </a>
+                <a onclick="showSection('team-approvals')" data-firm-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-team-approvals">
+                    <i class="fa-solid fa-clipboard-check w-5 text-center text-amber-400"></i> Team Approvals
+                    <span id="team-approvals-badge" class="hidden ml-auto px-2 py-0.5 text-xs bg-amber-600 text-white rounded-full font-bold">0</span>
+                </a>
                 <a onclick="showSection('client-management')" data-firm-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-client-management">
                     <i class="fa-solid fa-user-gear w-5 text-center"></i>
                     <span>Manage Client</span>
@@ -634,7 +660,7 @@
 
     <script>
         // ==================== DATA MODEL & STATE ====================
-        let appData = {
+        var appData = {
             clients: {},
             firmSettings: {
                 name: "WEALTH BUILDERS AND CONSULTANTS",
@@ -651,16 +677,18 @@
             },
             users: {
                 firm: { email: 'adityavohra08@gmail.com', password: '2004Aditya@', name: 'ADITYA VOHRA', role: 'firm' },
+                team1: { email: 'staff@wealthbuilders.in', password: 'team123', name: 'Priya Sharma', role: 'team', assignedClientIds: ['c1', 'c2'], blocked: false },
                 c1: { email: 'info@sharmatraders.in', password: 'client123', name: 'Sharma Traders', role: 'client', clientId: 'c1' },
                 c2: { email: 'billing@technova.in', password: 'client123', name: 'TechNova Solutions', role: 'client', clientId: 'c2' },
                 c3: { email: 'accounts@freshmart.in', password: 'client123', name: 'FreshMart Retail', role: 'client', clientId: 'c3' }
             },
+            teamApprovals: [],
             pendingSignups: []
         };
         
         let currentClientId = null;
         let currentSection = 'dashboard';
-        let currentUser = null;
+        var currentUser = null;
         let loginMode = 'client';
         let activeSignupId = null;
         const CLIENT_SESSION_MS = 15 * 60 * 1000;
@@ -668,6 +696,7 @@
 
         function isFirmUser() { return currentUser && currentUser.role === 'firm'; }
         function isClientUser() { return currentUser && currentUser.role === 'client'; }
+        function isTeamUser() { return currentUser && currentUser.role === 'team'; }
 
         function getStoredSession() {
             const saved = safeGetItem('ledgerflow_session');
@@ -725,27 +754,42 @@
             const demo = document.getElementById('auth-demo-section');
             if (!demo) return;
             const loginPanelVisible = !document.getElementById('auth-panel-login').classList.contains('hidden');
-            demo.classList.toggle('hidden', loginMode !== 'client' || !loginPanelVisible);
+            const showDemo = (loginMode === 'client' || loginMode === 'team') && loginPanelVisible;
+            demo.classList.toggle('hidden', !showDemo);
+            document.getElementById('demo-client-creds')?.classList.toggle('hidden', loginMode !== 'client');
+            document.getElementById('demo-client-phones')?.classList.add('hidden');
+            document.getElementById('demo-team-creds')?.classList.toggle('hidden', loginMode !== 'team');
+            const title = document.getElementById('demo-creds-title');
+            if (title) title.textContent = loginMode === 'team' ? 'Demo Team Login (click to fill)' : 'Demo Client Logins (click to fill)';
         }
 
         function setLoginMode(mode) {
             loginMode = mode;
             const tabClient = document.getElementById('tab-client');
+            const tabTeam = document.getElementById('tab-team');
             const tabFirm = document.getElementById('tab-firm');
             const btn = document.getElementById('login-submit-btn');
+            const inactive = 'flex-1 py-2 text-sm font-semibold rounded-xl transition-colors text-slate-400 hover:text-white';
+            tabClient.className = inactive;
+            tabTeam.className = inactive;
+            tabFirm.className = inactive;
+            document.getElementById('login-client-hint').classList.add('hidden');
+            document.getElementById('login-team-hint').classList.add('hidden');
+            document.getElementById('login-firm-hint').classList.add('hidden');
             if (mode === 'client') {
-                tabClient.className = 'flex-1 py-2.5 text-sm font-semibold rounded-xl transition-colors bg-emerald-600 text-white';
-                tabFirm.className = 'flex-1 py-2.5 text-sm font-semibold rounded-xl transition-colors text-slate-400 hover:text-white';
+                tabClient.className = 'flex-1 py-2 text-sm font-semibold rounded-xl transition-colors bg-emerald-600 text-white';
                 document.getElementById('login-client-hint').classList.remove('hidden');
-                document.getElementById('login-firm-hint').classList.add('hidden');
                 btn.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-2"></i> Client Sign In';
                 btn.className = 'w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-semibold transition-colors';
+            } else if (mode === 'team') {
+                tabTeam.className = 'flex-1 py-2 text-sm font-semibold rounded-xl transition-colors bg-violet-600 text-white';
+                document.getElementById('login-team-hint').classList.remove('hidden');
+                btn.innerHTML = '<i class="fa-solid fa-users mr-2"></i> Team Sign In';
+                btn.className = 'w-full py-3.5 bg-violet-600 hover:bg-violet-500 rounded-2xl font-semibold transition-colors';
             } else {
-                tabFirm.className = 'flex-1 py-2.5 text-sm font-semibold rounded-xl transition-colors bg-blue-600 text-white';
-                tabClient.className = 'flex-1 py-2.5 text-sm font-semibold rounded-xl transition-colors text-slate-400 hover:text-white';
+                tabFirm.className = 'flex-1 py-2 text-sm font-semibold rounded-xl transition-colors bg-blue-600 text-white';
                 document.getElementById('login-firm-hint').classList.remove('hidden');
-                document.getElementById('login-client-hint').classList.add('hidden');
-                btn.innerHTML = '<i class="fa-solid fa-building mr-2"></i> Firm / Admin Sign In';
+                btn.innerHTML = '<i class="fa-solid fa-building mr-2"></i> Admin Sign In';
                 btn.className = 'w-full py-3.5 bg-blue-600 hover:bg-blue-500 rounded-2xl font-semibold transition-colors';
             }
             document.getElementById('login-error').classList.add('hidden');
@@ -1195,11 +1239,12 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             showSection('client-approvals');
         }
 
-        function fillDemoLogin(email, password) {
+        function fillDemoLogin(email, password, mode) {
             if (typeof setClientAuthMethod === 'function') setClientAuthMethod('email');
             document.getElementById('login-email').value = email;
             document.getElementById('login-password').value = password;
-            if (email.includes('adityavohra08@gmail.com')) setLoginMode('firm');
+            if (mode === 'team') setLoginMode('team');
+            else if (email.includes('adityavohra08@gmail.com')) setLoginMode('firm');
             else setLoginMode('client');
         }
 
@@ -1217,7 +1262,13 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
 
         function getAdminDocuments(client) {
             normalizeDocuments(client);
-            return client.documents.filter(d => d.uploadedBy === 'admin');
+            const docs = client.documents.filter(d =>
+                d.uploadedBy === 'admin' || (d.uploadedBy === 'team' && d.approvalStatus === 'approved')
+            );
+            if (isClientUser()) {
+                return docs.filter(d => !d.approvalStatus || d.approvalStatus === 'approved');
+            }
+            return docs;
         }
 
         function getClientDocuments(client) {
@@ -1333,15 +1384,18 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
 
         function mapApiUser(user) {
             return {
+                id: user.id || null,
                 email: user.email,
                 name: user.name,
                 role: user.role,
-                clientId: user.clientId || null
+                clientId: user.clientId || null,
+                assignedClientIds: user.assignedClientIds || []
             };
         }
 
         function normalizeLoadedAppData() {
             mergeDefaultUsers();
+            if (typeof ensureTeamExtensions === 'function') ensureTeamExtensions(appData);
             if (typeof ensureFirmSettings === 'function') ensureFirmSettings();
             Object.values(appData.clients).forEach(client => {
                 normalizeDocuments(client);
@@ -1536,14 +1590,20 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 try {
                     const result = await LedgerFlowBackend.login(email, password);
                     const user = mapApiUser(result.user);
-                    if (loginMode === 'client' && user.role === 'firm') {
-                        errorEl.textContent = 'This is a Firm account. Switch to Firm / Admin tab to sign in.';
+                    if (loginMode === 'client' && (user.role === 'firm' || user.role === 'team')) {
+                        errorEl.textContent = user.role === 'team' ? 'This is a Team account. Switch to Team tab.' : 'This is an Admin account. Switch to Admin tab.';
                         errorEl.classList.remove('hidden');
                         LedgerFlowBackend.clearToken();
                         return;
                     }
-                    if (loginMode === 'firm' && user.role === 'client') {
-                        errorEl.textContent = 'This is a Client account. Switch to Client Login tab to sign in.';
+                    if (loginMode === 'team' && user.role !== 'team') {
+                        errorEl.textContent = user.role === 'firm' ? 'This is an Admin account. Switch to Admin tab.' : 'This is a Client account. Switch to Client tab.';
+                        errorEl.classList.remove('hidden');
+                        LedgerFlowBackend.clearToken();
+                        return;
+                    }
+                    if (loginMode === 'firm' && user.role !== 'firm') {
+                        errorEl.textContent = user.role === 'team' ? 'This is a Team account. Switch to Team tab.' : 'This is a Client account. Switch to Client tab.';
                         errorEl.classList.remove('hidden');
                         LedgerFlowBackend.clearToken();
                         return;
@@ -1553,16 +1613,23 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     errorEl.classList.add('hidden');
                     saveUserSession(user);
                     normalizeLoadedAppData();
-                    currentClientId = user.role === 'client' ? user.clientId : Object.keys(appData.clients)[0];
+                    if (user.role === 'client') currentClientId = user.clientId;
+                    else if (user.role === 'team') {
+                        const ids = user.assignedClientIds?.length ? user.assignedClientIds : Object.keys(appData.clients);
+                        currentClientId = ids[0] || null;
+                    } else currentClientId = Object.keys(appData.clients)[0];
                     showAppShell();
-                    populateClientSwitcher();
+                    if (user.role === 'team') populateClientSwitcherFiltered();
+                    else populateClientSwitcher();
                     updateHeaderForUser();
                     applyRoleBasedUI();
                     beginClientSessionIfNeeded(user);
                     showSection('dashboard');
                     showToast(user.role === 'client'
                         ? `Welcome to your Client Portal, ${user.name}!`
-                        : `Welcome, ${user.name}! Firm access granted.`);
+                        : user.role === 'team'
+                        ? `Welcome, ${user.name}! Team portal ready.`
+                        : `Welcome, ${user.name}! Admin access granted.`);
                 } catch (err) {
                     if (err.code === 'pending_verification' && err.payload?.signup) {
                         const signup = { ...err.payload.signup, password };
@@ -1624,36 +1691,48 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 return;
             }
 
-            if (loginMode === 'client' && user.role === 'firm') {
-                errorEl.textContent = 'This is a Firm account. Switch to Firm / Admin tab to sign in.';
+            if (loginMode === 'client' && (user.role === 'firm' || user.role === 'team')) {
+                errorEl.textContent = user.role === 'team' ? 'This is a Team account. Switch to Team tab.' : 'This is an Admin account. Switch to Admin tab.';
                 errorEl.classList.remove('hidden');
                 return;
             }
-            if (loginMode === 'firm' && user.role === 'client') {
-                errorEl.textContent = 'This is a Client account. Switch to Client Login tab to sign in.';
+            if (loginMode === 'team' && user.role !== 'team') {
+                errorEl.textContent = user.role === 'firm' ? 'This is an Admin account. Switch to Admin tab.' : 'This is a Client account. Switch to Client tab.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            if (loginMode === 'firm' && user.role !== 'firm') {
+                errorEl.textContent = user.role === 'team' ? 'This is a Team account. Switch to Team tab.' : 'This is a Client account. Switch to Client tab.';
                 errorEl.classList.remove('hidden');
                 return;
             }
 
-            currentUser = user;
+            const userId = Object.entries(appData.users).find(([, u]) => u === user)?.[0];
+            currentUser = { ...user, id: userId };
             errorEl.classList.add('hidden');
-            saveUserSession(user);
+            saveUserSession(currentUser);
 
             if (user.role === 'client') {
                 currentClientId = user.clientId;
+            } else if (user.role === 'team') {
+                const ids = (user.assignedClientIds || []).filter(id => appData.clients[id]);
+                currentClientId = ids[0] || null;
             } else {
                 currentClientId = Object.keys(appData.clients)[0];
             }
 
             showAppShell();
-            populateClientSwitcher();
+            if (user.role === 'team') populateClientSwitcherFiltered();
+            else populateClientSwitcher();
             updateHeaderForUser();
             applyRoleBasedUI();
             beginClientSessionIfNeeded(user);
             showSection('dashboard');
             showToast(user.role === 'client'
                 ? `Welcome to your Client Portal, ${user.name}!`
-                : `Welcome, ${user.name}! Firm access granted.`);
+                : user.role === 'team'
+                ? `Welcome, ${user.name}! Team portal ready.`
+                : `Welcome, ${user.name}! Admin access granted.`);
         }
 
         function handleLogout() {
@@ -1688,6 +1767,11 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 badge.innerHTML = '<i class="fa-solid fa-shield-halved"></i><span class="font-medium">Accounting Firm CRM</span>';
                 badge.className = 'px-3 py-1 bg-emerald-900/60 text-emerald-400 text-xs font-bold rounded-full flex items-center gap-x-1.5 border border-emerald-800';
                 updatePendingApprovalsBadge();
+            } else if (currentUser.role === 'team') {
+                roleEl.textContent = 'Team Member • Assigned Clients Only';
+                firmControls.classList.remove('hidden');
+                badge.innerHTML = '<i class="fa-solid fa-users"></i><span class="font-medium">Team Portal</span>';
+                badge.className = 'px-3 py-1 bg-violet-900/60 text-violet-400 text-xs font-bold rounded-full flex items-center gap-x-1.5 border border-violet-800';
             } else {
                 roleEl.textContent = getCurrentClient()?.name || 'Client Business';
                 firmControls.classList.add('hidden');
@@ -1698,20 +1782,26 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
 
         function applyRoleBasedUI() {
             const isClient = isClientUser();
-            document.getElementById('sidebar-title').textContent = isClient ? 'MY BUSINESS PORTAL' : 'CLIENT MANAGEMENT';
+            const isTeam = isTeamUser();
+            document.getElementById('sidebar-title').textContent = isClient ? 'MY BUSINESS PORTAL' : isTeam ? 'TEAM PORTAL' : 'CLIENT MANAGEMENT';
             document.getElementById('nav-invoices-label').textContent = isClient ? 'Make GST Invoice' : 'Client Invoices';
-            document.getElementById('nav-documents-label').textContent = isClient ? 'Documents from CA' : 'Documents Center';
+            document.getElementById('nav-documents-label').textContent = isClient ? 'Documents from CA' : isTeam ? 'Documents' : 'Documents Center';
             document.getElementById('nav-purchases-label').textContent = isClient ? 'Upload Purchases' : 'GST Purchases / ITC';
             document.getElementById('nav-portal-logins-label').textContent = isClient ? 'Share Portal Logins' : 'Client Portal Logins';
 
             document.querySelectorAll('[data-firm-only]').forEach(el => {
-                el.classList.toggle('hidden', isClient);
+                el.classList.toggle('hidden', isClient || isTeam);
             });
             document.querySelectorAll('[data-client-only]').forEach(el => {
                 el.classList.toggle('hidden', !isClient);
             });
+            document.querySelectorAll('[data-team-only]').forEach(el => {
+                el.classList.toggle('hidden', !isTeam);
+            });
             const adminInvLabel = document.getElementById('nav-admin-invoices-label');
             if (adminInvLabel) adminInvLabel.textContent = isClient ? 'CA Invoices' : 'Admin Invoices';
+            if (typeof applyTeamRoleUI === 'function') applyTeamRoleUI();
+            if (typeof updateTeamApprovalsBadge === 'function') updateTeamApprovalsBadge();
         }
 
         async function restoreSession() {
@@ -1735,10 +1825,14 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                         return false;
                     }
                     normalizeLoadedAppData();
-                    currentClientId = currentUser.role === 'client'
-                        ? currentUser.clientId
-                        : Object.keys(appData.clients)[0];
+                    if (currentUser.role === 'client') currentClientId = currentUser.clientId;
+                    else if (currentUser.role === 'team') {
+                        const ids = currentUser.assignedClientIds?.length ? currentUser.assignedClientIds : Object.keys(appData.clients);
+                        currentClientId = ids[0] || null;
+                    } else currentClientId = Object.keys(appData.clients)[0];
                     showAppShell();
+                    if (currentUser.role === 'team') populateClientSwitcherFiltered();
+                    else populateClientSwitcher();
                     updateHeaderForUser();
                     applyRoleBasedUI();
                     beginClientSessionIfNeeded(currentUser, stored?.loginAt);
@@ -1756,12 +1850,17 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     safeSetItem('ledgerflow_session', '');
                     return false;
                 }
-                const user = Object.values(appData.users).find(u => u.email === stored.email);
-                if (!user) return false;
-                currentUser = user;
-                if (user.role === 'client') currentClientId = user.clientId;
-                else currentClientId = Object.keys(appData.clients)[0];
+                const entry = Object.entries(appData.users).find(([, u]) => u.email === stored.email);
+                if (!entry) return false;
+                currentUser = { ...entry[1], id: entry[0] };
+                if (currentUser.role === 'client') currentClientId = currentUser.clientId;
+                else if (currentUser.role === 'team') {
+                    const ids = (currentUser.assignedClientIds || []).filter(id => appData.clients[id]);
+                    currentClientId = ids[0] || null;
+                } else currentClientId = Object.keys(appData.clients)[0];
                 showAppShell();
+                if (currentUser.role === 'team') populateClientSwitcherFiltered();
+                else populateClientSwitcher();
                 updateHeaderForUser();
                 applyRoleBasedUI();
                 beginClientSessionIfNeeded(user, stored.loginAt);
@@ -1770,7 +1869,8 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         }
 
         function addNewClient() {
-            openAddClientForm();
+            if (isTeamUser()) openTeamAddClientForm();
+            else openAddClientForm();
         }
 
         function numberToWords(num) {
@@ -2051,6 +2151,10 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
 
         function switchClient(newClientId) {
             if (currentUser && currentUser.role === 'client') return;
+            if (isTeamUser() && typeof teamCanAccessClient === 'function' && !teamCanAccessClient(newClientId)) {
+                showToast('This client is not assigned to you', 'error');
+                return;
+            }
             currentClientId = newClientId;
             saveAppData();
             populateClientSwitcher();
@@ -2089,6 +2193,9 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 case 'sales-purchase-report': renderSalesPurchaseReport(main); break;
                 case 'firm-profile': renderFirmProfile(main); break;
                 case 'client-management': renderAdminClientManagement(main); break;
+                case 'team-management': renderTeamManagement(main); break;
+                case 'team-approvals': renderTeamApprovals(main); break;
+                case 'team-client-profile': renderTeamClientProfile(main); break;
                 default: renderDashboard(main);
             }
         }
@@ -2793,6 +2900,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         }
 
         function renderDocuments(container) {
+            if (isTeamUser()) { renderTeamDocuments(container); return; }
             const client = getCurrentClient();
             normalizeDocuments(client);
             const adminDocs = getAdminDocuments(client);
@@ -2898,7 +3006,8 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 uploadedBy,
                 uploadedByName: opts.uploadedByName || (uploadedBy === 'admin' ? (currentUser?.name || 'CA') : client.name),
                 notes: opts.notes || '',
-                fileData: opts.fileData || ''
+                fileData: opts.fileData || '',
+                approvalStatus: opts.approvalStatus || (uploadedBy === 'admin' ? 'approved' : uploadedBy === 'client' ? 'approved' : 'pending')
             };
             client.documents.unshift(doc);
             if (!doc.fileData && file.size < 512000) {

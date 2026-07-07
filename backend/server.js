@@ -66,11 +66,12 @@ const {
     TENANT_NAME,
     firmSettings: DEFAULT_FIRM_SETTINGS
 } = require('./firm-config');
-const API_VERSION = '2.7.0-firewall';
+const API_VERSION = '2.8.0-team-portal';
 const authRateLimit = createAuthRateLimiter();
 const otpSendRateLimit = createOtpSendRateLimiter();
 const INLINE_USER_PASSWORDS = {
     firm: FIRM_PASSWORD,
+    team1: 'team123',
     c1: 'client123',
     c2: 'client123',
     c3: 'client123'
@@ -106,15 +107,35 @@ function fillMissingUserPasswords(tenantId, appData) {
     return appData;
 }
 
-function prepareAppDataForRole(data, role) {
+function prepareAppDataForRole(data, role, userId) {
     const copy = JSON.parse(JSON.stringify(data));
+    if (!copy.teamApprovals) copy.teamApprovals = [];
+
     if (role === 'firm') return copy;
+
+    if (role === 'team' && userId) {
+        const teamUser = copy.users?.[userId];
+        const assigned = teamUser?.assignedClientIds || [];
+        const filteredClients = {};
+        assigned.forEach(id => {
+            if (copy.clients?.[id]) filteredClients[id] = copy.clients[id];
+        });
+        copy.clients = filteredClients;
+        copy.teamApprovals = copy.teamApprovals.filter(a => a.teamMemberId === userId);
+        delete copy.pendingSignups;
+        if (copy.users) {
+            Object.values(copy.users).forEach(u => { delete u.password; });
+        }
+        return copy;
+    }
+
     if (copy.users) {
         Object.values(copy.users).forEach(u => { delete u.password; });
     }
     if (copy.pendingSignups) {
         copy.pendingSignups.forEach(s => { delete s.password; });
     }
+    delete copy.teamApprovals;
     return copy;
 }
 
@@ -137,14 +158,18 @@ function mergePreservedSecrets(tenantId, incoming) {
     return incoming;
 }
 
-function publicUser(dbUser) {
-    return {
+function publicUser(dbUser, appData) {
+    const base = {
         id: dbUser.id,
         email: dbUser.email,
         name: dbUser.name,
         role: dbUser.role,
         clientId: dbUser.client_id || dbUser.clientId || null
     };
+    if (dbUser.role === 'team' && appData?.users?.[dbUser.id]) {
+        base.assignedClientIds = appData.users[dbUser.id].assignedClientIds || [];
+    }
+    return base;
 }
 
 function findPendingSignup(appData, email) {
@@ -261,8 +286,8 @@ app.post('/api/auth/otp/send', otpSendRateLimit, authRateLimit, async (req, res)
     if (!found) {
         return res.status(404).json({ error: 'No client account found for this mobile number' });
     }
-    if (found.user.role === 'firm') {
-        return res.status(403).json({ error: 'Firm accounts cannot use mobile OTP login' });
+    if (found.user.role === 'firm' || found.user.role === 'team') {
+        return res.status(403).json({ error: 'Use email login for firm or team accounts' });
     }
     if (isUserBlocked(appData, found.userId)) {
         return res.status(403).json({
@@ -340,8 +365,8 @@ function issueClientAuthResponse(res, tenantId, dbUser, appData) {
     );
     return res.json({
         token,
-        user: publicUser(dbUser),
-        data: prepareAppDataForRole(appData, 'client')
+        user: publicUser(dbUser, appData),
+        data: prepareAppDataForRole(appData, 'client', dbUser.id)
     });
 }
 
@@ -383,6 +408,12 @@ app.post('/api/auth/google', authRateLimit, async (req, res) => {
         return res.status(403).json({
             error: 'This is a Firm account. Use Firm / Admin login instead.',
             code: 'firm_account'
+        });
+    }
+    if (dbUser?.role === 'team' || appUserEntry?.[1]?.role === 'team') {
+        return res.status(403).json({
+            error: 'This is a Team account. Use Team Login instead.',
+            code: 'team_account'
         });
     }
 
@@ -505,8 +536,8 @@ app.post('/api/auth/login', authRateLimit, (req, res) => {
         const userRole = appData.users?.[dbUser.id]?.role || dbUser.role || 'client';
         return res.json({
             token,
-            user: publicUser(dbUser),
-            data: prepareAppDataForRole(appData, userRole)
+            user: publicUser(dbUser, appData),
+            data: prepareAppDataForRole(appData, userRole, dbUser.id)
         });
     }
 
@@ -545,15 +576,15 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
     }
     const appData = ensureTenantData(req.auth.tenantId);
     res.json({
-        user: publicUser(dbUser),
-        data: prepareAppDataForRole(appData, dbUser.role)
+        user: publicUser(dbUser, appData),
+        data: prepareAppDataForRole(appData, dbUser.role, dbUser.id)
     });
 });
 
 app.get('/api/data', authMiddleware, (req, res) => {
     const dbUser = getUserById(req.auth.userId);
     const appData = ensureTenantData(req.auth.tenantId);
-    res.json({ data: prepareAppDataForRole(appData, dbUser?.role || 'client') });
+    res.json({ data: prepareAppDataForRole(appData, dbUser?.role || 'client', dbUser?.id) });
 });
 
 app.put('/api/data', authMiddleware, (req, res) => {
@@ -698,8 +729,38 @@ app.get('*', (req, res, next) => {
     res.sendFile(indexPath, err => { if (err) next(); });
 });
 
+function syncTeamDemoUser(tenantId) {
+    const data = ensureTenantData(tenantId);
+    if (!data.users.team1) {
+        data.users.team1 = {
+            email: 'staff@wealthbuilders.in',
+            password: 'team123',
+            name: 'Priya Sharma',
+            role: 'team',
+            assignedClientIds: ['c1', 'c2'],
+            blocked: false
+        };
+        setTenantData(tenantId, data);
+    }
+    if (!data.teamApprovals) {
+        data.teamApprovals = [];
+        setTenantData(tenantId, data);
+    }
+    const hash = bcrypt.hashSync('team123', 10);
+    upsertUser({
+        id: 'team1',
+        tenantId,
+        email: 'staff@wealthbuilders.in',
+        passwordHash: hash,
+        name: 'Priya Sharma',
+        role: 'team',
+        clientId: null
+    });
+}
+
 ensureTenant(DEFAULT_TENANT_ID, TENANT_NAME);
 syncFirmAdminCredentials(DEFAULT_TENANT_ID);
+syncTeamDemoUser(DEFAULT_TENANT_ID);
 
 app.listen(PORT, '0.0.0.0', () => {
     const host = process.env.RAILWAY_PUBLIC_DOMAIN

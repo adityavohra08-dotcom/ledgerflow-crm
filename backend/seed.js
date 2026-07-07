@@ -83,7 +83,31 @@ async function main() {
         });
     });
 
-    console.log(`Users seeded (${FIRM_EMAIL} / client123 for clients).`);
+    const teamHash = bcrypt.hashSync('team123', 10);
+    upsertUser({
+        id: 'team1',
+        tenantId: TENANT_ID,
+        email: 'staff@wealthbuilders.in',
+        passwordHash: teamHash,
+        name: 'Priya Sharma',
+        role: 'team',
+        clientId: null
+    });
+
+    if (appData && !appData.users?.team1) {
+        appData.users.team1 = {
+            email: 'staff@wealthbuilders.in',
+            password: 'team123',
+            name: 'Priya Sharma',
+            role: 'team',
+            assignedClientIds: ['c1', 'c2'],
+            blocked: false
+        };
+        if (!appData.teamApprovals) appData.teamApprovals = [];
+        setTenantData(TENANT_ID, appData);
+    }
+
+    console.log(`Users seeded (${FIRM_EMAIL} / client123 for clients / team123 for team).`);
     console.log('Done.');
 }
 
