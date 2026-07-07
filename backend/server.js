@@ -24,6 +24,13 @@ const {
     sendSmsOtp,
     OTP_EXPIRY_MS
 } = require('./otp');
+const {
+    applyFirewall,
+    recordFailedAuth,
+    getFirewallStatus,
+    createAuthRateLimiter,
+    createOtpSendRateLimiter
+} = require('./firewall');
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 
@@ -35,6 +42,7 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 
 const corsOrigins = CORS_ORIGIN === '*' ? true : CORS_ORIGIN.split(',').map(s => s.trim());
 
+applyFirewall(app);
 app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 
@@ -58,7 +66,9 @@ const {
     TENANT_NAME,
     firmSettings: DEFAULT_FIRM_SETTINGS
 } = require('./firm-config');
-const API_VERSION = '2.6.0-mobile-otp-auth';
+const API_VERSION = '2.7.0-firewall';
+const authRateLimit = createAuthRateLimiter();
+const otpSendRateLimit = createOtpSendRateLimiter();
 const INLINE_USER_PASSWORDS = {
     firm: FIRM_PASSWORD,
     c1: 'client123',
@@ -226,7 +236,8 @@ app.get('/api/health', (_req, res) => {
         version: API_VERSION,
         googleAuth: !!GOOGLE_CLIENT_ID,
         otpAuth: true,
-        smsConfigured: isSmsConfigured()
+        smsConfigured: isSmsConfigured(),
+        firewall: getFirewallStatus()
     });
 });
 
@@ -237,7 +248,7 @@ app.get('/api/auth/otp-config', (_req, res) => {
     });
 });
 
-app.post('/api/auth/otp/send', async (req, res) => {
+app.post('/api/auth/otp/send', otpSendRateLimit, authRateLimit, async (req, res) => {
     const phone = (req.body.phone || '').trim();
     const tenantId = DEFAULT_TENANT_ID;
 
@@ -283,7 +294,7 @@ app.post('/api/auth/otp/send', async (req, res) => {
     res.json(response);
 });
 
-app.post('/api/auth/otp/verify', (req, res) => {
+app.post('/api/auth/otp/verify', authRateLimit, (req, res) => {
     const phone = (req.body.phone || '').trim();
     const code = (req.body.otp || req.body.code || '').trim();
     const tenantId = DEFAULT_TENANT_ID;
@@ -294,6 +305,7 @@ app.post('/api/auth/otp/verify', (req, res) => {
 
     const result = verifyStoredOtp(phone, code);
     if (!result.ok) {
+        recordFailedAuth(req);
         return res.status(401).json({ error: result.error });
     }
 
@@ -333,7 +345,7 @@ function issueClientAuthResponse(res, tenantId, dbUser, appData) {
     });
 }
 
-app.post('/api/auth/google', async (req, res) => {
+app.post('/api/auth/google', authRateLimit, async (req, res) => {
     if (!GOOGLE_CLIENT_ID) {
         return res.status(503).json({ error: 'Google sign-in is not configured on the server' });
     }
@@ -467,7 +479,7 @@ app.post('/api/auth/google', async (req, res) => {
     });
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', authRateLimit, (req, res) => {
     const email = (req.body.email || '').trim().toLowerCase();
     const password = req.body.password || '';
     const tenantId = req.body.tenantId || DEFAULT_TENANT_ID;
@@ -502,6 +514,7 @@ app.post('/api/auth/login', (req, res) => {
     const pending = findPendingSignup(appData, email);
     if (pending) {
         if (pending.password !== password) {
+            recordFailedAuth(req);
             return res.status(401).json({ error: 'Invalid email or password' });
         }
         if (!pending.emailVerified) {
@@ -521,6 +534,7 @@ app.post('/api/auth/login', (req, res) => {
         return res.status(403).json({ error: 'Account approved but not activated. Contact admin.' });
     }
 
+    recordFailedAuth(req);
     return res.status(401).json({ error: 'Invalid email or password' });
 });
 
@@ -552,7 +566,7 @@ app.put('/api/data', authMiddleware, (req, res) => {
     res.json({ ok: true, updatedAt: new Date().toISOString() });
 });
 
-app.post('/api/public/signup', (req, res) => {
+app.post('/api/public/signup', authRateLimit, (req, res) => {
     const tenantId = DEFAULT_TENANT_ID;
     const appData = ensureTenantData(tenantId);
     const name = (req.body.businessName || '').trim();
@@ -607,7 +621,7 @@ app.post('/api/public/signup', (req, res) => {
     });
 });
 
-app.post('/api/public/verify', (req, res) => {
+app.post('/api/public/verify', authRateLimit, (req, res) => {
     const tenantId = DEFAULT_TENANT_ID;
     const appData = ensureTenantData(tenantId);
     const code = (req.body.code || '').trim();
@@ -655,7 +669,7 @@ app.get('/api/public/verify-token', (req, res) => {
     });
 });
 
-app.post('/api/public/resend', (req, res) => {
+app.post('/api/public/resend', authRateLimit, (req, res) => {
     const tenantId = DEFAULT_TENANT_ID;
     const appData = ensureTenantData(tenantId);
     const signup = appData.pendingSignups.find(s => s.id === req.body.signupId);

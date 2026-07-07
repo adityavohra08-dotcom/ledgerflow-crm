@@ -30,6 +30,9 @@ Write-Host "Setting environment variables..."
 & $railway variables set "DEFAULT_TENANT_ID=udyog-suvidha"
 Write-Host "Optional: set Google OAuth for client sign-in:"
 Write-Host "  railway variables set GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com"
+Write-Host "Firewall is enabled by default. Optional overrides:"
+Write-Host "  railway variables set CORS_ORIGIN=https://your-app.up.railway.app"
+Write-Host "  railway variables set FIREWALL_BLOCK_IPS=1.2.3.4,5.6.7.8"
 
 Write-Host "Deploying to Railway..."
 & $railway up --detach
