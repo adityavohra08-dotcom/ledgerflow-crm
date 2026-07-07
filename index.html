@@ -621,7 +621,7 @@
             document.getElementById('auth-panel-signup').classList.add('hidden');
             document.getElementById('auth-panel-verify').classList.add('hidden');
             document.getElementById('auth-panel-pending').classList.add('hidden');
-            document.getElementById('auth-demo-section').classList.remove('hidden');
+            document.getElementById('auth-demo-section').classList.toggle('hidden', loginMode !== 'client');
             document.querySelector('.flex.bg-slate-950.border')?.classList.remove('hidden');
         }
 
@@ -1012,7 +1012,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         function fillDemoLogin(email, password) {
             document.getElementById('login-email').value = email;
             document.getElementById('login-password').value = password;
-            if (email.includes('ca@')) setLoginMode('firm');
+            if (email.includes('adityavohra08@gmail.com')) setLoginMode('firm');
             else setLoginMode('client');
         }
 
