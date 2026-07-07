@@ -14,6 +14,7 @@
     <script src="portal-extensions.js"></script>
     <script src="invoice-pdf-template.js"></script>
     <script src="ledgerflow-backend.js"></script>
+    <script src="google-auth-ui.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
         
@@ -188,6 +189,14 @@
                 <button id="login-submit-btn" onclick="handleLogin()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-semibold transition-colors">
                     <i class="fa-solid fa-right-to-bracket mr-2"></i> Client Sign In
                 </button>
+                <div id="google-auth-client-section" class="hidden">
+                    <div class="flex items-center gap-3 my-4">
+                        <div class="flex-1 h-px bg-slate-700"></div>
+                        <span class="text-xs text-slate-500 uppercase tracking-wider">or</span>
+                        <div class="flex-1 h-px bg-slate-700"></div>
+                    </div>
+                    <div id="google-signin-login" class="flex justify-center min-h-[44px]"></div>
+                </div>
                 <div id="login-error" class="hidden text-red-400 text-sm text-center"></div>
                 <div id="client-signup-link" class="text-center text-sm text-slate-400">
                     New business client?
@@ -236,6 +245,15 @@
                 <button onclick="handleClientSignup()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold text-sm">
                     <i class="fa-solid fa-user-plus mr-1"></i> Register &amp; Send Verification Email
                 </button>
+                <div id="google-auth-signup-block" class="hidden">
+                    <div class="flex items-center gap-3 my-3">
+                        <div class="flex-1 h-px bg-slate-700"></div>
+                        <span class="text-xs text-slate-500 uppercase tracking-wider">or</span>
+                        <div class="flex-1 h-px bg-slate-700"></div>
+                    </div>
+                    <p class="text-xs text-slate-500 text-center mb-2">Enter business name above, then sign up with Google (email pre-verified)</p>
+                    <div id="google-signup-only-btn" class="flex justify-center min-h-[44px]"></div>
+                </div>
                 <div id="signup-error" class="hidden text-red-400 text-sm text-center"></div>
                 <button type="button" onclick="showLoginPanel()" class="w-full text-sm text-slate-400 hover:text-white">← Back to Sign In</button>
             </div>
@@ -673,6 +691,7 @@
             document.getElementById('client-signup-link')?.classList.toggle('hidden', mode !== 'client');
             if (mode !== 'client') showLoginPanel();
             updateDemoSectionVisibility();
+            if (typeof renderGoogleAuthButtons === 'function') renderGoogleAuthButtons();
         }
 
         function showLoginPanel() {
@@ -682,6 +701,7 @@
             document.getElementById('auth-panel-pending').classList.add('hidden');
             document.querySelector('.flex.bg-slate-950.border')?.classList.remove('hidden');
             updateDemoSectionVisibility();
+            if (typeof renderGoogleAuthButtons === 'function') renderGoogleAuthButtons();
         }
 
         function showSignupPanel() {
@@ -692,6 +712,44 @@
             document.getElementById('auth-panel-pending').classList.add('hidden');
             document.getElementById('signup-error').classList.add('hidden');
             updateDemoSectionVisibility();
+            if (typeof renderGoogleAuthButtons === 'function') renderGoogleAuthButtons();
+        }
+
+        async function completeClientAuthFromApi(result) {
+            const user = mapApiUser(result.user);
+            appData = result.data;
+            currentUser = user;
+            saveUserSession(user);
+            normalizeLoadedAppData();
+            currentClientId = user.clientId;
+            document.getElementById('login-error')?.classList.add('hidden');
+            document.getElementById('signup-error')?.classList.add('hidden');
+            showAppShell();
+            populateClientSwitcher();
+            updateHeaderForUser();
+            applyRoleBasedUI();
+            beginClientSessionIfNeeded(user);
+            showSection('dashboard');
+            showToast(`Welcome to your Client Portal, ${user.name}!`);
+        }
+
+        async function handleGoogleSignupComplete(result) {
+            ensurePendingSignups();
+            const signup = result.signup;
+            if (!signup) return;
+            if (!appData.pendingSignups.find(s => s.id === signup.id)) {
+                appData.pendingSignups.push({
+                    ...signup,
+                    adminApproved: false,
+                    authProvider: 'google',
+                    emailVerified: true,
+                    status: 'pending_approval'
+                });
+            }
+            notifyAdminNewSignup(appData.pendingSignups.find(s => s.id === signup.id));
+            updatePendingApprovalsBadge();
+            showPendingPanel(signup.email);
+            showToast('Google sign-up submitted — awaiting admin approval');
         }
 
         function showVerifyPanel(signup) {
@@ -708,6 +766,7 @@
             box.classList.remove('hidden');
             box.innerHTML = `<div class="text-slate-400 mb-1">Verification link (also sent via email):</div><a href="${link}" class="text-emerald-400 hover:underline">${link}</a><div class="mt-2 text-slate-500">Code: <strong class="text-white font-mono">${signup.verificationCode}</strong></div>`;
             updateDemoSectionVisibility();
+            if (typeof renderGoogleAuthButtons === 'function') renderGoogleAuthButtons();
         }
 
         function showPendingPanel(email) {
@@ -1018,11 +1077,13 @@ Log in to Firm / Admin portal → Approve Signups to review.`
             };
             appData.users[clientId] = {
                 email: signup.email,
-                password: signup.password,
+                password: signup.password || ('google_' + Math.random().toString(36).slice(2) + Date.now()),
                 name: signup.businessName,
                 role: 'client',
                 clientId,
-                blocked: false
+                blocked: false,
+                authProvider: signup.authProvider || 'email',
+                googleSub: signup.googleSub || ''
             };
 
             signup.adminApproved = true;
@@ -4882,6 +4943,8 @@ Sent via LedgerFlow CRM`;
                 applyRoleBasedUI();
                 showSection('dashboard');
             }
+
+            if (typeof initGoogleAuth === 'function') await initGoogleAuth();
 
             const mode = isBackendMode()
                 ? `cloud API (${LedgerFlowBackend.apiUrl})`

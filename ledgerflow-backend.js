@@ -132,6 +132,19 @@
         });
     }
 
+    async function getGoogleConfig() {
+        return apiFetch('/api/auth/google-config');
+    }
+
+    async function googleAuth(credential, mode, extras = {}) {
+        const result = await apiFetch('/api/auth/google', {
+            method: 'POST',
+            body: JSON.stringify({ credential, mode, ...extras })
+        });
+        if (result.token) storeToken(result.token);
+        return result;
+    }
+
     function clearToken() {
         state.token = null;
         try { sessionStorage.removeItem(TOKEN_KEY); } catch (_) {}
@@ -152,6 +165,8 @@
         publicVerify,
         publicVerifyToken,
         publicResend,
+        getGoogleConfig,
+        googleAuth,
         clearToken
     };
 })();

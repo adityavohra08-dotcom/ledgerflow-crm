@@ -28,6 +28,8 @@ Write-Host "Setting environment variables..."
 & $railway variables set "JWT_SECRET=$jwt"
 & $railway variables set "CORS_ORIGIN=*"
 & $railway variables set "DEFAULT_TENANT_ID=udyog-suvidha"
+Write-Host "Optional: set Google OAuth for client sign-in:"
+Write-Host "  railway variables set GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com"
 
 Write-Host "Deploying to Railway..."
 & $railway up --detach

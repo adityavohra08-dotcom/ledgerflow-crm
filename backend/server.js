@@ -15,6 +15,9 @@ const {
     pruneTenantUsers,
     ensureTenant
 } = require('./db');
+const { verifyGoogleIdToken, randomGooglePassword } = require('./google-auth');
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -47,7 +50,7 @@ const {
     TENANT_NAME,
     firmSettings: DEFAULT_FIRM_SETTINGS
 } = require('./firm-config');
-const API_VERSION = '2.4.0-wealth-builders';
+const API_VERSION = '2.5.0-google-client-auth';
 const INLINE_USER_PASSWORDS = {
     firm: FIRM_PASSWORD,
     c1: 'client123',
@@ -208,7 +211,167 @@ function saveTenantData(tenantId, data) {
 }
 
 app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, service: 'ledgerflow-crm-api', tenant: DEFAULT_TENANT_ID, version: API_VERSION });
+    res.json({
+        ok: true,
+        service: 'ledgerflow-crm-api',
+        tenant: DEFAULT_TENANT_ID,
+        version: API_VERSION,
+        googleAuth: !!GOOGLE_CLIENT_ID
+    });
+});
+
+app.get('/api/auth/google-config', (_req, res) => {
+    res.json({
+        enabled: !!GOOGLE_CLIENT_ID,
+        clientId: GOOGLE_CLIENT_ID || null
+    });
+});
+
+function issueClientAuthResponse(res, tenantId, dbUser, appData) {
+    const token = jwt.sign(
+        { userId: dbUser.id, tenantId, role: dbUser.role, clientId: dbUser.client_id },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+    );
+    return res.json({
+        token,
+        user: publicUser(dbUser),
+        data: prepareAppDataForRole(appData, 'client')
+    });
+}
+
+app.post('/api/auth/google', async (req, res) => {
+    if (!GOOGLE_CLIENT_ID) {
+        return res.status(503).json({ error: 'Google sign-in is not configured on the server' });
+    }
+
+    const credential = req.body.credential || '';
+    const mode = req.body.mode === 'signup' ? 'signup' : 'login';
+    const tenantId = DEFAULT_TENANT_ID;
+
+    if (!credential) {
+        return res.status(400).json({ error: 'Google credential required' });
+    }
+
+    let payload;
+    try {
+        payload = await verifyGoogleIdToken(credential, GOOGLE_CLIENT_ID);
+    } catch {
+        return res.status(401).json({ error: 'Invalid or expired Google sign-in' });
+    }
+
+    const email = (payload.email || '').trim().toLowerCase();
+    const displayName = (payload.name || '').trim() || email.split('@')[0];
+    const googleSub = payload.sub || '';
+
+    if (!email || payload.email_verified !== true) {
+        return res.status(400).json({ error: 'Google account must have a verified email' });
+    }
+
+    const appData = ensureTenantData(tenantId);
+    const dbUser = findUserByEmail(tenantId, email);
+    const appUserEntry = Object.entries(appData.users || {}).find(
+        ([, u]) => u.email?.toLowerCase() === email
+    );
+
+    if (dbUser?.role === 'firm' || appUserEntry?.[1]?.role === 'firm') {
+        return res.status(403).json({
+            error: 'This is a Firm account. Use Firm / Admin login instead.',
+            code: 'firm_account'
+        });
+    }
+
+    if (dbUser && dbUser.role === 'client') {
+        if (isUserBlocked(appData, dbUser.id)) {
+            return res.status(403).json({
+                error: 'Your account has been blocked. Contact your accounting firm.',
+                code: 'account_blocked'
+            });
+        }
+        if (appData.users?.[dbUser.id]) {
+            appData.users[dbUser.id].googleSub = googleSub;
+            appData.users[dbUser.id].authProvider = 'google';
+            if (!appData.users[dbUser.id].password) {
+                appData.users[dbUser.id].password = randomGooglePassword();
+            }
+            saveTenantData(tenantId, appData);
+        }
+        return issueClientAuthResponse(res, tenantId, dbUser, appData);
+    }
+
+    const pending = findPendingSignup(appData, email);
+    if (pending) {
+        pending.googleSub = googleSub;
+        pending.authProvider = 'google';
+        if (!pending.emailVerified) {
+            pending.emailVerified = true;
+            pending.status = 'pending_approval';
+            pending.verifiedAt = new Date().toISOString().split('T')[0];
+            saveTenantData(tenantId, appData);
+        }
+        if (!pending.adminApproved) {
+            return res.status(403).json({
+                error: 'Account pending admin approval',
+                code: 'pending_approval',
+                signup: { id: pending.id, email: pending.email, businessName: pending.businessName }
+            });
+        }
+    }
+
+    if (mode === 'login') {
+        return res.status(404).json({
+            error: 'No client account found for this Google email. Please sign up first.',
+            code: 'google_signup_required',
+            profile: { email, name: displayName }
+        });
+    }
+
+    const businessName = (req.body.businessName || '').trim() || displayName;
+    if (!businessName) {
+        return res.status(400).json({ error: 'Business name is required for Google sign up' });
+    }
+
+    const taken = Object.values(appData.users || {}).some(u => u.email?.toLowerCase() === email);
+    const pendingTaken = (appData.pendingSignups || []).some(s =>
+        s.email?.toLowerCase() === email && s.status !== 'rejected' && s.status !== 'approved'
+    );
+    if (taken || pendingTaken) {
+        return res.status(409).json({ error: 'This email is already registered or pending approval' });
+    }
+
+    const signup = {
+        id: 'signup_' + Date.now(),
+        businessName,
+        email,
+        password: randomGooglePassword(),
+        phone: (req.body.phone || '').trim(),
+        gstin: (req.body.gstin || '').trim(),
+        address: (req.body.address || '').trim(),
+        stateCode: req.body.stateCode || '07',
+        googleSub,
+        authProvider: 'google',
+        verificationToken: 'vf_google_' + Date.now().toString(36),
+        verificationCode: 'GOOGLE',
+        emailVerified: true,
+        adminApproved: false,
+        status: 'pending_approval',
+        createdAt: new Date().toISOString().split('T')[0],
+        verifiedAt: new Date().toISOString().split('T')[0]
+    };
+
+    appData.pendingSignups.push(signup);
+    saveTenantData(tenantId, appData);
+
+    return res.status(201).json({
+        code: 'pending_approval',
+        signup: {
+            id: signup.id,
+            businessName: signup.businessName,
+            email: signup.email,
+            emailVerified: true,
+            status: signup.status
+        }
+    });
 });
 
 app.post('/api/auth/login', (req, res) => {
