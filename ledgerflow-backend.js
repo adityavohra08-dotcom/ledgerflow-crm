@@ -145,6 +145,26 @@
         return result;
     }
 
+    async function getOtpConfig() {
+        return apiFetch('/api/auth/otp-config');
+    }
+
+    async function sendOtp(phone) {
+        return apiFetch('/api/auth/otp/send', {
+            method: 'POST',
+            body: JSON.stringify({ phone })
+        });
+    }
+
+    async function verifyOtp(phone, otp) {
+        const result = await apiFetch('/api/auth/otp/verify', {
+            method: 'POST',
+            body: JSON.stringify({ phone, otp })
+        });
+        if (result.token) storeToken(result.token);
+        return result;
+    }
+
     function clearToken() {
         state.token = null;
         try { sessionStorage.removeItem(TOKEN_KEY); } catch (_) {}
@@ -167,6 +187,9 @@
         publicResend,
         getGoogleConfig,
         googleAuth,
+        getOtpConfig,
+        sendOtp,
+        verifyOtp,
         clearToken
     };
 })();

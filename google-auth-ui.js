@@ -145,8 +145,9 @@
 
         const onLogin = !document.getElementById('auth-panel-login')?.classList.contains('hidden');
         const onSignup = !document.getElementById('auth-panel-signup')?.classList.contains('hidden');
+        const onOtpLogin = onLogin && !document.getElementById('login-otp-section')?.classList.contains('hidden');
 
-        loginSection?.classList.toggle('hidden', !onLogin);
+        loginSection?.classList.toggle('hidden', !onLogin || onOtpLogin);
         signupSection?.classList.toggle('hidden', !onSignup);
 
         if (onLogin) renderButton('google-signin-login', 'signin_with');

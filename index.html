@@ -15,6 +15,7 @@
     <script src="invoice-pdf-template.js"></script>
     <script src="ledgerflow-backend.js"></script>
     <script src="google-auth-ui.js"></script>
+    <script src="otp-auth-ui.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
         
@@ -176,16 +177,59 @@
 
             <!-- LOGIN PANEL -->
             <div id="auth-panel-login" class="space-y-4">
-                <div>
-                    <label class="text-xs font-medium text-slate-400 block mb-1.5">Email</label>
-                    <input type="email" id="login-email" placeholder="your@email.com"
-                           class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm">
+                <div id="client-auth-method-toggle" class="flex bg-slate-950 border border-slate-700 rounded-xl p-1">
+                    <button type="button" id="tab-auth-email" onclick="setClientAuthMethod('email')"
+                            class="flex-1 py-2 text-xs font-semibold rounded-lg transition-colors bg-emerald-600 text-white">
+                        <i class="fa-solid fa-envelope mr-1"></i> Email
+                    </button>
+                    <button type="button" id="tab-auth-otp" onclick="setClientAuthMethod('otp')"
+                            class="flex-1 py-2 text-xs font-semibold rounded-lg transition-colors text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-mobile-screen mr-1"></i> Mobile OTP
+                    </button>
                 </div>
-                <div>
-                    <label class="text-xs font-medium text-slate-400 block mb-1.5">Password</label>
-                    <input type="password" id="login-password" placeholder="Enter password"
-                           class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm">
+
+                <div id="login-email-section" class="space-y-4">
+                    <div>
+                        <label class="text-xs font-medium text-slate-400 block mb-1.5">Email</label>
+                        <input type="email" id="login-email" placeholder="your@email.com"
+                               class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-slate-400 block mb-1.5">Password</label>
+                        <input type="password" id="login-password" placeholder="Enter password"
+                               class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm">
+                    </div>
                 </div>
+
+                <div id="login-otp-section" class="hidden space-y-4">
+                    <div id="otp-step-phone">
+                        <label class="text-xs font-medium text-slate-400 block mb-1.5">Mobile Number</label>
+                        <input type="tel" id="login-phone" placeholder="+91 98765 43210"
+                               class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm">
+                        <p class="text-xs text-slate-500 mt-1.5">Use the mobile number registered with your CA firm</p>
+                        <button type="button" id="otp-send-btn" onclick="handleSendOtp()"
+                                class="w-full mt-3 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-semibold text-sm transition-colors">
+                            <i class="fa-solid fa-paper-plane mr-1"></i> Send OTP
+                        </button>
+                    </div>
+                    <div id="otp-step-verify" class="hidden space-y-3">
+                        <div>
+                            <label class="text-xs font-medium text-slate-400 block mb-1.5">Enter OTP</label>
+                            <input type="text" id="login-otp" maxlength="6" inputmode="numeric" placeholder="6-digit code"
+                                   class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm font-mono tracking-widest text-center">
+                        </div>
+                        <div id="otp-demo-hint" class="hidden text-xs text-amber-400 text-center font-mono"></div>
+                        <button type="button" id="otp-verify-btn" onclick="handleVerifyOtp()"
+                                class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-semibold transition-colors">
+                            <i class="fa-solid fa-shield-check mr-1"></i> Verify &amp; Sign In
+                        </button>
+                        <div class="flex gap-2 text-xs">
+                            <button type="button" onclick="resetOtpFlow()" class="flex-1 py-2 text-slate-400 hover:text-white">Change number</button>
+                            <button type="button" onclick="handleSendOtp()" class="flex-1 py-2 text-emerald-400 hover:text-emerald-300">Resend OTP</button>
+                        </div>
+                    </div>
+                </div>
+
                 <button id="login-submit-btn" onclick="handleLogin()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-semibold transition-colors">
                     <i class="fa-solid fa-right-to-bracket mr-2"></i> Client Sign In
                 </button>
@@ -304,6 +348,23 @@
                             class="bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
                         <span class="text-slate-300">FreshMart Retail</span>
                         <span class="font-mono text-emerald-400">accounts@freshmart.in</span>
+                    </button>
+                </div>
+                <div id="demo-client-phones" class="hidden grid grid-cols-1 gap-2 text-xs">
+                    <button type="button" onclick="fillDemoPhone('+91 98765 43210')"
+                            class="bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
+                        <span class="text-slate-300">Sharma Traders</span>
+                        <span class="font-mono text-emerald-400">98765 43210</span>
+                    </button>
+                    <button type="button" onclick="fillDemoPhone('+91 22 4000 1234')"
+                            class="bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
+                        <span class="text-slate-300">TechNova Solutions</span>
+                        <span class="font-mono text-emerald-400">22 4000 1234</span>
+                    </button>
+                    <button type="button" onclick="fillDemoPhone('+91 80 4567 8901')"
+                            class="bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
+                        <span class="text-slate-300">FreshMart Retail</span>
+                        <span class="font-mono text-emerald-400">80 4567 8901</span>
                     </button>
                 </div>
             </div>
@@ -689,8 +750,12 @@
             }
             document.getElementById('login-error').classList.add('hidden');
             document.getElementById('client-signup-link')?.classList.toggle('hidden', mode !== 'client');
-            if (mode !== 'client') showLoginPanel();
+            if (mode !== 'client') {
+                showLoginPanel();
+                if (typeof setClientAuthMethod === 'function') setClientAuthMethod('email');
+            }
             updateDemoSectionVisibility();
+            if (typeof updateOtpAuthVisibility === 'function') updateOtpAuthVisibility();
             if (typeof renderGoogleAuthButtons === 'function') renderGoogleAuthButtons();
         }
 
@@ -701,6 +766,7 @@
             document.getElementById('auth-panel-pending').classList.add('hidden');
             document.querySelector('.flex.bg-slate-950.border')?.classList.remove('hidden');
             updateDemoSectionVisibility();
+            if (typeof updateOtpAuthVisibility === 'function') updateOtpAuthVisibility();
             if (typeof renderGoogleAuthButtons === 'function') renderGoogleAuthButtons();
         }
 
@@ -1130,6 +1196,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         }
 
         function fillDemoLogin(email, password) {
+            if (typeof setClientAuthMethod === 'function') setClientAuthMethod('email');
             document.getElementById('login-email').value = email;
             document.getElementById('login-password').value = password;
             if (email.includes('adityavohra08@gmail.com')) setLoginMode('firm');
@@ -4945,6 +5012,7 @@ Sent via LedgerFlow CRM`;
             }
 
             if (typeof initGoogleAuth === 'function') await initGoogleAuth();
+            if (typeof initOtpAuth === 'function') initOtpAuth();
 
             const mode = isBackendMode()
                 ? `cloud API (${LedgerFlowBackend.apiUrl})`
@@ -4960,6 +5028,9 @@ Sent via LedgerFlow CRM`;
             if (e.key !== 'Enter' || document.getElementById('login-screen').classList.contains('hidden')) return;
             if (!document.getElementById('auth-panel-signup').classList.contains('hidden')) handleClientSignup();
             else if (!document.getElementById('auth-panel-verify').classList.contains('hidden')) submitVerificationCode();
+            else if (!document.getElementById('login-otp-section')?.classList.contains('hidden') &&
+                     !document.getElementById('otp-step-verify')?.classList.contains('hidden')) handleVerifyOtp();
+            else if (!document.getElementById('login-otp-section')?.classList.contains('hidden')) handleSendOtp();
             else handleLogin();
         });
 

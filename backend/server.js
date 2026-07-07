@@ -16,6 +16,14 @@ const {
     ensureTenant
 } = require('./db');
 const { verifyGoogleIdToken, randomGooglePassword } = require('./google-auth');
+const {
+    findClientUserByPhone,
+    storeOtp,
+    verifyStoredOtp,
+    isSmsConfigured,
+    sendSmsOtp,
+    OTP_EXPIRY_MS
+} = require('./otp');
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 
@@ -50,7 +58,7 @@ const {
     TENANT_NAME,
     firmSettings: DEFAULT_FIRM_SETTINGS
 } = require('./firm-config');
-const API_VERSION = '2.5.0-google-client-auth';
+const API_VERSION = '2.6.0-mobile-otp-auth';
 const INLINE_USER_PASSWORDS = {
     firm: FIRM_PASSWORD,
     c1: 'client123',
@@ -216,8 +224,93 @@ app.get('/api/health', (_req, res) => {
         service: 'ledgerflow-crm-api',
         tenant: DEFAULT_TENANT_ID,
         version: API_VERSION,
-        googleAuth: !!GOOGLE_CLIENT_ID
+        googleAuth: !!GOOGLE_CLIENT_ID,
+        otpAuth: true,
+        smsConfigured: isSmsConfigured()
     });
+});
+
+app.get('/api/auth/otp-config', (_req, res) => {
+    res.json({
+        enabled: true,
+        smsConfigured: isSmsConfigured()
+    });
+});
+
+app.post('/api/auth/otp/send', async (req, res) => {
+    const phone = (req.body.phone || '').trim();
+    const tenantId = DEFAULT_TENANT_ID;
+
+    if (!phone) {
+        return res.status(400).json({ error: 'Mobile number required' });
+    }
+
+    const appData = ensureTenantData(tenantId);
+    const found = findClientUserByPhone(appData, phone);
+    if (!found) {
+        return res.status(404).json({ error: 'No client account found for this mobile number' });
+    }
+    if (found.user.role === 'firm') {
+        return res.status(403).json({ error: 'Firm accounts cannot use mobile OTP login' });
+    }
+    if (isUserBlocked(appData, found.userId)) {
+        return res.status(403).json({
+            error: 'Your account has been blocked. Contact your accounting firm.',
+            code: 'account_blocked'
+        });
+    }
+
+    const otp = storeOtp(phone, found.userId);
+    const response = {
+        ok: true,
+        message: 'OTP sent to your mobile number',
+        expiresIn: Math.floor(OTP_EXPIRY_MS / 1000)
+    };
+
+    if (isSmsConfigured()) {
+        try {
+            await sendSmsOtp(phone, otp);
+        } catch (err) {
+            console.error('[OTP] SMS send failed:', err.message);
+            return res.status(503).json({ error: 'Failed to send SMS. Try again later.' });
+        }
+    } else {
+        response.demoMode = true;
+        response.demoOtp = otp;
+        console.log(`[OTP Demo] ${phone} → ${otp}`);
+    }
+
+    res.json(response);
+});
+
+app.post('/api/auth/otp/verify', (req, res) => {
+    const phone = (req.body.phone || '').trim();
+    const code = (req.body.otp || req.body.code || '').trim();
+    const tenantId = DEFAULT_TENANT_ID;
+
+    if (!phone || !code) {
+        return res.status(400).json({ error: 'Mobile number and OTP required' });
+    }
+
+    const result = verifyStoredOtp(phone, code);
+    if (!result.ok) {
+        return res.status(401).json({ error: result.error });
+    }
+
+    const appData = ensureTenantData(tenantId);
+    if (isUserBlocked(appData, result.userId)) {
+        return res.status(403).json({
+            error: 'Your account has been blocked. Contact your accounting firm.',
+            code: 'account_blocked'
+        });
+    }
+
+    const dbUser = getUserById(result.userId);
+    if (!dbUser || dbUser.tenant_id !== tenantId || dbUser.role !== 'client') {
+        return res.status(401).json({ error: 'User not found' });
+    }
+
+    return issueClientAuthResponse(res, tenantId, dbUser, appData);
 });
 
 app.get('/api/auth/google-config', (_req, res) => {
