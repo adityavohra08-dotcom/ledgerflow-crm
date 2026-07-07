@@ -3,11 +3,15 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 const { ensureTenant, setTenantData, upsertUser, getTenantData } = require('./db');
+const {
+    FIRM_EMAIL,
+    FIRM_PASSWORD,
+    FIRM_ADMIN_NAME,
+    TENANT_NAME,
+    firmSettings: DEFAULT_FIRM_SETTINGS
+} = require('./firm-config');
 
 const TENANT_ID = process.env.DEFAULT_TENANT_ID || 'udyog-suvidha';
-const FIRM_EMAIL = 'adityavohra08@gmail.com';
-const FIRM_PASSWORD = '2004Aditya@';
-const FIRM_NAME = 'CA Priya Sharma';
 const samplePath = path.join(__dirname, 'sample-app-data.json');
 
 function loadSampleData() {
@@ -18,11 +22,26 @@ function loadSampleData() {
     process.exit(1);
 }
 
+function syncFirmProfile(appData) {
+    if (!appData.users) appData.users = {};
+    if (!appData.users.firm) appData.users.firm = { role: 'firm', name: FIRM_ADMIN_NAME };
+    appData.users.firm.email = FIRM_EMAIL;
+    appData.users.firm.password = FIRM_PASSWORD;
+    appData.users.firm.name = FIRM_ADMIN_NAME;
+    appData.users.firm.role = 'firm';
+    const existingLogo = appData.firmSettings?.logo || '';
+    appData.firmSettings = {
+        ...JSON.parse(JSON.stringify(DEFAULT_FIRM_SETTINGS)),
+        logo: existingLogo
+    };
+    return appData;
+}
+
 async function main() {
-    ensureTenant(TENANT_ID, 'Udyog Suvidha & Associates');
+    ensureTenant(TENANT_ID, TENANT_NAME);
 
     if (!getTenantData(TENANT_ID)) {
-        const appData = loadSampleData();
+        const appData = syncFirmProfile(loadSampleData());
         setTenantData(TENANT_ID, appData);
         console.log('Seeded tenant data.');
     } else {
@@ -35,23 +54,15 @@ async function main() {
         tenantId: TENANT_ID,
         email: FIRM_EMAIL,
         passwordHash: hash,
-        name: FIRM_NAME,
+        name: FIRM_ADMIN_NAME,
         role: 'firm',
         clientId: null
     });
 
     const appData = getTenantData(TENANT_ID);
     if (appData) {
-        if (!appData.users) appData.users = {};
-        if (!appData.users.firm) appData.users.firm = { role: 'firm', name: FIRM_NAME };
-        appData.users.firm.email = FIRM_EMAIL;
-        appData.users.firm.password = FIRM_PASSWORD;
-        appData.users.firm.name = FIRM_NAME;
-        appData.users.firm.role = 'firm';
-        if (!appData.firmSettings) appData.firmSettings = {};
-        appData.firmSettings.email = FIRM_EMAIL;
-        setTenantData(TENANT_ID, appData);
-        console.log('Admin login synced in tenant data.');
+        setTenantData(TENANT_ID, syncFirmProfile(appData));
+        console.log('Admin profile synced in tenant data.');
     }
 
     const clients = [

@@ -7,20 +7,20 @@ const path = require('path');
 
 const sample = {
     firmSettings: {
-        name: 'Udyog Suvidha & Associates',
+        name: 'WEALTH BUILDERS AND CONSULTANTS',
         email: 'adityavohra08@gmail.com',
-        gstin: '07AABCU9603R1ZM',
-        pan: 'AABCU9603R',
-        address: 'Office 12, Mayur Vihar Phase-1, New Delhi - 110091',
+        gstin: '07BMCPV9981J1Z5',
+        pan: 'BMCPV9981J',
+        address: 'A262, NEHRU VIHRA, CENTRAL DELHI-110054.',
         stateCode: '07',
-        phone: '+91 98765 43210',
+        phone: '7982661921',
         logo: '',
-        bank: { name: 'HDFC Bank', account: '50100987654321', ifsc: 'HDFC0001234', branch: 'Mayur Vihar' },
+        bank: { name: 'ICICI BANK', account: '113005000905', ifsc: 'ICIC0001130', branch: 'MUKHERJEE NAGAR, DELHI-110009' },
         terms: '1. Payment due within 7 days of invoice date.\n2. All disputes subject to Delhi jurisdiction.\n3. GST as applicable.',
         invoicePrefix: 'CA-INV'
     },
     users: {
-        firm: { email: 'adityavohra08@gmail.com', password: '2004Aditya@', name: 'CA Priya Sharma', role: 'firm' },
+        firm: { email: 'adityavohra08@gmail.com', password: '2004Aditya@', name: 'ADITYA VOHRA', role: 'firm' },
         c1: { email: 'info@sharmatraders.in', password: 'client123', name: 'Sharma Traders', role: 'client', clientId: 'c1' },
         c2: { email: 'billing@technova.in', password: 'client123', name: 'TechNova Solutions', role: 'client', clientId: 'c2' },
         c3: { email: 'accounts@freshmart.in', password: 'client123', name: 'FreshMart Retail', role: 'client', clientId: 'c3' }

@@ -40,10 +40,14 @@ function authMiddleware(req, res, next) {
     }
 }
 
-const API_VERSION = '2.3.0-admin-aditya';
-const FIRM_EMAIL = 'adityavohra08@gmail.com';
-const FIRM_PASSWORD = '2004Aditya@';
-const FIRM_NAME = 'CA Priya Sharma';
+const {
+    FIRM_EMAIL,
+    FIRM_PASSWORD,
+    FIRM_ADMIN_NAME,
+    TENANT_NAME,
+    firmSettings: DEFAULT_FIRM_SETTINGS
+} = require('./firm-config');
+const API_VERSION = '2.4.0-wealth-builders';
 const INLINE_USER_PASSWORDS = {
     firm: FIRM_PASSWORD,
     c1: 'client123',
@@ -164,25 +168,28 @@ function syncFirmAdminCredentials(tenantId) {
         tenantId,
         email: FIRM_EMAIL,
         passwordHash: hash,
-        name: FIRM_NAME,
+        name: FIRM_ADMIN_NAME,
         role: 'firm',
         clientId: null
     });
     const data = getTenantData(tenantId);
     if (!data) return;
     if (!data.users) data.users = {};
-    if (!data.users.firm) data.users.firm = { role: 'firm', name: FIRM_NAME };
+    if (!data.users.firm) data.users.firm = { role: 'firm', name: FIRM_ADMIN_NAME };
     data.users.firm.email = FIRM_EMAIL;
     data.users.firm.password = FIRM_PASSWORD;
-    data.users.firm.name = FIRM_NAME;
+    data.users.firm.name = FIRM_ADMIN_NAME;
     data.users.firm.role = 'firm';
-    if (!data.firmSettings) data.firmSettings = {};
-    data.firmSettings.email = FIRM_EMAIL;
+    const existingLogo = data.firmSettings?.logo || '';
+    data.firmSettings = {
+        ...JSON.parse(JSON.stringify(DEFAULT_FIRM_SETTINGS)),
+        logo: existingLogo
+    };
     setTenantData(tenantId, data);
 }
 
 function ensureTenantData(tenantId) {
-    ensureTenant(tenantId, 'Udyog Suvidha & Associates');
+    ensureTenant(tenantId, TENANT_NAME);
     let data = getTenantData(tenantId);
     if (!data) {
         data = { clients: {}, users: {}, pendingSignups: [], firmSettings: {} };
@@ -421,7 +428,7 @@ app.get('*', (req, res, next) => {
     res.sendFile(indexPath, err => { if (err) next(); });
 });
 
-ensureTenant(DEFAULT_TENANT_ID, 'Udyog Suvidha & Associates');
+ensureTenant(DEFAULT_TENANT_ID, TENANT_NAME);
 syncFirmAdminCredentials(DEFAULT_TENANT_ID);
 
 app.listen(PORT, '0.0.0.0', () => {
