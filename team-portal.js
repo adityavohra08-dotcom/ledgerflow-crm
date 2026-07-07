@@ -708,12 +708,15 @@
         document.querySelectorAll('[data-firm-only]').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('[data-client-only]').forEach(el => el.classList.add('hidden'));
 
-        const teamNavIds = ['nav-dashboard', 'nav-documents', 'nav-team-profile'];
         document.querySelectorAll('#sidebar-nav .nav-item').forEach(el => {
             if (!el.id) return;
-            el.classList.toggle('hidden', !teamNavIds.includes(el.id));
+            const allowed = el.hasAttribute('data-team-visible') ||
+                ['nav-dashboard', 'nav-documents', 'nav-team-profile'].includes(el.id);
+            el.classList.toggle('hidden', !allowed);
         });
-        document.querySelectorAll('#sidebar-nav .pt-3').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('#sidebar-nav .pt-3').forEach(el => {
+            el.classList.toggle('hidden', !el.hasAttribute('data-team-visible'));
+        });
         populateClientSwitcherFiltered();
         updateTeamApprovalsBadge();
     };
