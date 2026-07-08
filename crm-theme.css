@@ -294,30 +294,37 @@ body.lf-app::after {
     transform: translateX(4px);
 }
 
-/* ——— App shell ——— */
+/* ——— App shell (flex on desktop — sidebar | main, resilient layout) ——— */
 #app-shell,
 .lf-app-shell {
     position: relative;
     z-index: 1;
-    display: grid;
-    grid-template-columns: 20rem minmax(0, 1fr);
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
     min-height: 100vh;
     max-width: 100%;
 }
 
+#app-sidebar,
 .lf-app-shell__sidebar {
+    flex: 0 0 20rem;
+    width: 20rem;
+    max-width: 20rem;
     position: sticky;
     top: 0;
-    align-self: start;
+    align-self: flex-start;
     min-height: 100vh;
     max-height: 100vh;
     overflow-y: auto;
 }
 
 .lf-app-shell__main {
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     min-width: 0;
+    width: 100%;
     min-height: 100vh;
     max-height: 100vh;
     overflow: hidden;
@@ -2746,29 +2753,44 @@ a[class*="bg-emerald-600"]:hover {
 }
 
 @media (min-width: 1024px) {
+    #app-shell,
     .lf-app-shell {
-        grid-template-columns: 20rem minmax(0, 1fr);
+        display: flex;
+        flex-direction: row;
     }
 
-    #app-sidebar {
+    #app-sidebar,
+    .lf-app-shell__sidebar {
         position: sticky;
         left: auto;
         top: 0;
+        flex: 0 0 20rem;
+        width: 20rem;
         transform: none !important;
         box-shadow: none !important;
+    }
+
+    .lf-app-shell__main {
+        flex: 1 1 auto;
+        width: auto;
     }
 }
 
 @media (max-width: 1023px) {
+    #app-shell,
     .lf-app-shell {
-        grid-template-columns: 1fr;
+        display: block;
     }
 
-    #app-sidebar {
+    #app-sidebar,
+    .lf-app-shell__sidebar {
         position: fixed;
         left: 0;
         top: 0;
         z-index: 55;
+        flex: none;
+        width: 20rem;
+        max-width: min(20rem, 88vw);
         transform: translateX(-100%);
         transition: transform 0.25s ease;
         min-height: 100vh;
@@ -2777,9 +2799,16 @@ a[class*="bg-emerald-600"]:hover {
         padding-bottom: env(safe-area-inset-bottom, 0);
     }
 
-    #app-sidebar.lf-sidebar--open {
+    #app-sidebar.lf-sidebar--open,
+    .lf-app-shell__sidebar.lf-sidebar--open {
         transform: translateX(0);
         box-shadow: 8px 0 32px rgba(0, 0, 0, 0.45);
+    }
+
+    .lf-app-shell__main {
+        width: 100%;
+        min-height: 100vh;
+        max-height: none;
     }
 
     body.lf-sidebar-open {
