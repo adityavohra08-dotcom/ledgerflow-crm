@@ -697,10 +697,7 @@
     window.applyTeamRoleUI = function () {
         const isTeam = isTeamUser();
 
-        if (!isTeam) {
-            resetSidebarNav();
-            return;
-        }
+        if (!isTeam) return;
 
         document.querySelectorAll('[data-team-only]').forEach(el => {
             el.classList.remove('hidden');
