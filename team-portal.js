@@ -684,6 +684,10 @@
     };
 
     window.resetSidebarNav = function () {
+        if (typeof isClientUser === 'function' && isClientUser()) {
+            if (typeof applyClientSidebarNav === 'function') applyClientSidebarNav();
+            return;
+        }
         document.querySelectorAll('#sidebar-nav .nav-item').forEach(el => {
             el.classList.remove('hidden');
         });

@@ -16,7 +16,7 @@
     <script src="ledgerflow-backend.js"></script>
     <script src="google-auth-ui.js"></script>
     <script src="otp-auth-ui.js"></script>
-    <script src="team-portal.js"></script>
+    <script src="team-portal.js?v=2.8.3"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
         
@@ -111,6 +111,11 @@
 
         .nav-item {
             transition: all 0.1s ease;
+        }
+
+        /* Tailwind `flex` on nav items overrides `hidden`; force sidebar hides */
+        #sidebar-nav .hidden {
+            display: none !important;
         }
         
         .nav-item:hover {
@@ -1789,33 +1794,62 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             'nav-team-approvals',
             'nav-client-management',
             'nav-firm-profile',
-            'nav-client-approvals'
+            'nav-client-approvals',
+            'nav-gst-calculator',
+            'nav-hsn-search',
+            'nav-bank-recon',
+            'nav-emi-calculator',
+            'nav-sales-report',
+            'nav-party-pl',
+            'nav-purchases'
         ];
+
+        window.applyClientSidebarNav = function applyClientSidebarNav() {
+            document.querySelectorAll('#sidebar-nav .nav-item, #sidebar-nav .pt-3').forEach(el => {
+                el.classList.remove('hidden');
+            });
+            document.getElementById('nav-purchases')?.classList.add('hidden');
+
+            document.querySelectorAll('[data-firm-only], [data-team-only], [data-team-visible]').forEach(el => {
+                el.classList.add('hidden');
+            });
+            CLIENT_HIDDEN_NAV_IDS.forEach(id => {
+                document.getElementById(id)?.classList.add('hidden');
+            });
+            document.querySelectorAll('[data-client-only]').forEach(el => {
+                el.classList.remove('hidden');
+            });
+        }
 
         function applyRoleBasedUI() {
             const isClient = isClientUser();
             const isTeam = isTeamUser();
             const isFirm = isFirmUser();
-            if ((isFirm || isClient) && typeof resetSidebarNav === 'function') resetSidebarNav();
+
+            if (isClient) {
+                applyClientSidebarNav();
+            } else if (isFirm && typeof resetSidebarNav === 'function') {
+                resetSidebarNav();
+            }
+
             document.getElementById('sidebar-title').textContent = isClient ? 'MY BUSINESS PORTAL' : isTeam ? 'TEAM PORTAL' : 'CLIENT MANAGEMENT';
             document.getElementById('nav-invoices-label').textContent = isClient ? 'Make GST Invoice' : 'Client Invoices';
             document.getElementById('nav-documents-label').textContent = isClient ? 'Documents from CA' : isTeam ? 'Documents' : 'Documents Center';
             document.getElementById('nav-purchases-label').textContent = isClient ? 'Upload Purchases' : 'GST Purchases / ITC';
             document.getElementById('nav-portal-logins-label').textContent = isClient ? 'Share Portal Logins' : 'Client Portal Logins';
 
-            document.querySelectorAll('[data-firm-only]').forEach(el => {
-                el.classList.toggle('hidden', isClient || isTeam);
-            });
-            document.querySelectorAll('[data-client-only]').forEach(el => {
-                el.classList.toggle('hidden', !isClient);
-            });
-            document.querySelectorAll('[data-team-only]').forEach(el => {
-                el.classList.toggle('hidden', !isTeam);
-            });
-            CLIENT_HIDDEN_NAV_IDS.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.toggle('hidden', isClient);
-            });
+            if (!isClient) {
+                document.querySelectorAll('[data-firm-only]').forEach(el => {
+                    el.classList.toggle('hidden', isTeam);
+                });
+                document.querySelectorAll('[data-client-only]').forEach(el => {
+                    el.classList.toggle('hidden', !isClient);
+                });
+                document.querySelectorAll('[data-team-only]').forEach(el => {
+                    el.classList.toggle('hidden', !isTeam);
+                });
+            }
+
             const adminInvLabel = document.getElementById('nav-admin-invoices-label');
             if (adminInvLabel) adminInvLabel.textContent = isClient ? 'CA Invoices' : 'Admin Invoices';
             if (typeof applyTeamRoleUI === 'function') applyTeamRoleUI();
