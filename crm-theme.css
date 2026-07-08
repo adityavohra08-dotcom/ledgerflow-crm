@@ -331,6 +331,25 @@ body.lf-app::after {
     width: 100%;
 }
 
+/* Overlay — always fixed so it never occupies a grid column on desktop */
+.lf-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 54;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    background: rgba(2, 6, 23, 0.55);
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.lf-sidebar-backdrop--visible {
+    pointer-events: auto;
+    opacity: 1;
+    visibility: visible;
+}
+
 .lf-kpi-row {
     flex-shrink: 0;
     padding: 1rem 1.5rem 0;
@@ -2726,6 +2745,20 @@ a[class*="bg-emerald-600"]:hover {
     min-width: 2rem;
 }
 
+@media (min-width: 1024px) {
+    .lf-app-shell {
+        grid-template-columns: 20rem minmax(0, 1fr);
+    }
+
+    #app-sidebar {
+        position: sticky;
+        left: auto;
+        top: 0;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+}
+
 @media (max-width: 1023px) {
     .lf-app-shell {
         grid-template-columns: 1fr;
@@ -2747,22 +2780,6 @@ a[class*="bg-emerald-600"]:hover {
     #app-sidebar.lf-sidebar--open {
         transform: translateX(0);
         box-shadow: 8px 0 32px rgba(0, 0, 0, 0.45);
-    }
-
-    .lf-sidebar-backdrop {
-        position: fixed;
-        inset: 0;
-        z-index: 54;
-        background: rgba(2, 6, 23, 0.55);
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.25s ease, visibility 0.25s ease;
-        -webkit-tap-highlight-color: transparent;
-    }
-
-    .lf-sidebar-backdrop--visible {
-        opacity: 1;
-        visibility: visible;
     }
 
     body.lf-sidebar-open {
