@@ -1,12 +1,52 @@
 /**
- * E-Way Bill API — demo generation + optional NIC live API hook.
- * Set EWAYBILL_GSTIN, EWAYBILL_USERNAME, EWAYBILL_PASSWORD for production NIC integration.
+ * E-Way Bill API — demo + live via GSP (MasterGST by default).
+ *
+ * Required for LIVE mode:
+ *   EWAYBILL_GSTIN          — taxpayer GSTIN (e.g. 09AABCU9603R1ZM)
+ *   EWAYBILL_USERNAME       — API user created on ewaybillgst.gov.in → Registration → For GSP
+ *   EWAYBILL_PASSWORD       — API password from same portal
+ *   EWAYBILL_CLIENT_ID      — from GSP dashboard (MasterGST: Credentials → E-Way Bill)
+ *   EWAYBILL_CLIENT_SECRET  — from GSP dashboard
+ *
+ * Optional:
+ *   EWAYBILL_PROVIDER=mastergst|nic
+ *   EWAYBILL_API_URL        — override API base
+ *   EWAYBILL_EMAIL          — MasterGST account email (some GSP auth flows)
+ *   EWAYBILL_IP_ADDRESS     — server public IP whitelisted with GSP
  */
 
-const EWAYBILL_API_URL = process.env.EWAYBILL_API_URL || 'https://api.mastergst.com/ewaybillapi/v1.03';
+const EWAYBILL_API_URL = (process.env.EWAYBILL_API_URL || 'https://api.mastergst.com/ewaybillapi/v1.03').replace(/\/$/, '');
+const EWAYBILL_PROVIDER = (process.env.EWAYBILL_PROVIDER || 'mastergst').toLowerCase();
 
 function isEwayBillConfigured() {
-    return !!(process.env.EWAYBILL_GSTIN && process.env.EWAYBILL_USERNAME && process.env.EWAYBILL_PASSWORD);
+    return !!(
+        process.env.EWAYBILL_GSTIN &&
+        process.env.EWAYBILL_USERNAME &&
+        process.env.EWAYBILL_PASSWORD &&
+        process.env.EWAYBILL_CLIENT_ID &&
+        process.env.EWAYBILL_CLIENT_SECRET
+    );
+}
+
+function getEwayBillConfigStatus() {
+    return {
+        provider: EWAYBILL_PROVIDER,
+        apiUrl: EWAYBILL_API_URL,
+        configured: isEwayBillConfigured(),
+        demoMode: !isEwayBillConfigured(),
+        hasGstin: !!process.env.EWAYBILL_GSTIN,
+        hasPortalUser: !!(process.env.EWAYBILL_USERNAME && process.env.EWAYBILL_PASSWORD),
+        hasGspKeys: !!(process.env.EWAYBILL_CLIENT_ID && process.env.EWAYBILL_CLIENT_SECRET),
+        gstinMasked: maskSecret(process.env.EWAYBILL_GSTIN),
+        usernameMasked: maskSecret(process.env.EWAYBILL_USERNAME)
+    };
+}
+
+function maskSecret(value) {
+    if (!value) return null;
+    const s = String(value);
+    if (s.length <= 4) return '****';
+    return `${s.slice(0, 2)}****${s.slice(-2)}`;
 }
 
 function formatEwbNo(no) {
@@ -39,35 +79,102 @@ function generateDemoEwbNo() {
     return `${ts}${rand}`.slice(0, 12);
 }
 
-async function callNicGenerateEwayBill(payload) {
+function authHeaders() {
+    const headers = {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+        client_id: process.env.EWAYBILL_CLIENT_ID,
+        client_secret: process.env.EWAYBILL_CLIENT_SECRET,
+        gstin: process.env.EWAYBILL_GSTIN
+    };
+    if (process.env.EWAYBILL_IP_ADDRESS) headers.ip_address = process.env.EWAYBILL_IP_ADDRESS;
+    return headers;
+}
+
+function parseProviderResponse(data, status) {
+    const token = data?.data?.authtoken || data?.data?.AuthToken || data?.authtoken || data?.AuthToken;
+    const message = data?.message || data?.error || data?.status_desc || data?.statusDesc || `HTTP ${status}`;
+    return { token, message, raw: data };
+}
+
+async function authenticateMasterGst() {
     const gstin = process.env.EWAYBILL_GSTIN;
     const username = process.env.EWAYBILL_USERNAME;
     const password = process.env.EWAYBILL_PASSWORD;
-    const clientId = process.env.EWAYBILL_CLIENT_ID || '';
-    const clientSecret = process.env.EWAYBILL_CLIENT_SECRET || '';
+    const email = process.env.EWAYBILL_EMAIL || '';
+    const headers = authHeaders();
 
-    const authRes = await fetch(`${EWAYBILL_API_URL}/authenticate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gstin, username, password, client_id: clientId, client_secret: clientSecret })
-    });
-    const authData = await authRes.json();
-    if (!authRes.ok || !authData?.data?.authtoken) {
-        throw new Error(authData?.message || authData?.error || 'E-way bill authentication failed');
+    const attempts = [
+        {
+            method: 'GET',
+            url: `${EWAYBILL_API_URL}/authenticate?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}${email ? `&email=${encodeURIComponent(email)}` : ''}`,
+            headers
+        },
+        {
+            method: 'POST',
+            url: `${EWAYBILL_API_URL}/authenticate`,
+            headers,
+            body: JSON.stringify({ gstin, username, password, email, client_id: headers.client_id, client_secret: headers.client_secret })
+        }
+    ];
+
+    let lastError = 'Authentication failed';
+    for (const attempt of attempts) {
+        try {
+            const res = await fetch(attempt.url, {
+                method: attempt.method,
+                headers: attempt.headers,
+                body: attempt.body
+            });
+            const data = await res.json().catch(() => ({}));
+            const parsed = parseProviderResponse(data, res.status);
+            if (parsed.token) return { ok: true, token: parsed.token, provider: 'mastergst' };
+            lastError = parsed.message || lastError;
+        } catch (err) {
+            lastError = err.message || lastError;
+        }
     }
+    return { ok: false, error: lastError };
+}
 
+async function testEwayBillAuth() {
+    if (!isEwayBillConfigured()) {
+        return {
+            ok: false,
+            configured: false,
+            error: 'Missing env vars. Need EWAYBILL_GSTIN, EWAYBILL_USERNAME, EWAYBILL_PASSWORD, EWAYBILL_CLIENT_ID, EWAYBILL_CLIENT_SECRET'
+        };
+    }
+    const auth = await authenticateMasterGst();
+    return {
+        ok: auth.ok,
+        configured: true,
+        provider: EWAYBILL_PROVIDER,
+        gstin: maskSecret(process.env.EWAYBILL_GSTIN),
+        username: maskSecret(process.env.EWAYBILL_USERNAME),
+        error: auth.error || null,
+        message: auth.ok ? 'NIC/GSP authentication successful' : undefined
+    };
+}
+
+async function callNicGenerateEwayBill(payload) {
+    const auth = await authenticateMasterGst();
+    if (!auth.ok) throw new Error(auth.error || 'E-way bill authentication failed');
+
+    const gstin = process.env.EWAYBILL_GSTIN;
     const genRes = await fetch(`${EWAYBILL_API_URL}/ewayapi?action=GENEWAYBILL`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            gstin,
-            authtoken: authData.data.authtoken
+            ...authHeaders(),
+            authtoken: auth.token,
+            Authorization: `Bearer ${auth.token}`
         },
         body: JSON.stringify(payload)
     });
-    const genData = await genRes.json();
-    if (!genRes.ok || !genData?.data?.ewayBillNo) {
-        throw new Error(genData?.message || genData?.error || 'E-way bill generation failed');
+    const genData = await genRes.json().catch(() => ({}));
+    const ewbNo = genData?.data?.ewayBillNo || genData?.data?.EwbNo || genData?.ewayBillNo;
+    if (!genRes.ok || !ewbNo) {
+        throw new Error(genData?.message || genData?.error || genData?.status_desc || 'E-way bill generation failed');
     }
     return genData.data;
 }
@@ -81,7 +188,7 @@ async function generateEwayBill(payload, invoiceNo) {
             const nic = await callNicGenerateEwayBill(payload);
             return {
                 enabled: true,
-                ewbNo: formatEwbNo(nic.ewayBillNo),
+                ewbNo: formatEwbNo(nic.ewayBillNo || nic.EwbNo),
                 ewbDate: fmtDateTimeNic(now),
                 validUpto: nic.validUpto ? new Date(nic.validUpto).toISOString() : computeValidUpto(distanceKm),
                 status: 'generated',
@@ -96,8 +203,9 @@ async function generateEwayBill(payload, invoiceNo) {
                 distanceKm
             };
         } catch (err) {
-            const demo = await generateDemoEwayBill(payload, invoiceNo);
+            const demo = generateDemoEwayBill(payload, invoiceNo);
             demo.fallbackReason = err.message;
+            demo.status = 'demo_fallback';
             return demo;
         }
     }
@@ -131,6 +239,8 @@ function generateDemoEwayBill(payload, invoiceNo) {
 
 module.exports = {
     isEwayBillConfigured,
+    getEwayBillConfigStatus,
+    testEwayBillAuth,
     generateEwayBill,
     generateDemoEwayBill
 };

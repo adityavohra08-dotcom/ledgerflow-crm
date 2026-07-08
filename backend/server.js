@@ -31,7 +31,7 @@ const {
     createAuthRateLimiter,
     createOtpSendRateLimiter
 } = require('./firewall');
-const { isEwayBillConfigured, generateEwayBill } = require('./ewaybill');
+const { isEwayBillConfigured, getEwayBillConfigStatus, testEwayBillAuth, generateEwayBill } = require('./ewaybill');
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 
@@ -264,16 +264,24 @@ app.get('/api/health', (_req, res) => {
         otpAuth: true,
         smsConfigured: isSmsConfigured(),
         firewall: getFirewallStatus(),
-        ewayBill: { configured: isEwayBillConfigured(), demoMode: !isEwayBillConfigured() }
+        ewayBill: getEwayBillConfigStatus()
     });
 });
 
 app.get('/api/ewaybill/config', authMiddleware, (_req, res) => {
-    res.json({
-        configured: isEwayBillConfigured(),
-        demoMode: !isEwayBillConfigured(),
-        thresholdInr: 50000
-    });
+    res.json({ ...getEwayBillConfigStatus(), thresholdInr: 50000 });
+});
+
+app.get('/api/ewaybill/test-auth', authMiddleware, async (req, res) => {
+    if (req.auth.role !== 'firm') {
+        return res.status(403).json({ error: 'Only firm admin can test e-way bill credentials' });
+    }
+    try {
+        const result = await testEwayBillAuth();
+        res.status(result.ok ? 200 : 400).json(result);
+    } catch (err) {
+        res.status(500).json({ ok: false, error: err.message || 'Auth test failed' });
+    }
 });
 
 app.post('/api/ewaybill/generate', authMiddleware, async (req, res) => {
