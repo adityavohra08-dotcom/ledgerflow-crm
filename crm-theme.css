@@ -294,39 +294,30 @@ body.lf-app::after {
     transform: translateX(4px);
 }
 
-/* ——— App shell (flex on desktop — sidebar | main, resilient layout) ——— */
+/* ——— App shell — desktop: fixed sidebar + main offset (cannot break with extra DOM nodes) ——— */
 #app-shell,
 .lf-app-shell {
     position: relative;
     z-index: 1;
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
+    display: block;
     min-height: 100vh;
     max-width: 100%;
 }
 
 #app-sidebar,
 .lf-app-shell__sidebar {
-    flex: 0 0 20rem;
     width: 20rem;
     max-width: 20rem;
-    position: sticky;
-    top: 0;
-    align-self: flex-start;
     min-height: 100vh;
     max-height: 100vh;
     overflow-y: auto;
 }
 
 .lf-app-shell__main {
-    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     min-width: 0;
-    width: 100%;
     min-height: 100vh;
-    max-height: 100vh;
     overflow: hidden;
 }
 
@@ -2755,24 +2746,25 @@ a[class*="bg-emerald-600"]:hover {
 @media (min-width: 1024px) {
     #app-shell,
     .lf-app-shell {
-        display: flex;
-        flex-direction: row;
+        display: block;
     }
 
     #app-sidebar,
     .lf-app-shell__sidebar {
-        position: sticky;
-        left: auto;
+        position: fixed;
+        left: 0;
         top: 0;
-        flex: 0 0 20rem;
-        width: 20rem;
+        bottom: 0;
+        z-index: 40;
+        height: 100vh;
         transform: none !important;
         box-shadow: none !important;
     }
 
     .lf-app-shell__main {
-        flex: 1 1 auto;
+        margin-left: 20rem;
         width: auto;
+        max-height: none;
     }
 }
 
@@ -2806,6 +2798,7 @@ a[class*="bg-emerald-600"]:hover {
     }
 
     .lf-app-shell__main {
+        margin-left: 0;
         width: 100%;
         min-height: 100vh;
         max-height: none;
