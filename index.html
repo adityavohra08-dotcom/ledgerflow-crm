@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LedgerFlow CRM • Client Portal | Accounting Firm</title>
-    <meta name="app-version" content="3.12.2-firm-profile-fix">
+    <meta name="app-version" content="3.12.3-no-admin-demo">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <script>
@@ -276,13 +276,6 @@
                             class="w-full bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
                         <span class="text-slate-300">Demo Team Member</span>
                         <span class="font-mono text-violet-400">staff@wealthbuilders.in</span>
-                    </button>
-                </div>
-                <div id="demo-firm-creds" class="hidden text-xs">
-                    <button type="button" onclick="fillDemoLogin('adityavohra08@gmail.com','2004Aditya@','firm')"
-                            class="w-full bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
-                        <span class="text-slate-300">Admin (Firm)</span>
-                        <span class="font-mono text-teal-400">adityavohra08@gmail.com</span>
                     </button>
                 </div>
                 <div id="demo-client-phones" class="hidden grid grid-cols-1 gap-2 text-xs">
@@ -842,17 +835,16 @@
             const demo = document.getElementById('auth-demo-section');
             if (!demo) return;
             const loginPanelVisible = !document.getElementById('auth-panel-login').classList.contains('hidden');
-            const showDemo = loginPanelVisible;
+            const showDemo = loginPanelVisible && loginMode !== 'firm';
             demo.classList.toggle('hidden', !showDemo);
             document.getElementById('demo-client-creds')?.classList.toggle('hidden', loginMode !== 'client');
             document.getElementById('demo-client-phones')?.classList.add('hidden');
             document.getElementById('demo-team-creds')?.classList.toggle('hidden', loginMode !== 'team');
-            document.getElementById('demo-firm-creds')?.classList.toggle('hidden', loginMode !== 'firm');
             const title = document.getElementById('demo-creds-title');
             if (title) {
-                if (loginMode === 'firm') title.textContent = 'Demo Admin Login (click to fill)';
-                else if (loginMode === 'team') title.textContent = 'Demo Team Login (click to fill)';
-                else title.textContent = 'Demo Client Logins (click to fill)';
+                title.textContent = loginMode === 'team'
+                    ? 'Demo Team Login (click to fill)'
+                    : 'Demo Client Logins (click to fill)';
             }
         }
 
@@ -1782,7 +1774,9 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     errorEl.classList.remove('hidden');
                     return;
                 }
-                errorEl.textContent = 'Invalid email or password. Use demo credentials below.';
+                errorEl.textContent = loginMode === 'firm'
+                    ? 'Invalid email or password.'
+                    : 'Invalid email or password. Use demo credentials below.';
                 errorEl.classList.remove('hidden');
                 return;
             }
