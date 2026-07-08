@@ -67,7 +67,7 @@ const {
     TENANT_NAME,
     firmSettings: DEFAULT_FIRM_SETTINGS
 } = require('./firm-config');
-const API_VERSION = '2.9.0-ewaybill';
+const API_VERSION = '3.0.0-ui-refresh';
 const authRateLimit = createAuthRateLimiter();
 const otpSendRateLimit = createOtpSendRateLimiter();
 const INLINE_USER_PASSWORDS = {

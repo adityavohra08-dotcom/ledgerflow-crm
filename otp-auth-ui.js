@@ -70,11 +70,11 @@
         const tabOtp = document.getElementById('tab-auth-otp');
         if (tabEmail && tabOtp) {
             if (clientAuthMethod === 'email') {
-                tabEmail.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-colors bg-emerald-600 text-white';
-                tabOtp.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-colors text-slate-400 hover:text-white';
+                tabEmail.className = 'lf-tab lf-tab-active text-xs';
+                tabOtp.className = 'lf-tab text-xs';
             } else {
-                tabOtp.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-colors bg-emerald-600 text-white';
-                tabEmail.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-colors text-slate-400 hover:text-white';
+                tabOtp.className = 'lf-tab lf-tab-active text-xs';
+                tabEmail.className = 'lf-tab text-xs';
             }
         }
 

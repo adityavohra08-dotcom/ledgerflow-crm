@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LedgerFlow CRM • Client Portal | Accounting Firm</title>
-    <meta name="app-version" content="2.9.0-ewaybill">
+    <meta name="app-version" content="3.0.0-ui-refresh">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -19,187 +19,62 @@
     <script src="google-auth-ui.js"></script>
     <script src="otp-auth-ui.js"></script>
     <script src="team-portal.js?v=2.8.3"></script>
+    <link rel="stylesheet" href="crm-theme.css?v=3.0.0">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
-        
-        :root {
-            --primary: #0f172a;
-        }
-        
-        body {
-            font-family: 'Inter', system_ui, sans-serif;
-        }
-        
-        .font-display {
-            font-family: 'Space Grotesk', 'Inter', sans-serif;
-            font-weight: 600;
-        }
-
-        .section-title {
-            font-size: 10px;
-            letter-spacing: 0.5px;
-            font-weight: 600;
-            color: #64748b;
-            text-transform: uppercase;
-        }
-
-        .nav-active {
-            background-color: #0f172a;
-            color: #10b981;
-            border-radius: 8px;
-        }
-
-        .crm-card {
-            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s;
-        }
-        
-        .crm-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-        }
-
-        .module-header {
-            background: linear-gradient(90deg, #0f172a, #1e2937);
-        }
-
-        .data-table {
-            border-collapse: collapse;
-        }
-        
-        .data-table th {
-            background-color: #1e2937;
-            font-weight: 600;
-            font-size: 11px;
-            color: #94a3b8;
-            padding: 10px 12px;
-            text-align: left;
-            border-bottom: 1px solid #334155;
-        }
-        
-        .data-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #334155;
-            vertical-align: middle;
-            font-size: 13px;
-        }
-
-        .form-input {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .form-input:focus {
-            outline: none;
-            border-color: #10b981;
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-        }
-
-        .stat-card {
-            background: #1e2937;
-            border: 1px solid #334155;
-        }
-
-        .ledgerflow-gradient {
-            background: linear-gradient(135deg, #0f172a 0%, #1e2937 100%);
-        }
-
-        .invoice-modal {
-            animation: modalPop 0.2s ease-out forwards;
-        }
-
-        @keyframes modalPop {
-            from { opacity: 0; transform: scale(0.96) translateY(20px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-
-        .nav-item {
-            transition: all 0.1s ease;
-        }
-
-        /* Tailwind `flex` on nav items overrides `hidden`; force sidebar hides */
-        #sidebar-nav .hidden {
-            display: none !important;
-        }
-        
-        .nav-item:hover {
-            background-color: #1e2937;
-        }
-
-        .metric-value {
-            font-variant-numeric: tabular-nums;
-        }
-
-        .gst-badge {
-            font-size: 10px;
-            padding: 1px 8px;
-            border-radius: 9999px;
-            font-weight: 600;
-        }
-
-        .custom-scroll {
-            scrollbar-width: thin;
-            scrollbar-color: #475569 #1e2937;
-        }
-
-        .tool-card {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .tool-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-        }
+        .data-table { border-collapse: collapse; }
+        .data-table th, .data-table td { padding: 10px 12px; vertical-align: middle; font-size: 13px; }
+        .metric-value { font-variant-numeric: tabular-nums; }
+        .gst-badge { font-size: 10px; padding: 1px 8px; border-radius: 9999px; font-weight: 600; }
+        .ledgerflow-gradient { background: linear-gradient(135deg, #070b14 0%, #0f172a 100%); }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-200">
+<body class="lf-app bg-slate-950 text-slate-200">
     <!-- Login Screen -->
-    <div id="login-screen" class="fixed inset-0 z-[300] bg-slate-950 flex items-center justify-center p-4">
-        <div class="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-3xl p-8 shadow-2xl">
+    <div id="login-screen" class="lf-login-screen fixed inset-0 z-[300] flex items-center justify-center p-4">
+        <div class="lf-login-card w-full max-w-lg rounded-3xl p-8">
             <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <i class="fa-solid fa-book text-white text-3xl"></i>
+                <div class="lf-logo-ring w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-bolt text-white text-3xl"></i>
                 </div>
-                <h1 class="font-display text-3xl font-semibold">Ledger<span class="text-emerald-400">Flow</span></h1>
-                <p class="text-slate-400 text-sm mt-2">Accounting Firm &amp; Client Portal</p>
+                <h1 class="font-display text-3xl">Ledger<span class="text-teal-400">Flow</span></h1>
+                <p class="text-slate-400 text-sm mt-2">Smart CRM for Accounting Firms</p>
             </div>
 
             <!-- Login Type Tabs -->
-            <div class="flex bg-slate-950 border border-slate-700 rounded-2xl p-1 mb-6">
-                <button id="tab-client" onclick="setLoginMode('client')"
-                        class="flex-1 py-2 text-sm font-semibold rounded-xl transition-colors bg-emerald-600 text-white">
+            <div class="lf-tab-bar flex rounded-2xl p-1 mb-6">
+                <button id="tab-client" onclick="setLoginMode('client')" class="lf-tab lf-tab-active">
                     <i class="fa-solid fa-user mr-1"></i> Client
                 </button>
-                <button id="tab-team" onclick="setLoginMode('team')"
-                        class="flex-1 py-2 text-sm font-semibold rounded-xl transition-colors text-slate-400 hover:text-white">
+                <button id="tab-team" onclick="setLoginMode('team')" class="lf-tab">
                     <i class="fa-solid fa-users mr-1"></i> Team
                 </button>
-                <button id="tab-firm" onclick="setLoginMode('firm')"
-                        class="flex-1 py-2 text-sm font-semibold rounded-xl transition-colors text-slate-400 hover:text-white">
+                <button id="tab-firm" onclick="setLoginMode('firm')" class="lf-tab">
                     <i class="fa-solid fa-building mr-1"></i> Admin
                 </button>
             </div>
 
-            <div id="login-client-hint" class="mb-4 p-3 bg-blue-900/30 border border-blue-800 rounded-2xl text-xs text-blue-300">
+            <div id="login-client-hint" class="lf-hint-box mb-4 p-3 bg-cyan-950/40 border-cyan-800/50 rounded-2xl text-xs text-cyan-200">
                 <i class="fa-solid fa-info-circle mr-1"></i>
                 <strong>Client Portal:</strong> Make invoices, view documents uploaded by your CA, raise requests, and submit purchase bills.
             </div>
-            <div id="login-team-hint" class="hidden mb-4 p-3 bg-violet-900/30 border border-violet-800 rounded-2xl text-xs text-violet-300">
+            <div id="login-team-hint" class="lf-hint-box hidden mb-4 p-3 bg-violet-950/40 border-violet-800/50 rounded-2xl text-xs text-violet-200">
                 <i class="fa-solid fa-users mr-1"></i>
                 <strong>Team Portal:</strong> Work on assigned clients only. Uploads and profile changes need admin approval.
             </div>
-            <div id="login-firm-hint" class="hidden mb-4 p-3 bg-emerald-900/30 border border-emerald-800 rounded-2xl text-xs text-emerald-300">
+            <div id="login-firm-hint" class="lf-hint-box hidden mb-4 p-3 bg-teal-950/40 border-teal-800/50 rounded-2xl text-xs text-teal-200">
                 <i class="fa-solid fa-shield-halved mr-1"></i>
                 <strong>Admin Access:</strong> Manage all clients, team members, approvals, and firm settings.
             </div>
 
             <!-- LOGIN PANEL -->
             <div id="auth-panel-login" class="space-y-4">
-                <div id="client-auth-method-toggle" class="flex bg-slate-950 border border-slate-700 rounded-xl p-1">
+                <div id="client-auth-method-toggle" class="lf-tab-bar flex rounded-xl p-1">
                     <button type="button" id="tab-auth-email" onclick="setClientAuthMethod('email')"
-                            class="flex-1 py-2 text-xs font-semibold rounded-lg transition-colors bg-emerald-600 text-white">
+                            class="lf-tab lf-tab-active text-xs">
                         <i class="fa-solid fa-envelope mr-1"></i> Email
                     </button>
                     <button type="button" id="tab-auth-otp" onclick="setClientAuthMethod('otp')"
-                            class="flex-1 py-2 text-xs font-semibold rounded-lg transition-colors text-slate-400 hover:text-white">
+                            class="lf-tab text-xs">
                         <i class="fa-solid fa-mobile-screen mr-1"></i> Mobile OTP
                     </button>
                 </div>
@@ -246,7 +121,7 @@
                     </div>
                 </div>
 
-                <button id="login-submit-btn" onclick="handleLogin()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-semibold transition-colors">
+                <button id="login-submit-btn" onclick="handleLogin()" class="lf-btn-primary w-full py-3.5 rounded-2xl font-semibold">
                     <i class="fa-solid fa-right-to-bracket mr-2"></i> Client Sign In
                 </button>
                 <div id="google-auth-client-section" class="hidden">
@@ -351,17 +226,17 @@
                 <div class="text-xs text-slate-500 text-center mb-3" id="demo-creds-title">Demo Client Logins (click to fill)</div>
                 <div id="demo-client-creds" class="grid grid-cols-1 gap-2 text-xs">
                     <button type="button" onclick="fillDemoLogin('info@sharmatraders.in','client123')"
-                            class="bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
+                            class="lf-demo-btn rounded-xl px-3 py-2 flex justify-between text-left">
                         <span class="text-slate-300">Sharma Traders</span>
                         <span class="font-mono text-emerald-400">info@sharmatraders.in</span>
                     </button>
                     <button type="button" onclick="fillDemoLogin('billing@technova.in','client123')"
-                            class="bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
+                            class="lf-demo-btn rounded-xl px-3 py-2 flex justify-between text-left">
                         <span class="text-slate-300">TechNova Solutions</span>
                         <span class="font-mono text-emerald-400">billing@technova.in</span>
                     </button>
                     <button type="button" onclick="fillDemoLogin('accounts@freshmart.in','client123')"
-                            class="bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
+                            class="lf-demo-btn rounded-xl px-3 py-2 flex justify-between text-left">
                         <span class="text-slate-300">FreshMart Retail</span>
                         <span class="font-mono text-emerald-400">accounts@freshmart.in</span>
                     </button>
@@ -375,17 +250,17 @@
                 </div>
                 <div id="demo-client-phones" class="hidden grid grid-cols-1 gap-2 text-xs">
                     <button type="button" onclick="fillDemoPhone('+91 98765 43210')"
-                            class="bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
+                            class="lf-demo-btn rounded-xl px-3 py-2 flex justify-between text-left">
                         <span class="text-slate-300">Sharma Traders</span>
                         <span class="font-mono text-emerald-400">98765 43210</span>
                     </button>
                     <button type="button" onclick="fillDemoPhone('+91 22 4000 1234')"
-                            class="bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
+                            class="lf-demo-btn rounded-xl px-3 py-2 flex justify-between text-left">
                         <span class="text-slate-300">TechNova Solutions</span>
                         <span class="font-mono text-emerald-400">22 4000 1234</span>
                     </button>
                     <button type="button" onclick="fillDemoPhone('+91 80 4567 8901')"
-                            class="bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
+                            class="lf-demo-btn rounded-xl px-3 py-2 flex justify-between text-left">
                         <span class="text-slate-300">FreshMart Retail</span>
                         <span class="font-mono text-emerald-400">80 4567 8901</span>
                     </button>
@@ -396,18 +271,18 @@
 
     <div id="app-shell" class="hidden">
     <!-- Top Header -->
-    <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
+    <header class="lf-header sticky top-0 z-50">
         <div class="max-w-screen-2xl mx-auto">
             <div class="px-6 py-3 flex items-center justify-between">
                 <div class="flex items-center gap-x-4">
                     <!-- Logo -->
                     <div class="flex items-center gap-x-3">
-                        <div class="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-inner">
-                            <i class="fa-solid fa-book text-white text-2xl"></i>
+                        <div class="lf-header-logo w-10 h-10 rounded-2xl flex items-center justify-center">
+                            <i class="fa-solid fa-bolt text-white text-xl"></i>
                         </div>
                         <div>
-                            <span class="font-display text-2xl font-semibold tracking-tighter">Ledger</span>
-                            <span class="font-display text-2xl font-semibold tracking-tighter text-emerald-400">Flow</span>
+                            <span class="font-display text-2xl">Ledger</span>
+                            <span class="font-display text-2xl text-teal-400">Flow</span>
                         </div>
                     </div>
                     <div id="header-portal-badge" class="px-3 py-1 bg-emerald-900/60 text-emerald-400 text-xs font-bold rounded-full flex items-center gap-x-1.5 border border-emerald-800">
@@ -465,9 +340,9 @@
     <div class="max-w-screen-2xl mx-auto flex">
         
         <!-- Sidebar Navigation -->
-        <div class="w-72 bg-slate-900 border-r border-slate-800 min-h-[calc(100vh-57px)] p-4 flex flex-col">
-            <div class="px-3 mb-2">
-                <div class="text-xs font-bold text-slate-500 tracking-widest px-2" id="sidebar-title">CLIENT PORTAL</div>
+        <div class="lf-sidebar w-72 min-h-[calc(100vh-57px)] p-4 flex flex-col custom-scroll">
+            <div class="px-3 mb-4">
+                <div class="lf-sidebar-title text-xs px-2" id="sidebar-title">CLIENT PORTAL</div>
             </div>
             
             <nav class="space-y-1" id="sidebar-nav">
@@ -620,7 +495,7 @@
         </div>
         
         <!-- Main Content Area -->
-        <div class="flex-1 p-6 max-h-[calc(100vh-57px)] overflow-auto custom-scroll" id="main-content">
+        <div class="flex-1 p-6 max-h-[calc(100vh-57px)] overflow-auto custom-scroll relative z-10" id="main-content">
             <!-- Dynamic content injected by JavaScript -->
         </div>
     </div>
@@ -776,28 +651,28 @@
             const tabTeam = document.getElementById('tab-team');
             const tabFirm = document.getElementById('tab-firm');
             const btn = document.getElementById('login-submit-btn');
-            const inactive = 'flex-1 py-2 text-sm font-semibold rounded-xl transition-colors text-slate-400 hover:text-white';
-            tabClient.className = inactive;
-            tabTeam.className = inactive;
-            tabFirm.className = inactive;
+            [tabClient, tabTeam, tabFirm].forEach(t => {
+                t.className = 'lf-tab';
+                t.classList.remove('lf-tab-active', 'team', 'admin');
+            });
             document.getElementById('login-client-hint').classList.add('hidden');
             document.getElementById('login-team-hint').classList.add('hidden');
             document.getElementById('login-firm-hint').classList.add('hidden');
             if (mode === 'client') {
-                tabClient.className = 'flex-1 py-2 text-sm font-semibold rounded-xl transition-colors bg-emerald-600 text-white';
+                tabClient.className = 'lf-tab lf-tab-active';
                 document.getElementById('login-client-hint').classList.remove('hidden');
                 btn.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-2"></i> Client Sign In';
-                btn.className = 'w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-semibold transition-colors';
+                btn.className = 'lf-btn-primary w-full py-3.5 rounded-2xl font-semibold';
             } else if (mode === 'team') {
-                tabTeam.className = 'flex-1 py-2 text-sm font-semibold rounded-xl transition-colors bg-violet-600 text-white';
+                tabTeam.className = 'lf-tab lf-tab-active team';
                 document.getElementById('login-team-hint').classList.remove('hidden');
                 btn.innerHTML = '<i class="fa-solid fa-users mr-2"></i> Team Sign In';
-                btn.className = 'w-full py-3.5 bg-violet-600 hover:bg-violet-500 rounded-2xl font-semibold transition-colors';
+                btn.className = 'lf-btn-primary team w-full py-3.5 rounded-2xl font-semibold';
             } else {
-                tabFirm.className = 'flex-1 py-2 text-sm font-semibold rounded-xl transition-colors bg-blue-600 text-white';
+                tabFirm.className = 'lf-tab lf-tab-active admin';
                 document.getElementById('login-firm-hint').classList.remove('hidden');
                 btn.innerHTML = '<i class="fa-solid fa-building mr-2"></i> Admin Sign In';
-                btn.className = 'w-full py-3.5 bg-blue-600 hover:bg-blue-500 rounded-2xl font-semibold transition-colors';
+                btn.className = 'lf-btn-primary admin w-full py-3.5 rounded-2xl font-semibold';
             }
             document.getElementById('login-error').classList.add('hidden');
             document.getElementById('client-signup-link')?.classList.toggle('hidden', mode !== 'client');
@@ -1950,9 +1825,9 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            const bg = type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600';
+            const bg = type === 'success' ? 'bg-gradient-to-r from-teal-600 to-cyan-600' : type === 'error' ? 'bg-gradient-to-r from-red-600 to-rose-600' : 'bg-gradient-to-r from-blue-600 to-indigo-600';
             
-            toast.className = `${bg} text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-x-3 text-sm font-medium max-w-xs`;
+            toast.className = `lf-toast ${bg} text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-x-3 text-sm font-medium max-w-xs`;
             toast.innerHTML = `
                 <i class="fa-solid ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
                 <span>${message}</span>
@@ -1967,9 +1842,9 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         }
 
         function updateActiveNav(section) {
-            document.querySelectorAll('[id^="nav-"]').forEach(el => el.classList.remove('nav-active', 'bg-slate-800'));
+            document.querySelectorAll('#sidebar-nav .nav-item').forEach(el => el.classList.remove('nav-active'));
             const navEl = document.getElementById('nav-' + section);
-            if (navEl) navEl.classList.add('nav-active', 'bg-slate-800');
+            if (navEl) navEl.classList.add('nav-active');
         }
 
         let masterFormSubmitHandler = null;
@@ -2749,32 +2624,32 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
 
                 ${isClient ? `
                 <div class="mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                    <button onclick="launchInvoiceMaker()" class="p-4 bg-emerald-900/30 border border-emerald-700 rounded-2xl text-left hover:bg-emerald-900/50 transition-colors">
+                    <button onclick="launchInvoiceMaker()" class="lf-quick-action p-4 bg-emerald-900/30 border border-emerald-700/60 rounded-2xl text-left hover:bg-emerald-900/50 transition-colors">
                         <i class="fa-solid fa-file-invoice text-emerald-400 text-xl mb-2"></i>
                         <div class="font-semibold text-sm">Make Invoice</div>
                         <div class="text-xs text-slate-400">Create GST invoice</div>
                     </button>
-                    <button onclick="showSection('buy-services')" class="p-4 bg-teal-900/30 border border-teal-700 rounded-2xl text-left hover:bg-teal-900/50 transition-colors">
+                    <button onclick="showSection('buy-services')" class="lf-quick-action p-4 bg-teal-900/30 border border-teal-700/60 rounded-2xl text-left hover:bg-teal-900/50 transition-colors">
                         <i class="fa-solid fa-store text-teal-400 text-xl mb-2"></i>
                         <div class="font-semibold text-sm">Buy Services</div>
                         <div class="text-xs text-slate-400">${pendingServiceOrders} pending request(s)</div>
                     </button>
-                    <button onclick="showSection('admin-invoices')" class="p-4 bg-rose-900/30 border border-rose-700 rounded-2xl text-left hover:bg-rose-900/50 transition-colors">
+                    <button onclick="showSection('admin-invoices')" class="lf-quick-action p-4 bg-rose-900/30 border border-rose-700/60 rounded-2xl text-left hover:bg-rose-900/50 transition-colors">
                         <i class="fa-solid fa-file-invoice-dollar text-rose-400 text-xl mb-2"></i>
                         <div class="font-semibold text-sm">CA Invoices</div>
                         <div class="text-xs text-slate-400">${unpaidAdminInvoices} unpaid</div>
                     </button>
-                    <button onclick="showSection('documents')" class="p-4 bg-blue-900/30 border border-blue-700 rounded-2xl text-left hover:bg-blue-900/50 transition-colors">
+                    <button onclick="showSection('documents')" class="lf-quick-action p-4 bg-blue-900/30 border border-blue-700/60 rounded-2xl text-left hover:bg-blue-900/50 transition-colors">
                         <i class="fa-solid fa-folder-open text-blue-400 text-xl mb-2"></i>
                         <div class="font-semibold text-sm">CA Documents</div>
                         <div class="text-xs text-slate-400">${adminDocCount} files available</div>
                     </button>
-                    <button onclick="showSection('purchases')" class="p-4 bg-purple-900/30 border border-purple-700 rounded-2xl text-left hover:bg-purple-900/50 transition-colors">
+                    <button onclick="showSection('purchases')" class="lf-quick-action p-4 bg-purple-900/30 border border-purple-700/60 rounded-2xl text-left hover:bg-purple-900/50 transition-colors">
                         <i class="fa-solid fa-file-upload text-purple-400 text-xl mb-2"></i>
                         <div class="font-semibold text-sm">Upload Purchases</div>
                         <div class="text-xs text-slate-400">Submit purchase bills</div>
                     </button>
-                    <button onclick="showSection('requests')" class="p-4 bg-amber-900/30 border border-amber-700 rounded-2xl text-left hover:bg-amber-900/50 transition-colors">
+                    <button onclick="showSection('requests')" class="lf-quick-action p-4 bg-amber-900/30 border border-amber-700/60 rounded-2xl text-left hover:bg-amber-900/50 transition-colors">
                         <i class="fa-solid fa-headset text-amber-400 text-xl mb-2"></i>
                         <div class="font-semibold text-sm">Raise Request</div>
                         <div class="text-xs text-slate-400">${openRequests} open ticket(s)</div>
@@ -2887,7 +2762,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     </div>
                 </div>
 
-                <div class="bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden">
+                <div class="lf-panel overflow-hidden">
                     <table class="w-full data-table">
                         <thead>
                             <tr>
