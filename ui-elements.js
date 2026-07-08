@@ -22,6 +22,7 @@
         'bank-recon': { label: 'GST Returns Tracker', group: 'GST & Compliance' },
         'emi-calculator': { label: 'EMI Calculator', group: 'GST & Compliance' },
         requests: { label: 'Messages & Requests', group: 'Communication' },
+        whatsapp: { label: 'WhatsApp', group: 'Communication' },
         'team-approvals': { label: 'Approvals', group: 'Communication' },
         'sales-report': { label: 'Revenue Reports', group: 'Reports' },
         'party-pl': { label: 'Client Reports', group: 'Reports' },

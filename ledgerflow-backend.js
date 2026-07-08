@@ -171,11 +171,23 @@
         try { localStorage.removeItem(TOKEN_KEY); } catch (_) {}
     }
 
+    async function sendWhatsApp(phone, message) {
+        return apiFetch('/api/whatsapp/send', {
+            method: 'POST',
+            body: JSON.stringify({ phone, message })
+        });
+    }
+
+    async function getWhatsAppConfig() {
+        return apiFetch('/api/whatsapp/config');
+    }
+
     window.LedgerFlowBackend = {
         loadConfig,
         get enabled() { return state.enabled; },
         get apiUrl() { return state.apiUrl; },
         get token() { return state.token; },
+        apiFetch,
         login,
         me,
         saveData,
@@ -190,6 +202,8 @@
         getOtpConfig,
         sendOtp,
         verifyOtp,
+        sendWhatsApp,
+        getWhatsAppConfig,
         clearToken
     };
 })();

@@ -22,7 +22,8 @@
                 { name: 'Retainer invoices & revenue recognition', status: 'partial', route: "showSection('cap-retainers')", note: 'Retainer ledger' },
                 { name: 'Credit notes & delivery challans', status: 'partial', route: "showSection('cap-credit-notes')", note: 'CN / DC register' },
                 { name: 'Online payments (gateways + payment links)', status: 'partial', route: "showSection('cap-payment-links')", note: 'Payment links + portal Pay Now' },
-                { name: 'Automated payment reminders', status: 'partial', route: "showSection('cap-payment-reminders')", note: 'Email/SMS reminder schedules' },
+                { name: 'Automated payment reminders', status: 'partial', route: "showSection('cap-payment-reminders')", note: 'Email/SMS/WhatsApp reminder schedules' },
+                { name: 'WhatsApp client messaging', status: 'partial', route: "showSection('whatsapp')", note: 'Templates, click-to-chat, Business API' },
                 { name: 'Customer Portal (invoices, payments, documents)', status: 'live', route: "showSection('dashboard')", note: 'Role-based My Portal' },
                 { name: 'Multi-currency & multi-language support', status: 'partial', route: "showSection('cap-multi-currency')", note: 'Currency & language settings' }
             ]

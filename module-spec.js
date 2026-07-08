@@ -55,7 +55,7 @@
             screens: ['Chat / Message thread', 'Approval center', 'Notifications'],
             features: [
                 'In-app messaging',
-                'WhatsApp integration (future)',
+                'WhatsApp integration (click-to-chat + Business API)',
                 'Approval workflow'
             ]
         },

@@ -32,6 +32,7 @@ const {
     createOtpSendRateLimiter
 } = require('./firewall');
 const { isEwayBillConfigured, getEwayBillConfigStatus, testEwayBillAuth, generateEwayBill } = require('./ewaybill');
+const { getWhatsAppConfigStatus, sendWhatsAppText, isWhatsAppConfigured } = require('./whatsapp');
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 
@@ -264,8 +265,47 @@ app.get('/api/health', (_req, res) => {
         otpAuth: true,
         smsConfigured: isSmsConfigured(),
         firewall: getFirewallStatus(),
-        ewayBill: getEwayBillConfigStatus()
+        ewayBill: getEwayBillConfigStatus(),
+        whatsapp: getWhatsAppConfigStatus()
     });
+});
+
+app.get('/api/whatsapp/config', authMiddleware, (req, res) => {
+    if (req.auth.role !== 'firm') {
+        return res.status(403).json({ error: 'Firm admin only' });
+    }
+    res.json(getWhatsAppConfigStatus());
+});
+
+app.post('/api/whatsapp/send', authMiddleware, async (req, res) => {
+    if (req.auth.role !== 'firm' && req.auth.role !== 'team') {
+        return res.status(403).json({ error: 'Not authorized' });
+    }
+    const { phone, message } = req.body || {};
+    if (!phone || !message) {
+        return res.status(400).json({ error: 'phone and message required' });
+    }
+    try {
+        const result = await sendWhatsAppText(phone, message);
+        res.json({ ok: true, result });
+    } catch (err) {
+        res.status(err.payload ? 400 : 500).json({ error: err.message || 'Send failed' });
+    }
+});
+
+app.get('/api/whatsapp/webhook', (req, res) => {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+    const verify = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || 'ledgerflow_verify';
+    if (mode === 'subscribe' && token === verify) {
+        return res.status(200).send(challenge);
+    }
+    res.sendStatus(403);
+});
+
+app.post('/api/whatsapp/webhook', (req, res) => {
+    res.sendStatus(200);
 });
 
 app.get('/api/ewaybill/config', authMiddleware, (_req, res) => {

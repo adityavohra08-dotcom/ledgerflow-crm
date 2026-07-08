@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LedgerFlow CRM • Client Portal | Accounting Firm</title>
-    <meta name="app-version" content="3.12.3-no-admin-demo">
+    <meta name="app-version" content="3.13.0-whatsapp">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <script>
@@ -44,6 +44,7 @@
     <script src="components.js?v=3.12.1"></script>
     <script src="product-capabilities.js?v=3.12.1"></script>
     <script src="capability-modules.js?v=3.12.1"></script>
+    <script src="whatsapp-integration.js?v=3.13.0"></script>
     <script src="theme.js?v=3.12.1"></script>
     <script src="page-hierarchy.js?v=3.12.1"></script>
     <script src="ui-elements.js?v=3.12.1"></script>
@@ -438,6 +439,9 @@
                         <button type="button" onclick="showSection('requests')" class="nav-item lf-nav-child w-full text-left" id="nav-messages">
                             <span class="lf-nav-tree-line"></span><span>Messages</span>
                         </button>
+                        <button type="button" onclick="showSection('whatsapp')" data-team-visible class="nav-item lf-nav-child w-full text-left" id="nav-whatsapp">
+                            <span class="lf-nav-tree-line"></span><span>WhatsApp</span>
+                        </button>
                         <button type="button" onclick="showSection('team-approvals')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-team-approvals">
                             <span class="lf-nav-tree-line"></span><span>Approvals</span>
                             <span id="team-approvals-badge" class="hidden ml-auto px-2 py-0.5 text-xs bg-amber-600 text-white rounded-full font-bold">0</span>
@@ -579,6 +583,11 @@
                         </button>
                     </div>
                 </div>
+
+                <button type="button" onclick="showSection('whatsapp')" class="nav-item lf-nav-single flex items-center gap-x-3 px-3 py-2.5 text-sm font-medium rounded-xl cursor-pointer w-full text-left" id="client-nav-whatsapp">
+                    <i class="fa-brands fa-whatsapp w-5 text-center text-[#25D366]"></i>
+                    <span>WhatsApp</span>
+                </button>
 
                 <button type="button" onclick="showSection('requests')" class="nav-item lf-nav-single flex items-center gap-x-3 px-3 py-2.5 text-sm font-medium rounded-xl cursor-pointer w-full text-left" id="client-nav-requests">
                     <i class="fa-solid fa-comments w-5 text-center"></i>
@@ -2619,6 +2628,10 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 case 'invoices': renderInvoices(main); break;
                 case 'documents': renderDocuments(main); break;
                 case 'requests': renderRequests(main); break;
+                case 'whatsapp':
+                    if (typeof LedgerFlowWhatsApp !== 'undefined') LedgerFlowWhatsApp.renderWhatsApp(main);
+                    else renderRequests(main);
+                    break;
                 case 'gst-calculator': renderGSTCalculator(main); break;
                 case 'hsn-search': renderHSNSearch(main); break;
                 case 'bank-recon': renderBankReconciliation(main); break;
@@ -3607,8 +3620,9 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             container.innerHTML = `
                 <div class="max-w-3xl">
                     ${LedgerFlowModules.renderModuleGuide('communication', { checkedFeatures: ['In-app messaging', 'Approval workflow'] })}
-                    <div class="flex gap-2 mb-6 border-b border-slate-700 pb-2">
+                    <div class="flex gap-2 mb-6 border-b border-slate-700 pb-2 flex-wrap">
                         <button onclick="window.commTab='messages';showSection('requests')" class="px-4 py-2 text-sm font-semibold rounded-t-xl ${tab === 'messages' ? 'bg-slate-800 text-teal-400 border-b-2 border-teal-400' : 'text-slate-400'}">Messages</button>
+                        <button onclick="showSection('whatsapp')" class="px-4 py-2 text-sm font-semibold rounded-t-xl text-slate-400 hover:text-slate-200"><i class="fa-brands fa-whatsapp text-[#25D366] mr-1"></i>WhatsApp</button>
                         ${isFirmUser() ? `<button onclick="showSection('team-approvals')" class="px-4 py-2 text-sm font-semibold rounded-t-xl text-slate-400 hover:text-slate-200">Approvals</button>` : ''}
                         <button onclick="window.commTab='notifications';showSection('dashboard')" class="px-4 py-2 text-sm font-semibold rounded-t-xl ${tab === 'notifications' ? 'bg-slate-800 text-teal-400' : 'text-slate-400'}">Notifications</button>
                     </div>
@@ -5889,6 +5903,7 @@ Sent via LedgerFlow CRM`;
             if (!isBackendMode()) {
                 mergeDefaultUsers();
                 if (typeof ensureFirmSettings === 'function') ensureFirmSettings();
+                if (typeof LedgerFlowWhatsApp !== 'undefined') LedgerFlowWhatsApp.ensureWhatsAppSettings();
                 Object.values(appData.clients).forEach(client => {
                     normalizeDocuments(client);
                     if (typeof ensureClientExtensions === 'function') ensureClientExtensions(client);

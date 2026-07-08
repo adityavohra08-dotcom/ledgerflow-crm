@@ -2674,6 +2674,58 @@ a[class*="bg-emerald-600"]:hover {
     z-index: 200;
 }
 
+.lf-wa-connect-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.75rem;
+}
+
+.lf-wa-connect-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--lf-surface);
+    border: 1px solid var(--lf-border);
+    border-radius: 1rem;
+}
+
+.lf-wa-connect-card--on {
+    border-color: #25D366;
+    background: color-mix(in srgb, #25D366 6%, var(--lf-surface));
+}
+
+.lf-wa-connect-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, #25D366 15%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #25D366;
+    font-size: 1.25rem;
+}
+
+.lf-wa-client-chip {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--lf-border);
+    border-radius: 0.75rem;
+    background: var(--lf-surface);
+    transition: border-color 0.15s ease;
+}
+
+.lf-wa-client-chip:hover:not(:disabled) {
+    border-color: #25D366;
+}
+
+.lf-wa-btn {
+    min-width: 2rem;
+}
+
 @media (max-width: 1023px) {
     .lf-app-shell {
         grid-template-columns: 1fr;

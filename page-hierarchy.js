@@ -243,6 +243,14 @@
             roles: ['firm', 'team', 'client'],
             keywords: ['message', 'chat', 'request', 'support']
         },
+        whatsapp: {
+            label: 'WhatsApp',
+            path: '/messages/whatsapp',
+            module: 'Communication',
+            parent: 'requests',
+            roles: ['firm', 'team', 'client'],
+            keywords: ['whatsapp', 'wa', 'chat', 'message']
+        },
         'team-approvals': {
             label: 'Approvals',
             path: '/messages/approvals',
@@ -432,6 +440,7 @@
     registerRoute('/gst/returns', 'bank-recon');
     registerRoute('/gst/emi', 'emi-calculator');
     registerRoute('/messages', 'requests');
+    registerRoute('/messages/whatsapp', 'whatsapp');
     registerRoute('/messages/approvals', 'team-approvals');
     registerRoute('/reports', 'sales-report');
     registerRoute('/reports/revenue', 'sales-report');
