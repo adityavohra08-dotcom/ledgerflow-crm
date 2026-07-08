@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LedgerFlow CRM • Client Portal | Accounting Firm</title>
-    <meta name="app-version" content="3.12.1-capabilities-full">
+    <meta name="app-version" content="3.12.2-firm-profile-fix">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <script>
@@ -28,7 +28,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="hsn-database.js"></script>
     <script src="services-catalog.js"></script>
-    <script src="portal-extensions.js"></script>
+    <script src="portal-extensions.js?v=3.12.2"></script>
     <script src="invoice-pdf-template.js"></script>
     <script src="ewaybill-integration.js?v=2.9.0"></script>
     <script src="ledgerflow-backend.js"></script>
@@ -1452,7 +1452,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         }
 
         // Indian States
-        const stateList = [
+        window.stateList = [
             { code: "01", name: "Jammu and Kashmir" }, { code: "02", name: "Himachal Pradesh" },
             { code: "03", name: "Punjab" }, { code: "04", name: "Chandigarh" }, { code: "05", name: "Uttarakhand" },
             { code: "06", name: "Haryana" }, { code: "07", name: "Delhi" }, { code: "08", name: "Rajasthan" },
@@ -1467,9 +1467,10 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             { code: "33", name: "Tamil Nadu" }, { code: "34", name: "Puducherry" }, { code: "35", name: "Andaman and Nicobar Islands" },
             { code: "36", name: "Telangana" }, { code: "37", name: "Ladakh" }, { code: "38", name: "Other Territory" }
         ];
+        const stateList = window.stateList;
 
         function getStateName(code) {
-            const found = stateList.find(s => s.code === code);
+            const found = window.stateList.find(s => s.code === code);
             return found ? found.name : code;
         }
 

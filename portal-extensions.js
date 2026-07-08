@@ -11,6 +11,27 @@
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    function getStateList() {
+        if (typeof window.stateList !== 'undefined' && window.stateList.length) {
+            return window.stateList;
+        }
+        return [
+            { code: '07', name: 'Delhi' },
+            { code: '27', name: 'Maharashtra' },
+            { code: '29', name: 'Karnataka' },
+            { code: '09', name: 'Uttar Pradesh' },
+            { code: '24', name: 'Gujarat' }
+        ];
+    }
+
+    function ensureFirmBank(firm) {
+        if (!firm.bank) firm.bank = { name: '', account: '', ifsc: '', branch: '' };
+        ['name', 'account', 'ifsc', 'branch'].forEach(k => {
+            if (firm.bank[k] === undefined) firm.bank[k] = '';
+        });
+        return firm.bank;
+    }
+
     function orderStatusBadge(status) {
         const map = {
             pending: 'bg-amber-900 text-amber-300',
@@ -365,8 +386,11 @@
             container.innerHTML = '<div class="text-red-400">Admin access only.</div>';
             return;
         }
+        try {
         ensureFirmSettings();
         const firm = appData.firmSettings;
+        const bank = ensureFirmBank(firm);
+        const states = getStateList();
 
         const moduleGuide = typeof LedgerFlowModules !== 'undefined'
             ? LedgerFlowModules.renderModuleGuide('settings', { checkedFeatures: ['Logo upload', 'Tax settings', 'User roles'] })
@@ -469,7 +493,7 @@
                         <div>
                             <label class="text-xs font-medium text-slate-400 block mb-1">State (for CGST/SGST)</label>
                             <select id="firm-state" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm">
-                                ${stateList.map(s => `<option value="${s.code}" ${s.code === firm.stateCode ? 'selected' : ''}>${s.name} (${s.code})</option>`).join('')}
+                                ${states.map(s => `<option value="${s.code}" ${s.code === firm.stateCode ? 'selected' : ''}>${s.name} (${s.code})</option>`).join('')}
                             </select>
                         </div>
                         <div>
@@ -483,19 +507,19 @@
                         <div class="grid grid-cols-2 gap-5">
                             <div>
                                 <label class="text-xs font-medium text-slate-400 block mb-1">Bank Name</label>
-                                <input id="firm-bank-name" value="${esc(firm.bank.name)}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm">
+                                <input id="firm-bank-name" value="${esc(bank.name)}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm">
                             </div>
                             <div>
                                 <label class="text-xs font-medium text-slate-400 block mb-1">Account Number</label>
-                                <input id="firm-bank-account" value="${esc(firm.bank.account)}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm font-mono">
+                                <input id="firm-bank-account" value="${esc(bank.account)}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm font-mono">
                             </div>
                             <div>
                                 <label class="text-xs font-medium text-slate-400 block mb-1">IFSC Code</label>
-                                <input id="firm-bank-ifsc" value="${esc(firm.bank.ifsc)}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm font-mono">
+                                <input id="firm-bank-ifsc" value="${esc(bank.ifsc)}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm font-mono">
                             </div>
                             <div>
                                 <label class="text-xs font-medium text-slate-400 block mb-1">Branch</label>
-                                <input id="firm-bank-branch" value="${esc(firm.bank.branch)}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm">
+                                <input id="firm-bank-branch" value="${esc(bank.branch)}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm">
                             </div>
                         </div>
                     </div>
@@ -518,6 +542,16 @@
                 </div>
             </div>
         `;
+        } catch (err) {
+            console.error('[Firm Profile]', err);
+            container.innerHTML = `
+                <div class="lf-empty-state max-w-lg">
+                    <div class="lf-empty-state-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <h3 class="lf-empty-state-title">Could not load Firm Profile</h3>
+                    <p class="lf-empty-state-msg">${esc(err.message || 'Unknown error')}</p>
+                    <button type="button" onclick="showSection('firm-profile')" class="lf-btn lf-btn--primary mt-4">Retry</button>
+                </div>`;
+        }
     };
 
     window.saveFirmProfile = function () {
@@ -784,7 +818,7 @@
                     <div>
                         <label class="text-xs text-slate-400">Place of Supply</label>
                         <select id="rai-pos" onchange="updateRaiseInvoiceTotals()" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm">
-                            ${stateList.map(s => `<option value="${s.code}" ${s.code === (client.stateCode || firm.stateCode) ? 'selected' : ''}>${s.name}</option>`).join('')}
+                            ${getStateList().map(s => `<option value="${s.code}" ${s.code === (client.stateCode || firm.stateCode) ? 'selected' : ''}>${s.name}</option>`).join('')}
                         </select>
                     </div>
                     <div class="col-span-2">
