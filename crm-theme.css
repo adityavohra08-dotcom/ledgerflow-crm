@@ -2740,10 +2740,212 @@ a[class*="bg-emerald-600"]:hover {
         transition: transform 0.25s ease;
         min-height: 100vh;
         max-height: 100vh;
+        max-height: 100dvh;
+        padding-bottom: env(safe-area-inset-bottom, 0);
     }
 
     #app-sidebar.lf-sidebar--open {
         transform: translateX(0);
         box-shadow: 8px 0 32px rgba(0, 0, 0, 0.45);
+    }
+
+    .lf-sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 54;
+        background: rgba(2, 6, 23, 0.55);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.25s ease, visibility 0.25s ease;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .lf-sidebar-backdrop--visible {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    body.lf-sidebar-open {
+        overflow: hidden;
+    }
+}
+
+/* Client portal mobile chrome */
+.lf-client-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 0.15rem;
+    padding: 0.35rem 0.5rem calc(0.35rem + env(safe-area-inset-bottom, 0));
+    background: rgba(15, 23, 42, 0.96);
+    border-top: 1px solid rgba(51, 65, 85, 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.lf-client-tab {
+    flex: 1;
+    min-width: 0;
+    min-height: 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    padding: 0.25rem 0.15rem;
+    border: none;
+    border-radius: 0.75rem;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 0.625rem;
+    font-weight: 600;
+    line-height: 1.1;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.lf-client-tab i {
+    font-size: 1.125rem;
+}
+
+.lf-client-tab[data-client-tab="whatsapp"] i {
+    color: #25D366;
+}
+
+.lf-client-tab--active {
+    color: #2dd4bf;
+    background: rgba(13, 148, 136, 0.12);
+}
+
+.lf-client-tab--active[data-client-tab="whatsapp"] {
+    color: #25D366;
+    background: rgba(37, 211, 102, 0.12);
+}
+
+.lf-client-upload-fab {
+    position: fixed;
+    right: 1rem;
+    bottom: calc(4.75rem + env(safe-area-inset-bottom, 0));
+    z-index: 58;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 9999px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0d9488, #14b8a6);
+    color: #fff;
+    font-size: 1.25rem;
+    box-shadow: 0 8px 24px rgba(13, 148, 136, 0.45);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.lf-client-upload-fab:active {
+    transform: scale(0.96);
+}
+
+@media (min-width: 1024px) {
+    .lf-client-bottom-nav,
+    .lf-client-upload-fab {
+        display: none !important;
+    }
+}
+
+@media (max-width: 1023px) {
+    .lf-app--client-mobile .lf-mobile-menu {
+        display: none !important;
+    }
+
+    .lf-app--client-mobile .lf-header-center {
+        display: none !important;
+    }
+
+    .lf-app--client-mobile #header-quick-action-btn {
+        display: none !important;
+    }
+
+    .lf-app--client-mobile #header-brand-desktop {
+        display: none !important;
+    }
+
+    .lf-app--client-mobile .lf-client-mobile-title {
+        display: block !important;
+    }
+
+    .lf-app--client-mobile .lf-app-shell__main {
+        padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0));
+    }
+
+    .lf-app--client-mobile .lf-main-content {
+        padding: 1rem 1rem 1.25rem;
+    }
+
+    .lf-app--client-mobile .lf-page-chrome {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .lf-app--client-mobile .lf-app-shell__header-inner {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .lf-app--client-mobile .lf-sidebar-privacy {
+        display: none;
+    }
+
+    .lf-app--client-mobile .lf-panel.overflow-hidden {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .lf-app--client-mobile .data-table {
+        min-width: 36rem;
+    }
+
+    .lf-app--client-mobile .lf-portal-hero {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 1rem 1.125rem;
+    }
+
+    .lf-app--client-mobile .lf-portal-upload-cta {
+        width: 100%;
+        min-height: 3rem;
+        justify-content: center;
+    }
+
+    .lf-app--client-mobile .lf-portal-card {
+        padding: 1.125rem;
+    }
+
+    .lf-app--client-mobile .lf-portal-card-value {
+        font-size: 1.5rem;
+    }
+
+    .lf-app--client-mobile .lf-portal-card-actions .lf-btn {
+        min-height: 2.75rem;
+        flex: 1;
+        justify-content: center;
+    }
+
+    .lf-app--client-mobile .lf-btn,
+    .lf-app--client-mobile button.nav-item {
+        min-height: 2.75rem;
+    }
+
+    .lf-app--client-mobile #header-notif-btn,
+    .lf-app--client-mobile .lf-user-avatar-btn {
+        min-width: 2.75rem;
+        min-height: 2.75rem;
     }
 }

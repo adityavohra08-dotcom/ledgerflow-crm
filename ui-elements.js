@@ -204,9 +204,28 @@
         }
     };
 
+    window.closeMobileSidebar = function () {
+        const sb = document.getElementById('app-sidebar');
+        const bd = document.getElementById('lf-sidebar-backdrop');
+        sb?.classList.remove('lf-sidebar--open');
+        bd?.classList.remove('lf-sidebar-backdrop--visible');
+        document.body.classList.remove('lf-sidebar-open');
+        if (typeof updateClientBottomNav === 'function' && typeof currentSection !== 'undefined') {
+            updateClientBottomNav(currentSection);
+        }
+    };
+
     window.toggleMobileSidebar = function () {
         const sb = document.getElementById('app-sidebar');
-        if (sb) sb.classList.toggle('lf-sidebar--open');
+        const bd = document.getElementById('lf-sidebar-backdrop');
+        if (!sb) return;
+        const open = !sb.classList.contains('lf-sidebar--open');
+        sb.classList.toggle('lf-sidebar--open', open);
+        bd?.classList.toggle('lf-sidebar-backdrop--visible', open);
+        document.body.classList.toggle('lf-sidebar-open', open);
+        if (typeof updateClientBottomNav === 'function' && typeof currentSection !== 'undefined') {
+            updateClientBottomNav(currentSection);
+        }
     };
 
     window.LedgerFlowUI = {

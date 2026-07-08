@@ -247,7 +247,7 @@
                     <h2 class="lf-text-h1">Welcome back, ${esc(client.name.split(' ')[0])}</h2>
                     <p class="lf-portal-hero-sub">${esc(firmName || 'Your CA firm')} is here to help — everything you need is one click away.</p>
                 </div>
-                <button type="button" onclick="showDocumentsFiltered('upload')" class="lf-btn lf-btn--primary lf-portal-upload-cta">
+                <button type="button" onclick="showDocumentsFiltered('upload')" class="lf-btn lf-btn--primary lf-portal-upload-cta lf-portal-upload-cta--hero">
                     <i class="fa-solid fa-cloud-arrow-up mr-2"></i>Upload Documents
                 </button>
             </div>`;

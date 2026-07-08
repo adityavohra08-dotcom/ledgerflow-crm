@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>LedgerFlow CRM • Client Portal | Accounting Firm</title>
-    <meta name="app-version" content="3.13.0-whatsapp">
+    <meta name="app-version" content="3.13.1-client-mobile">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <script>
@@ -40,15 +40,16 @@
     <script src="color-palette.js?v=3.12.1"></script>
     <script src="typography.js?v=3.12.1"></script>
     <script src="layout.js?v=3.12.1"></script>
-    <script src="key-screens.js?v=3.12.1"></script>
+    <script src="key-screens.js?v=3.13.1"></script>
     <script src="components.js?v=3.12.1"></script>
     <script src="product-capabilities.js?v=3.12.1"></script>
     <script src="capability-modules.js?v=3.12.1"></script>
     <script src="whatsapp-integration.js?v=3.13.0"></script>
     <script src="theme.js?v=3.12.1"></script>
     <script src="page-hierarchy.js?v=3.12.1"></script>
-    <script src="ui-elements.js?v=3.12.1"></script>
-    <link rel="stylesheet" href="crm-theme.css?v=3.12.1">
+    <script src="ui-elements.js?v=3.13.1"></script>
+    <script src="client-mobile.js?v=3.13.1"></script>
+    <link rel="stylesheet" href="crm-theme.css?v=3.13.1">
     <style>
         .data-table { border-collapse: collapse; }
         .data-table th, .data-table td { padding: 10px 12px; vertical-align: middle; }
@@ -302,6 +303,7 @@
 
     <div id="app-shell" class="lf-app-shell hidden">
         <!-- [Sidebar] | [Header + KPI row + Main content] -->
+        <div id="lf-sidebar-backdrop" class="lf-sidebar-backdrop" onclick="closeMobileSidebar()" aria-hidden="true"></div>
         <aside class="lf-sidebar lf-app-shell__sidebar w-80 p-4 flex flex-col custom-scroll" id="app-sidebar">
             <div class="lf-sidebar-brand px-2 mb-4 pb-4 border-b border-slate-700/60" id="sidebar-brand-firm">
                 <div class="flex items-center gap-x-3">
@@ -624,11 +626,15 @@
                                 <div class="lf-header-logo w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0">
                                     <i class="fa-solid fa-bolt text-white text-lg sm:text-xl"></i>
                                 </div>
-                                <div class="min-w-0 hidden sm:block">
+                                <div class="min-w-0 hidden sm:block" id="header-brand-desktop">
                                     <div class="font-display text-lg sm:text-xl leading-tight whitespace-nowrap">
                                         <span>Ledger</span><span class="text-teal-400">Flow</span>
                                     </div>
                                     <div class="text-xs text-slate-400 truncate max-w-[10rem] md:max-w-[14rem]" id="header-context-name">Accounting Firm</div>
+                                </div>
+                                <div class="lf-client-mobile-title min-w-0 hidden" id="header-client-mobile-title">
+                                    <div class="font-semibold text-sm leading-tight truncate" id="header-client-mobile-firm">Your CA Firm</div>
+                                    <div class="text-[11px] text-slate-400 truncate" id="header-client-mobile-business">My Business</div>
                                 </div>
                             </div>
                             <span id="header-portal-badge" class="hidden md:inline-flex px-2.5 py-1 text-[10px] font-bold rounded-full border shrink-0"></span>
@@ -706,6 +712,33 @@
     <button type="button" id="lf-fab" onclick="launchInvoiceMaker()" class="lf-fab hidden" title="Create Invoice">
         <i class="fa-solid fa-plus"></i>
     </button>
+
+    <button type="button" id="lf-client-upload-fab" onclick="showDocumentsFiltered('upload')" class="lf-client-upload-fab hidden" title="Upload documents" aria-label="Upload documents">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+    </button>
+
+    <nav id="lf-client-bottom-nav" class="lf-client-bottom-nav hidden" aria-label="Client portal navigation">
+        <button type="button" class="lf-client-tab" data-client-tab="home" onclick="clientBottomNavGo('home')" aria-label="Home">
+            <i class="fa-solid fa-house"></i>
+            <span>Home</span>
+        </button>
+        <button type="button" class="lf-client-tab" data-client-tab="invoices" onclick="clientBottomNavGo('invoices')" aria-label="Invoices">
+            <i class="fa-solid fa-file-invoice-dollar"></i>
+            <span>Invoices</span>
+        </button>
+        <button type="button" class="lf-client-tab" data-client-tab="docs" onclick="clientBottomNavGo('docs')" aria-label="Documents">
+            <i class="fa-solid fa-folder-open"></i>
+            <span>Docs</span>
+        </button>
+        <button type="button" class="lf-client-tab" data-client-tab="whatsapp" onclick="clientBottomNavGo('whatsapp')" aria-label="WhatsApp">
+            <i class="fa-brands fa-whatsapp"></i>
+            <span>Chat</span>
+        </button>
+        <button type="button" class="lf-client-tab" data-client-tab="more" onclick="clientBottomNavGo('more')" aria-label="More options">
+            <i class="fa-solid fa-ellipsis"></i>
+            <span>More</span>
+        </button>
+    </nav>
 
     <!-- GST Invoice Maker Modal (Full Invoice Maker via iframe) -->
     <div id="invoice-maker-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-2">
@@ -1984,6 +2017,10 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 }
                 switchWrap?.classList.add('hidden');
                 if (searchInput) searchInput.placeholder = 'Search invoices…';
+                const firmEl = document.getElementById('header-client-mobile-firm');
+                const bizEl = document.getElementById('header-client-mobile-business');
+                if (firmEl) firmEl.textContent = firmName;
+                if (bizEl) bizEl.textContent = getCurrentClient()?.name || 'My Business';
             }
 
             ['header-user-role', 'header-user-role-menu'].forEach(id => {
@@ -2141,7 +2178,9 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
 
             if (isClient) {
                 applyClientSidebarNav();
+                if (typeof applyClientMobileChrome === 'function') applyClientMobileChrome();
             } else {
+                if (typeof removeClientMobileChrome === 'function') removeClientMobileChrome();
                 setSidebarMode('firm');
                 if (isFirm && typeof resetSidebarNav === 'function') {
                     resetSidebarNav();
