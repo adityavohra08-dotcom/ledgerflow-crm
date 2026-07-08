@@ -1,8 +1,11 @@
 /**
  * Client portal mobile chrome — bottom tab bar, simplified header, upload FAB.
+ * Desktop keeps the standard sidebar + header layout; mobile chrome only below 1024px.
  */
 (function () {
     'use strict';
+
+    const MOBILE_MQ = window.matchMedia('(max-width: 1023px)');
 
     const BOTTOM_TAB_SECTIONS = {
         home: ['dashboard'],
@@ -17,7 +20,7 @@
     }
 
     function isMobileViewport() {
-        return window.matchMedia('(max-width: 1023px)').matches;
+        return MOBILE_MQ.matches;
     }
 
     function getTabForSection(section) {
@@ -27,24 +30,30 @@
         return 'more';
     }
 
-    window.applyClientMobileChrome = function applyClientMobileChrome() {
+    function setMobileChromeActive(active) {
         const shell = document.getElementById('app-shell');
-        const bottomNav = document.getElementById('lf-client-bottom-nav');
-        const mobileTitle = document.getElementById('header-client-mobile-title');
-        const uploadFab = document.getElementById('lf-client-upload-fab');
+        shell?.classList.toggle('lf-app--client-mobile', active);
+        document.body.classList.toggle('lf-app--client-mobile', active);
+    }
 
+    function clearMobileChrome() {
+        setMobileChromeActive(false);
+        if (typeof closeMobileSidebar === 'function') closeMobileSidebar();
+        document.getElementById('lf-client-upload-fab')?.classList.add('hidden');
+    }
+
+    function syncClientViewportChrome() {
         if (!isClientPortal()) {
-            shell?.classList.remove('lf-app--client-mobile');
-            bottomNav?.classList.add('hidden');
-            mobileTitle?.classList.add('hidden');
-            uploadFab?.classList.add('hidden');
-            document.body.classList.remove('lf-app--client-mobile');
+            clearMobileChrome();
             return;
         }
 
-        shell?.classList.add('lf-app--client-mobile');
-        document.body.classList.add('lf-app--client-mobile');
-        bottomNav?.classList.remove('hidden');
+        if (!isMobileViewport()) {
+            clearMobileChrome();
+            return;
+        }
+
+        setMobileChromeActive(true);
 
         const firmName = (typeof appData !== 'undefined' && appData.firmSettings?.name) || 'Your CA Firm';
         const clientName = (typeof getCurrentClient === 'function' && getCurrentClient()?.name) || 'My Business';
@@ -52,19 +61,22 @@
         const bizEl = document.getElementById('header-client-mobile-business');
         if (firmEl) firmEl.textContent = firmName;
         if (bizEl) bizEl.textContent = clientName;
-        mobileTitle?.classList.remove('hidden');
 
         wrapShowSectionCore();
         updateClientBottomNav(typeof currentSection !== 'undefined' ? currentSection : 'dashboard');
         updateClientUploadFab(typeof currentSection !== 'undefined' ? currentSection : 'dashboard');
+    }
+
+    window.applyClientMobileChrome = function applyClientMobileChrome() {
+        syncClientViewportChrome();
     };
 
     window.removeClientMobileChrome = function removeClientMobileChrome() {
-        applyClientMobileChrome();
+        clearMobileChrome();
     };
 
     window.clientBottomNavGo = function clientBottomNavGo(tab) {
-        if (!isClientPortal()) return;
+        if (!isClientPortal() || !isMobileViewport()) return;
 
         if (tab === 'more') {
             const sb = document.getElementById('app-sidebar');
@@ -100,7 +112,7 @@
 
     window.updateClientBottomNav = function updateClientBottomNav(section) {
         const nav = document.getElementById('lf-client-bottom-nav');
-        if (!nav || !isClientPortal() || nav.classList.contains('hidden')) return;
+        if (!nav || !isClientPortal() || !isMobileViewport()) return;
 
         const activeTab = getTabForSection(section);
         nav.querySelectorAll('[data-client-tab]').forEach(btn => {
@@ -120,16 +132,13 @@
 
     window.updateClientUploadFab = function updateClientUploadFab(section) {
         const fab = document.getElementById('lf-client-upload-fab');
-        if (!fab || !isClientPortal()) {
+        if (!fab || !isClientPortal() || !isMobileViewport()) {
             fab?.classList.add('hidden');
             return;
         }
 
         const docFilter = window.documentListFilter || 'ca';
-        const show = isMobileViewport() && (
-            section === 'dashboard' ||
-            (section === 'documents' && docFilter !== 'upload')
-        );
+        const show = section === 'dashboard' || (section === 'documents' && docFilter !== 'upload');
         fab.classList.toggle('hidden', !show);
     };
 
@@ -139,7 +148,7 @@
 
         window.__showSectionCore = function (section) {
             orig(section);
-            if (isClientPortal()) {
+            if (isClientPortal() && isMobileViewport()) {
                 closeMobileSidebar();
                 updateClientBottomNav(section);
                 updateClientUploadFab(section);
@@ -148,12 +157,10 @@
         window.__showSectionCore.__clientMobileWrapped = true;
     }
 
-    window.addEventListener('resize', () => {
-        if (!isClientPortal()) return;
-        updateClientUploadFab(typeof currentSection !== 'undefined' ? currentSection : 'dashboard');
-    });
+    MOBILE_MQ.addEventListener('change', syncClientViewportChrome);
+    window.addEventListener('resize', syncClientViewportChrome);
 
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeMobileSidebar();
+        if (e.key === 'Escape' && isMobileViewport()) closeMobileSidebar();
     });
 })();

@@ -2770,22 +2770,9 @@ a[class*="bg-emerald-600"]:hover {
     }
 }
 
-/* Client portal mobile chrome */
+/* Client portal mobile chrome — hidden on desktop; only active with lf-app--client-mobile below 1024px */
 .lf-client-bottom-nav {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 60;
-    display: flex;
-    align-items: stretch;
-    justify-content: space-around;
-    gap: 0.15rem;
-    padding: 0.35rem 0.5rem calc(0.35rem + env(safe-area-inset-bottom, 0));
-    background: rgba(15, 23, 42, 0.96);
-    border-top: 1px solid rgba(51, 65, 85, 0.9);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    display: none;
 }
 
 .lf-client-tab {
@@ -2829,38 +2816,51 @@ a[class*="bg-emerald-600"]:hover {
 }
 
 .lf-client-upload-fab {
-    position: fixed;
-    right: 1rem;
-    bottom: calc(4.75rem + env(safe-area-inset-bottom, 0));
-    z-index: 58;
-    width: 3.25rem;
-    height: 3.25rem;
-    border-radius: 9999px;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #0d9488, #14b8a6);
-    color: #fff;
-    font-size: 1.25rem;
-    box-shadow: 0 8px 24px rgba(13, 148, 136, 0.45);
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.lf-client-upload-fab:active {
-    transform: scale(0.96);
-}
-
-@media (min-width: 1024px) {
-    .lf-client-bottom-nav,
-    .lf-client-upload-fab {
-        display: none !important;
-    }
+    display: none;
 }
 
 @media (max-width: 1023px) {
+    .lf-app--client-mobile .lf-client-bottom-nav {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 60;
+        display: flex;
+        align-items: stretch;
+        justify-content: space-around;
+        gap: 0.15rem;
+        padding: 0.35rem 0.5rem calc(0.35rem + env(safe-area-inset-bottom, 0));
+        background: rgba(15, 23, 42, 0.96);
+        border-top: 1px solid rgba(51, 65, 85, 0.9);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+
+    .lf-app--client-mobile .lf-client-upload-fab:not(.hidden) {
+        position: fixed;
+        right: 1rem;
+        bottom: calc(4.75rem + env(safe-area-inset-bottom, 0));
+        z-index: 58;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 3.25rem;
+        height: 3.25rem;
+        border-radius: 9999px;
+        border: none;
+        background: linear-gradient(135deg, #0d9488, #14b8a6);
+        color: #fff;
+        font-size: 1.25rem;
+        box-shadow: 0 8px 24px rgba(13, 148, 136, 0.45);
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .lf-app--client-mobile .lf-client-upload-fab:active {
+        transform: scale(0.96);
+    }
     .lf-app--client-mobile .lf-mobile-menu {
         display: none !important;
     }
