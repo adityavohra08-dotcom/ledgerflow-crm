@@ -10,6 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="invoice-pdf-template.js"></script>
+    <script src="ewaybill-integration.js?v=2.9.0"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
         
@@ -149,6 +150,9 @@
             <select id="crm-stock-pick" onchange="addStockFromCRM(this.value); this.value=''" class="text-xs bg-slate-900 border border-slate-600 rounded-xl px-3 py-1.5">
                 <option value="">+ From Stock...</option>
             </select>
+            <button onclick="generateEwayBillFromInvoice()" class="text-xs px-4 py-1.5 bg-amber-700 hover:bg-amber-600 rounded-xl font-semibold flex items-center gap-1">
+                <i class="fa-solid fa-truck-fast"></i> E-Way Bill
+            </button>
             <button onclick="saveToCRM()" class="text-xs px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold flex items-center gap-1">
                 <i class="fa-solid fa-save"></i> Save to CRM
             </button>
@@ -552,6 +556,92 @@
                             </div>
                             <p class="text-[10px] text-slate-500 mt-1.5 px-1">Taxable value &amp; tax amounts are auto-calculated in preview based on Place of Supply.</p>
                         </div>
+
+                        <!-- E-WAY BILL -->
+                        <div id="ewaybill-section">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="section-title flex items-center gap-x-2">
+                                    <i class="fa-solid fa-truck-fast text-amber-400"></i>
+                                    <span>E-Way Bill (Transport)</span>
+                                </div>
+                                <span id="eway-required-badge" class="hidden text-[10px] px-2 py-0.5 bg-amber-900/60 text-amber-300 rounded-full font-bold border border-amber-700">Required ≥ ₹50,000</span>
+                            </div>
+
+                            <label class="flex items-center gap-2 mb-3 cursor-pointer">
+                                <input type="checkbox" id="eway-enabled" class="rounded border-slate-600 bg-slate-950 text-amber-500 focus:ring-amber-500" onchange="toggleEwayBillSection(); updatePreview()">
+                                <span class="text-sm text-slate-300">Include / Generate E-Way Bill</span>
+                            </label>
+
+                            <div id="eway-fields" class="hidden space-y-3 border border-amber-900/40 bg-amber-950/20 rounded-2xl p-4">
+                                <div id="eway-generated-banner" class="hidden p-3 bg-emerald-900/40 border border-emerald-700 rounded-xl">
+                                    <div class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">E-Way Bill Generated</div>
+                                    <div id="eway-no-display" class="font-mono text-lg font-bold text-emerald-300 mt-1">—</div>
+                                    <div id="eway-valid-display" class="text-xs text-emerald-400/80 mt-1">—</div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">Transport Mode *</label>
+                                        <select id="eway-transport-mode" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm" onchange="syncEwayBillFromForm(); updateEwayTransportFields(); updatePreview()">
+                                            <option value="1">Road</option>
+                                            <option value="2">Rail</option>
+                                            <option value="3">Air</option>
+                                            <option value="4">Ship</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">Sub Supply Type</label>
+                                        <select id="eway-sub-supply" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm" onchange="syncEwayBillFromForm(); updatePreview()">
+                                            <option value="1">Supply</option>
+                                            <option value="3">Export</option>
+                                            <option value="4">Job Work</option>
+                                            <option value="8">Others</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">From PIN Code *</label>
+                                        <input type="text" id="eway-from-pincode" maxlength="6" placeholder="201301" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm font-mono" oninput="syncEwayBillFromForm(); updatePreview()">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">To PIN Code *</label>
+                                        <input type="text" id="eway-to-pincode" maxlength="6" placeholder="110001" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm font-mono" oninput="syncEwayBillFromForm(); updatePreview()">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">Distance (km) *</label>
+                                        <input type="number" id="eway-distance" min="1" placeholder="100" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm" oninput="syncEwayBillFromForm(); updatePreview()">
+                                    </div>
+                                    <div id="eway-vehicle-wrap">
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">Vehicle No *</label>
+                                        <input type="text" id="eway-vehicle-no" placeholder="DL01AB1234" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm font-mono uppercase" oninput="syncEwayBillFromForm(); updatePreview()">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">Transporter Name</label>
+                                        <input type="text" id="eway-transporter-name" placeholder="ABC Logistics" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm" oninput="syncEwayBillFromForm(); updatePreview()">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">Transporter ID (GSTIN)</label>
+                                        <input type="text" id="eway-transporter-id" placeholder="29XXXXX1234X1Z5" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm font-mono" oninput="syncEwayBillFromForm(); updatePreview()">
+                                    </div>
+                                    <div class="col-span-2">
+                                        <label class="text-xs font-medium text-slate-400 block mb-1">LR / RR / AWB No</label>
+                                        <input type="text" id="eway-trans-doc-no" placeholder="Optional for rail/air/ship" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2 text-sm" oninput="syncEwayBillFromForm(); updatePreview()">
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-wrap gap-2 pt-1">
+                                    <button type="button" onclick="generateEwayBillFromInvoice()" class="text-xs px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-xl font-semibold text-white flex items-center gap-1">
+                                        <i class="fa-solid fa-bolt"></i> Generate E-Way Bill
+                                    </button>
+                                    <button type="button" onclick="downloadEwayBillJson()" class="text-xs px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl font-semibold flex items-center gap-1">
+                                        <i class="fa-solid fa-file-code"></i> Export NIC JSON
+                                    </button>
+                                    <button type="button" onclick="openNicEwayPortal()" class="text-xs px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl font-semibold flex items-center gap-1">
+                                        <i class="fa-solid fa-external-link"></i> NIC Portal
+                                    </button>
+                                </div>
+                                <p class="text-[10px] text-slate-500">Mandatory when consignment value ≥ ₹50,000. Demo mode generates a sample EWB number; set server credentials for live NIC API.</p>
+                            </div>
+                        </div>
                         
                         <!-- BANK DETAILS -->
                         <div>
@@ -776,7 +866,8 @@
             },
             terms: "",
             notes: "",
-            tcs: { enabled: false, section: "206C(1H)", rate: 0.1 }
+            tcs: { enabled: false, section: "206C(1H)", rate: 0.1 },
+            ewayBill: (window.LedgerFlowEwayBill?.defaultEwayBill || function () { return { enabled: false }; })()
         };
         
         // Populate state dropdowns
@@ -1219,6 +1310,7 @@
             
             const totals = calculateTotals();
             const isIntra = totals.isIntraState;
+            updateEwayRequiredBadge(totals);
             
             // Build preview HTML
             let html = `
@@ -1435,6 +1527,8 @@
                         </div>
                     </div>
                     
+                    ${invoiceData.ewayBill?.ewbNo ? LedgerFlowEwayBill.buildEwayBillHtml(invoiceData.ewayBill) : ''}
+
                     <!-- Bank + Terms -->
                     <div class="grid grid-cols-2 gap-4 mt-6 text-xs">
                         <!-- Bank Details -->
@@ -1545,6 +1639,142 @@
             // Terms & Notes
             invoiceData.terms = document.getElementById('terms')?.value || '';
             invoiceData.notes = document.getElementById('notes')?.value || '';
+            syncEwayBillFromForm();
+        }
+
+        function syncEwayBillFromForm() {
+            if (!invoiceData.ewayBill) invoiceData.ewayBill = LedgerFlowEwayBill.defaultEwayBill();
+            const e = invoiceData.ewayBill;
+            e.enabled = document.getElementById('eway-enabled')?.checked || false;
+            e.transportMode = document.getElementById('eway-transport-mode')?.value || '1';
+            e.subSupplyType = document.getElementById('eway-sub-supply')?.value || '1';
+            e.fromPincode = document.getElementById('eway-from-pincode')?.value || '';
+            e.toPincode = document.getElementById('eway-to-pincode')?.value || '';
+            e.distanceKm = parseInt(document.getElementById('eway-distance')?.value, 10) || 0;
+            e.vehicleNo = document.getElementById('eway-vehicle-no')?.value || '';
+            e.transporterName = document.getElementById('eway-transporter-name')?.value || '';
+            e.transporterId = document.getElementById('eway-transporter-id')?.value || '';
+            e.transDocNo = document.getElementById('eway-trans-doc-no')?.value || '';
+        }
+
+        function populateEwayBillForm() {
+            const e = invoiceData.ewayBill || LedgerFlowEwayBill.defaultEwayBill();
+            invoiceData.ewayBill = e;
+            if (document.getElementById('eway-enabled')) document.getElementById('eway-enabled').checked = !!e.enabled;
+            if (document.getElementById('eway-transport-mode')) document.getElementById('eway-transport-mode').value = e.transportMode || '1';
+            if (document.getElementById('eway-sub-supply')) document.getElementById('eway-sub-supply').value = e.subSupplyType || '1';
+            if (document.getElementById('eway-from-pincode')) document.getElementById('eway-from-pincode').value = e.fromPincode || '';
+            if (document.getElementById('eway-to-pincode')) document.getElementById('eway-to-pincode').value = e.toPincode || '';
+            if (document.getElementById('eway-distance')) document.getElementById('eway-distance').value = e.distanceKm || '';
+            if (document.getElementById('eway-vehicle-no')) document.getElementById('eway-vehicle-no').value = e.vehicleNo || '';
+            if (document.getElementById('eway-transporter-name')) document.getElementById('eway-transporter-name').value = e.transporterName || '';
+            if (document.getElementById('eway-transporter-id')) document.getElementById('eway-transporter-id').value = e.transporterId || '';
+            if (document.getElementById('eway-trans-doc-no')) document.getElementById('eway-trans-doc-no').value = e.transDocNo || '';
+            toggleEwayBillSection();
+            updateEwayGeneratedBanner();
+            updateEwayTransportFields();
+        }
+
+        function toggleEwayBillSection() {
+            const enabled = document.getElementById('eway-enabled')?.checked;
+            const fields = document.getElementById('eway-fields');
+            if (fields) fields.classList.toggle('hidden', !enabled);
+            if (enabled && invoiceData.ewayBill) invoiceData.ewayBill.enabled = true;
+        }
+
+        function updateEwayTransportFields() {
+            const mode = document.getElementById('eway-transport-mode')?.value || '1';
+            const vehicleWrap = document.getElementById('eway-vehicle-wrap');
+            if (vehicleWrap) vehicleWrap.classList.toggle('hidden', mode !== '1');
+        }
+
+        function updateEwayRequiredBadge(totals) {
+            const badge = document.getElementById('eway-required-badge');
+            if (!badge || !totals) return;
+            const required = LedgerFlowEwayBill.isEwayBillRequired(totals.finalGrandTotal);
+            badge.classList.toggle('hidden', !required);
+            if (required && !document.getElementById('eway-enabled')?.checked) {
+                const chk = document.getElementById('eway-enabled');
+                if (chk) { chk.checked = true; toggleEwayBillSection(); }
+            }
+        }
+
+        function updateEwayGeneratedBanner() {
+            const e = invoiceData.ewayBill || {};
+            const banner = document.getElementById('eway-generated-banner');
+            const noEl = document.getElementById('eway-no-display');
+            const validEl = document.getElementById('eway-valid-display');
+            if (!banner) return;
+            if (e.ewbNo) {
+                banner.classList.remove('hidden');
+                if (noEl) noEl.textContent = LedgerFlowEwayBill.formatEwbNo(e.ewbNo);
+                const valid = e.validUpto ? new Date(e.validUpto).toLocaleString('en-IN') : '—';
+                if (validEl) validEl.textContent = `Valid upto ${valid}${e.mode === 'demo' ? ' • Demo mode' : ''}`;
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
+        function guessEwayPincodes() {
+            if (!document.getElementById('eway-from-pincode')?.value) {
+                const fromPin = LedgerFlowEwayBill.extractPincode(document.getElementById('supplier-address')?.value);
+                if (fromPin) document.getElementById('eway-from-pincode').value = fromPin;
+            }
+            if (!document.getElementById('eway-to-pincode')?.value) {
+                const toAddr = document.getElementById('ship-same-as-bill')?.checked
+                    ? document.getElementById('recipient-address')?.value
+                    : document.getElementById('shipto-address')?.value;
+                const toPin = LedgerFlowEwayBill.extractPincode(toAddr);
+                if (toPin) document.getElementById('eway-to-pincode').value = toPin;
+            }
+            syncEwayBillFromForm();
+        }
+
+        async function generateEwayBillFromInvoice() {
+            syncFormToState();
+            const totals = calculateTotals();
+            guessEwayPincodes();
+            syncEwayBillFromForm();
+            if (!invoiceData.ewayBill?.enabled) {
+                const chk = document.getElementById('eway-enabled');
+                if (chk) { chk.checked = true; toggleEwayBillSection(); }
+                invoiceData.ewayBill.enabled = true;
+            }
+            const btn = document.querySelector('[onclick="generateEwayBillFromInvoice()"]');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...'; }
+            try {
+                const result = await LedgerFlowEwayBill.generateEwayBill(invoiceData, totals, invoiceData.ewayBill);
+                if (!result.ok) {
+                    showToast(result.errors?.join(' • ') || 'Validation failed');
+                    return;
+                }
+                invoiceData.ewayBill = result.ewayBill;
+                populateEwayBillForm();
+                updatePreview();
+                saveToLocalStorage();
+                showToast(`E-Way Bill ${LedgerFlowEwayBill.formatEwbNo(result.ewayBill.ewbNo)} generated!`);
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Generate E-Way Bill'; }
+            }
+        }
+
+        function downloadEwayBillJson() {
+            syncFormToState();
+            const totals = calculateTotals();
+            guessEwayPincodes();
+            syncEwayBillFromForm();
+            const payload = LedgerFlowEwayBill.buildNicPayload(invoiceData, totals, invoiceData.ewayBill);
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `EWayBill_${invoiceData.invoice.number || 'draft'}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            showToast('NIC JSON exported');
+        }
+
+        function openNicEwayPortal() {
+            window.open('https://ewaybillgst.gov.in/', '_blank', 'noopener');
         }
         
         // Load sample data (useful for demo)
@@ -1758,6 +1988,7 @@
             // Terms
             if (document.getElementById('terms')) document.getElementById('terms').value = invoiceData.terms || '';
             if (document.getElementById('notes')) document.getElementById('notes').value = invoiceData.notes || '';
+            populateEwayBillForm();
         }
         
         // Export current invoice as JSON file
@@ -2093,6 +2324,7 @@
                 bank: { ...invoiceData.bank },
                 terms: invoiceData.terms,
                 notes: invoiceData.notes,
+                ewayBill: invoiceData.ewayBill?.ewbNo ? { ...invoiceData.ewayBill } : null,
                 items: totals.items,
                 totals: {
                     totalTaxable: totals.totalTaxable,
@@ -2200,6 +2432,9 @@
             if (document.getElementById('terms')) {
                 document.getElementById('terms').value = "1. Goods once sold will not be taken back.\n2. Subject to Noida jurisdiction.\n3. Interest @24% p.a. will be charged on overdue invoices.\n4. All disputes subject to Delhi courts.";
             }
+
+            invoiceData.ewayBill = LedgerFlowEwayBill.defaultEwayBill();
+            populateEwayBillForm();
             
             // Clear localStorage version too? Optional
             // localStorage.removeItem('gstInvoiceData');
@@ -2323,7 +2558,9 @@
                     grandTotal: totals.finalGrandTotal,
                     status: 'Pending',
                     items: totals.items.length,
-                    itemDetails: totals.items
+                    itemDetails: totals.items,
+                    ewayBill: invoiceData.ewayBill?.ewbNo ? { ...invoiceData.ewayBill } : null,
+                    placeOfSupplyCode: invoiceData.invoice.placeOfSupplyCode
                 };
                 if (window.parent !== window && window.parent.LedgerFlow?.getAppData) {
                     const parentData = window.parent.LedgerFlow.getAppData();
@@ -2371,6 +2608,7 @@
             
             // Populate states
             populateStateSelects();
+            populateEwayBillForm();
             
             // Set default dates
             const today = new Date().toISOString().split('T')[0];

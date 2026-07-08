@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LedgerFlow CRM • Client Portal | Accounting Firm</title>
-    <meta name="app-version" content="2.8.3-client-sidebar">
+    <meta name="app-version" content="2.9.0-ewaybill">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -14,6 +14,7 @@
     <script src="services-catalog.js"></script>
     <script src="portal-extensions.js"></script>
     <script src="invoice-pdf-template.js"></script>
+    <script src="ewaybill-integration.js?v=2.9.0"></script>
     <script src="ledgerflow-backend.js"></script>
     <script src="google-auth-ui.js"></script>
     <script src="otp-auth-ui.js"></script>
@@ -2899,7 +2900,8 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                                 <th class="text-right">IGST</th>
                                 <th class="text-right">Grand Total</th>
                                 <th>Status</th>
-                                <th class="w-24"></th>
+                                <th>E-Way Bill</th>
+                                <th class="w-32"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2916,14 +2918,22 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                                     <td>
                                         <span class="inline-block px-3 py-0.5 text-xs font-bold rounded-full ${inv.status === 'Paid' ? 'bg-emerald-900 text-emerald-300' : 'bg-amber-900 text-amber-300'}">${inv.status}</span>
                                     </td>
+                                    <td class="text-xs font-mono whitespace-nowrap">
+                                        ${inv.ewayBill?.ewbNo
+                                            ? `<span class="text-amber-300" title="Valid upto ${inv.ewayBill.validUpto ? new Date(inv.ewayBill.validUpto).toLocaleString('en-IN') : ''}">${LedgerFlowEwayBill.formatEwbNo(inv.ewayBill.ewbNo)}</span>`
+                                            : (inv.grandTotal >= 50000
+                                                ? `<button onclick="generateEwayBillForInvoice('${inv.id}')" class="text-amber-400 hover:text-amber-300 underline text-[11px]">Generate</button>`
+                                                : '<span class="text-slate-500">—</span>')}
+                                    </td>
                                     <td class="text-right whitespace-nowrap">
                                         <button onclick="viewInvoiceDetails('${inv.id}')" title="View" class="text-emerald-400 hover:text-emerald-300 px-2"><i class="fa-solid fa-eye"></i></button>
                                         <button onclick="downloadInvoicePDF('${inv.id}')" title="Download PDF" class="text-emerald-400 hover:text-emerald-300 px-2"><i class="fa-solid fa-download"></i></button>
+                                        ${!inv.ewayBill?.ewbNo && inv.grandTotal >= 50000 ? `<button onclick="generateEwayBillForInvoice('${inv.id}')" title="E-Way Bill" class="text-amber-400 hover:text-amber-300 px-2"><i class="fa-solid fa-truck-fast"></i></button>` : ''}
                                         <button onclick="sendInvoiceEmail('${inv.id}')" title="Send via Email" class="text-blue-400 hover:text-blue-300 px-2"><i class="fa-solid fa-envelope"></i></button>
                                     </td>
                                 </tr>
                             `).join('') : `
-                                <tr><td colspan="10" class="text-center py-12 text-slate-400">No invoices created yet. Click "Create New GST Invoice" to get started.</td></tr>
+                                <tr><td colspan="11" class="text-center py-12 text-slate-400">No invoices created yet. Click "Create New GST Invoice" to get started.</td></tr>
                             `}
                         </tbody>
                     </table>
@@ -5041,7 +5051,44 @@ Sent via LedgerFlow CRM`;
             
             const tcsInfo = inv.tcs > 0 ? `\nTCS: ₹${inv.tcs} (@ ${inv.tcsRate}% - ${inv.tcsSection})` : '';
             const emailInfo = inv.emailSent ? `\nEmail sent: ${inv.emailSent}` : '';
-            alert(`Invoice ${inv.number}\n\nParty: ${inv.partyName}\nDate: ${inv.date}\n\nTaxable: ₹${inv.taxable}\nCGST: ₹${inv.cgst} | SGST: ₹${inv.sgst} | IGST: ₹${inv.igst}${tcsInfo}\nGrand Total: ₹${inv.grandTotal}\nStatus: ${inv.status}${emailInfo}`);
+            const ewbInfo = inv.ewayBill?.ewbNo
+                ? `\nE-Way Bill: ${LedgerFlowEwayBill.formatEwbNo(inv.ewayBill.ewbNo)}${inv.ewayBill.validUpto ? ' (valid upto ' + new Date(inv.ewayBill.validUpto).toLocaleString('en-IN') + ')' : ''}`
+                : (inv.grandTotal >= 50000 ? '\nE-Way Bill: Not generated yet' : '');
+            alert(`Invoice ${inv.number}\n\nParty: ${inv.partyName}\nDate: ${inv.date}\n\nTaxable: ₹${inv.taxable}\nCGST: ₹${inv.cgst} | SGST: ₹${inv.sgst} | IGST: ₹${inv.igst}${tcsInfo}\nGrand Total: ₹${inv.grandTotal}\nStatus: ${inv.status}${ewbInfo}${emailInfo}`);
+        }
+
+        async function generateEwayBillForInvoice(invId) {
+            const client = getCurrentClient();
+            const inv = client.invoices.find(i => i.id === invId);
+            if (!inv) return;
+
+            const distance = prompt('Enter transport distance in km:', inv.ewayBill?.distanceKm || '100');
+            if (!distance) return;
+            const vehicleNo = prompt('Enter vehicle number (for road transport):', inv.ewayBill?.vehicleNo || '');
+            const fromPin = prompt('From PIN code:', inv.ewayBill?.fromPincode || LedgerFlowEwayBill.extractPincode(client.address) || '');
+            const toPin = prompt('To PIN code:', inv.ewayBill?.toPincode || '');
+
+            const { invoiceData, totals } = LedgerFlowEwayBill.invoiceToEwaySource(client, inv);
+            invoiceData.ewayBill = {
+                ...LedgerFlowEwayBill.defaultEwayBill(),
+                ...(inv.ewayBill || {}),
+                enabled: true,
+                distanceKm: parseInt(distance, 10) || 0,
+                vehicleNo: vehicleNo || '',
+                fromPincode: fromPin || '',
+                toPincode: toPin || '',
+                transportMode: '1'
+            };
+
+            const result = await LedgerFlowEwayBill.generateEwayBill(invoiceData, totals, invoiceData.ewayBill);
+            if (!result.ok) {
+                showToast(result.errors?.join(' • ') || 'E-way bill failed');
+                return;
+            }
+            inv.ewayBill = result.ewayBill;
+            saveAppData();
+            showToast(`E-Way Bill ${LedgerFlowEwayBill.formatEwbNo(result.ewayBill.ewbNo)} generated`);
+            showSection('invoices');
         }
 
         async function downloadInvoicePDF(invId) {

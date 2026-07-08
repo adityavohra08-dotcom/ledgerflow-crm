@@ -84,7 +84,30 @@
         .gst-emerald { color: #047857; }
         .gst-blue { color: #1d4ed8; }
         .gst-purple { color: #7c3aed; }
+        .gst-eway { margin-top:16px;padding:12px 14px;border:1px dashed #f59e0b;background:#fffbeb;border-radius:12px;font-size:11px; }
+        .gst-eway-title { font-weight:800;color:#b45309;letter-spacing:0.5px;text-transform:uppercase;font-size:10px; }
+        .gst-eway-no { font-family:monospace;font-size:16px;font-weight:700;color:#92400e;margin-top:4px; }
     `;
+
+    function formatEwbNoPdf(no) {
+        const s = String(no || '').replace(/\D/g, '');
+        if (s.length !== 12) return esc(no);
+        return `${s.slice(0, 4)} ${s.slice(4, 8)} ${s.slice(8, 12)}`;
+    }
+
+    function buildEwayPdfBlock(eway) {
+        if (!eway?.ewbNo) return '';
+        const valid = eway.validUpto ? new Date(eway.validUpto).toLocaleString('en-IN') : '—';
+        const modes = { '1': 'Road', '2': 'Rail', '3': 'Air', '4': 'Ship' };
+        const mode = modes[eway.transportMode] || 'Road';
+        return `<div class="gst-eway">
+            <div class="gst-eway-title">E-Way Bill Details</div>
+            <div class="gst-eway-no">${formatEwbNoPdf(eway.ewbNo)}</div>
+            <div style="color:#78350f;margin-top:6px;">Generated: ${esc(eway.ewbDate || '—')} • Valid upto: ${esc(valid)}</div>
+            <div style="color:#78350f;margin-top:4px;">Transport: ${esc(mode)}${eway.vehicleNo ? ' • Vehicle: ' + esc(eway.vehicleNo) : ''}${eway.distanceKm ? ' • ' + esc(eway.distanceKm) + ' km' : ''}</div>
+            ${eway.transporterName ? `<div style="color:#78350f;margin-top:4px;">Transporter: ${esc(eway.transporterName)}</div>` : ''}
+        </div>`;
+    }
 
     window.buildGSTInvoiceHTML = function (data) {
         const s = data.supplier || {};
@@ -218,6 +241,8 @@
                 </div>
             </div>
 
+            ${buildEwayPdfBlock(data.ewayBill)}
+
             <div class="gst-pdf-footer2">
                 <div class="gst-pdf-box">
                     <div class="gst-pdf-section-title">Bank Details</div>
@@ -299,6 +324,7 @@
             },
             bank: client.bank || {},
             terms: client.terms, notes: client.notes || '',
+            ewayBill: inv.ewayBill || null,
             items,
             totals: {
                 totalTaxable: inv.taxable, totalCGST: inv.cgst, totalSGST: inv.sgst, totalIGST: inv.igst,

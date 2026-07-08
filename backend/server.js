@@ -31,6 +31,7 @@ const {
     createAuthRateLimiter,
     createOtpSendRateLimiter
 } = require('./firewall');
+const { isEwayBillConfigured, generateEwayBill } = require('./ewaybill');
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 
@@ -66,7 +67,7 @@ const {
     TENANT_NAME,
     firmSettings: DEFAULT_FIRM_SETTINGS
 } = require('./firm-config');
-const API_VERSION = '2.8.3-client-sidebar';
+const API_VERSION = '2.9.0-ewaybill';
 const authRateLimit = createAuthRateLimiter();
 const otpSendRateLimit = createOtpSendRateLimiter();
 const INLINE_USER_PASSWORDS = {
@@ -262,8 +263,30 @@ app.get('/api/health', (_req, res) => {
         googleAuth: !!GOOGLE_CLIENT_ID,
         otpAuth: true,
         smsConfigured: isSmsConfigured(),
-        firewall: getFirewallStatus()
+        firewall: getFirewallStatus(),
+        ewayBill: { configured: isEwayBillConfigured(), demoMode: !isEwayBillConfigured() }
     });
+});
+
+app.get('/api/ewaybill/config', authMiddleware, (_req, res) => {
+    res.json({
+        configured: isEwayBillConfigured(),
+        demoMode: !isEwayBillConfigured(),
+        thresholdInr: 50000
+    });
+});
+
+app.post('/api/ewaybill/generate', authMiddleware, async (req, res) => {
+    try {
+        const payload = req.body?.payload;
+        if (!payload?.docNo) {
+            return res.status(400).json({ error: 'Invalid e-way bill payload — invoice document number required' });
+        }
+        const ewayBill = await generateEwayBill(payload, req.body?.invoiceNo || payload.docNo);
+        res.json({ ok: true, ewayBill });
+    } catch (err) {
+        res.status(500).json({ error: err.message || 'E-way bill generation failed' });
+    }
 });
 
 app.get('/api/auth/otp-config', (_req, res) => {
