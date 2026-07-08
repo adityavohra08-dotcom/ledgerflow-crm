@@ -368,8 +368,50 @@
         ensureFirmSettings();
         const firm = appData.firmSettings;
 
+        const moduleGuide = typeof LedgerFlowModules !== 'undefined'
+            ? LedgerFlowModules.renderModuleGuide('settings', { checkedFeatures: ['Logo upload', 'Tax settings', 'User roles'] })
+            : '';
+        const hierarchyGuide = typeof LedgerFlowPages !== 'undefined'
+            ? LedgerFlowPages.renderPageHierarchyGuide('firm')
+            : '';
+        const philosophyGuide = typeof LedgerFlowDesign !== 'undefined'
+            ? LedgerFlowDesign.renderDesignPhilosophyGuide()
+            : '';
+        const paletteGuide = typeof LedgerFlowColors !== 'undefined'
+            ? LedgerFlowColors.renderColorPaletteGuide()
+            : '';
+        const typographyGuide = typeof LedgerFlowType !== 'undefined'
+            ? LedgerFlowType.renderTypographyGuide()
+            : '';
+        const layoutGuide = typeof LedgerFlowLayout !== 'undefined'
+            ? LedgerFlowLayout.renderLayoutGuide()
+            : '';
+        const keyScreensGuide = typeof LedgerFlowScreens !== 'undefined'
+            ? LedgerFlowScreens.renderKeyScreensGuide()
+            : '';
+        const componentsGuide = typeof LedgerFlowComponents !== 'undefined'
+            ? LedgerFlowComponents.renderComponentsGuide()
+            : '';
+        const capabilitiesGuide = typeof LedgerFlowCapabilities !== 'undefined'
+            ? LedgerFlowCapabilities.renderCapabilitiesGuide()
+            : '';
+
+        const appearanceCard = typeof LedgerFlowTheme !== 'undefined'
+            ? LedgerFlowTheme.renderAppearanceCard()
+            : '';
+
         container.innerHTML = `
             <div class="max-w-3xl">
+                ${appearanceCard}
+                ${paletteGuide}
+                ${typographyGuide}
+                ${layoutGuide}
+                ${keyScreensGuide}
+                ${componentsGuide}
+                ${capabilitiesGuide}
+                ${philosophyGuide}
+                ${moduleGuide}
+                ${hierarchyGuide}
                 <h2 class="text-2xl font-semibold tracking-tight mb-1">Firm Profile &amp; GST Details</h2>
                 <p class="text-slate-400 mb-6 text-sm">Your company details auto-populate on GST tax invoices raised to clients for service purchases</p>
 

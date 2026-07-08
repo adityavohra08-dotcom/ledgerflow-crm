@@ -688,14 +688,14 @@
             if (typeof applyClientSidebarNav === 'function') applyClientSidebarNav();
             return;
         }
+        if (typeof setSidebarMode === 'function') setSidebarMode('firm');
         document.querySelectorAll('#sidebar-nav .nav-item').forEach(el => {
             el.classList.remove('hidden');
         });
-        document.querySelectorAll('#sidebar-nav .pt-3').forEach(el => {
+        document.querySelectorAll('#sidebar-nav .lf-nav-group').forEach(el => {
             el.classList.remove('hidden');
         });
-        const dupPurchases = document.getElementById('nav-purchases');
-        if (dupPurchases) dupPurchases.classList.add('hidden');
+        if (typeof refreshSidebarSections === 'function') refreshSidebarSections();
     };
 
     window.applyTeamRoleUI = function () {
@@ -712,12 +712,10 @@
         document.querySelectorAll('#sidebar-nav .nav-item').forEach(el => {
             if (!el.id) return;
             const allowed = el.hasAttribute('data-team-visible') ||
-                ['nav-dashboard', 'nav-documents', 'nav-team-profile'].includes(el.id);
+                ['nav-dashboard', 'nav-documents', 'nav-team-profile', 'nav-purchases-quick'].includes(el.id);
             el.classList.toggle('hidden', !allowed);
         });
-        document.querySelectorAll('#sidebar-nav .pt-3').forEach(el => {
-            el.classList.toggle('hidden', !el.hasAttribute('data-team-visible'));
-        });
+        if (typeof refreshSidebarSections === 'function') refreshSidebarSections();
         populateClientSwitcherFiltered();
         updateTeamApprovalsBadge();
     };

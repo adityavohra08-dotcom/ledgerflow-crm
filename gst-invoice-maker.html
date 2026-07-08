@@ -134,33 +134,59 @@
         .tax-highlight {
             background-color: #fefce8;
         }
+
+        .lf-invoice-success {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(2, 6, 23, 0.72);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        .lf-invoice-success-card {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 1.25rem;
+            padding: 2rem;
+            max-width: 26rem;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+        }
+
+        .lf-invoice-success-icon {
+            font-size: 2.5rem;
+            color: #34d399;
+            margin-bottom: 0.75rem;
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-200">
     <!-- CRM Embed Toolbar (shown when opened from LedgerFlow CRM) -->
-    <div id="crm-toolbar" class="hidden bg-emerald-900 border-b border-emerald-700 px-6 py-2 flex items-center justify-between">
-        <div class="flex items-center gap-3 text-sm">
+    <div id="crm-toolbar" class="hidden bg-slate-900 border-b border-slate-700 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3 text-sm min-w-0">
             <i class="fa-solid fa-link text-emerald-400"></i>
-            <span>Connected to <strong>LedgerFlow CRM</strong> — <span id="crm-client-name">Client</span></span>
+            <span class="truncate">LedgerFlow CRM · <strong id="crm-client-name">Client</strong></span>
         </div>
-        <div class="flex items-center gap-2">
-            <select id="crm-customer-pick" onchange="fillCustomerFromCRM(this.value)" class="text-xs bg-slate-900 border border-slate-600 rounded-xl px-3 py-1.5">
+        <div class="flex flex-wrap items-center gap-2">
+            <select id="crm-customer-pick" onchange="fillCustomerFromCRM(this.value)" class="text-xs bg-slate-950 border border-slate-600 rounded-xl px-3 py-2">
                 <option value="">Load Customer...</option>
             </select>
-            <select id="crm-stock-pick" onchange="addStockFromCRM(this.value); this.value=''" class="text-xs bg-slate-900 border border-slate-600 rounded-xl px-3 py-1.5">
+            <select id="crm-stock-pick" onchange="addStockFromCRM(this.value); this.value=''" class="text-xs bg-slate-950 border border-slate-600 rounded-xl px-3 py-2">
                 <option value="">+ From Stock...</option>
             </select>
-            <button onclick="generateEwayBillFromInvoice()" class="text-xs px-4 py-1.5 bg-amber-700 hover:bg-amber-600 rounded-xl font-semibold flex items-center gap-1">
+            <button onclick="generateEwayBillFromInvoice()" class="text-xs px-3 py-2 bg-amber-800/80 hover:bg-amber-700 rounded-xl font-semibold flex items-center gap-1 border border-amber-700/50">
                 <i class="fa-solid fa-truck-fast"></i> E-Way Bill
             </button>
-            <button onclick="saveToCRM()" class="text-xs px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold flex items-center gap-1">
-                <i class="fa-solid fa-save"></i> Save to CRM
-            </button>
-            <button onclick="sendInvoiceEmailCRM()" class="text-xs px-4 py-1.5 bg-blue-700 hover:bg-blue-600 rounded-xl font-semibold flex items-center gap-1">
-                <i class="fa-solid fa-envelope"></i> Send Email
+            <button onclick="saveToCRM()" class="text-sm px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-bold flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-file-invoice"></i> Generate GST Invoice
             </button>
         </div>
     </div>
+    <div id="crm-invoice-success-host"></div>
 
     <!-- Wix Compatibility Banner -->
     <div id="wix-banner" class="bg-yellow-500 text-yellow-900 text-center py-2 text-sm font-medium">
@@ -2531,6 +2557,29 @@
             updatePreview();
         }
 
+        function showCRMInvoiceSuccess(inv) {
+            const host = document.getElementById('crm-invoice-success-host');
+            if (!host) return;
+            host.innerHTML = `
+                <div class="lf-invoice-success">
+                    <div class="lf-invoice-success-card">
+                        <div class="lf-invoice-success-icon"><i class="fa-solid fa-circle-check"></i></div>
+                        <h2 class="font-display text-xl font-semibold mb-1">GST Invoice Generated</h2>
+                        <p class="text-slate-400 text-sm mb-5">${inv.number} · ${inv.partyName} · ₹${Number(inv.grandTotal).toLocaleString('en-IN')}</p>
+                        <div class="flex flex-wrap gap-2 justify-center">
+                            <button type="button" onclick="sendInvoiceEmailCRM(); closeCRMInvoiceSuccess()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-semibold"><i class="fa-solid fa-paper-plane mr-1"></i>Send to Client</button>
+                            <button type="button" onclick="printInvoice()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl text-sm font-semibold"><i class="fa-solid fa-file-pdf mr-1"></i>Download PDF</button>
+                            <button type="button" onclick="closeCRMInvoiceSuccess()" class="px-4 py-2 text-slate-400 hover:text-slate-200 text-sm">Close</button>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function closeCRMInvoiceSuccess() {
+            const host = document.getElementById('crm-invoice-success-host');
+            if (host) host.innerHTML = '';
+        }
+
         function saveToCRM() {
             if (!isCRMMode || !crmClientId) { saveToLocalStorage(); return; }
             syncFormToState();
@@ -2576,9 +2625,17 @@
                 }
 
                 saveToLocalStorage();
-                showToast('Invoice saved to CRM!');
+                showToast('GST Invoice generated!');
+                showCRMInvoiceSuccess(inv);
                 if (window.parent !== window) {
-                    window.parent.postMessage({ type: 'ledgerflow-invoice-saved', invoiceId: inv.id }, '*');
+                    window.parent.postMessage({
+                        type: 'ledgerflow-invoice-saved',
+                        invoiceId: inv.id,
+                        invoiceNumber: inv.number,
+                        partyName: inv.partyName,
+                        grandTotal: inv.grandTotal,
+                        keepOpen: true
+                    }, '*');
                 }
             } catch (e) {
                 showToast('Failed to save to CRM');

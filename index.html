@@ -4,7 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LedgerFlow CRM • Client Portal | Accounting Firm</title>
-    <meta name="app-version" content="3.0.0-ui-refresh">
+    <meta name="app-version" content="3.12.1-capabilities-full">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <script>
+        (function () {
+            try {
+                var p = localStorage.getItem('ledgerflow_theme') || 'light';
+                var r = p === 'system'
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : (p === 'dark' ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-lf-theme', r);
+                document.documentElement.setAttribute('data-lf-theme-pref', p);
+            } catch (e) {
+                document.documentElement.setAttribute('data-lf-theme', 'light');
+            }
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -19,16 +35,28 @@
     <script src="google-auth-ui.js"></script>
     <script src="otp-auth-ui.js"></script>
     <script src="team-portal.js?v=2.8.3"></script>
-    <link rel="stylesheet" href="crm-theme.css?v=3.0.0">
+    <script src="module-spec.js?v=3.12.1"></script>
+    <script src="design-principles.js?v=3.12.1"></script>
+    <script src="color-palette.js?v=3.12.1"></script>
+    <script src="typography.js?v=3.12.1"></script>
+    <script src="layout.js?v=3.12.1"></script>
+    <script src="key-screens.js?v=3.12.1"></script>
+    <script src="components.js?v=3.12.1"></script>
+    <script src="product-capabilities.js?v=3.12.1"></script>
+    <script src="capability-modules.js?v=3.12.1"></script>
+    <script src="theme.js?v=3.12.1"></script>
+    <script src="page-hierarchy.js?v=3.12.1"></script>
+    <script src="ui-elements.js?v=3.12.1"></script>
+    <link rel="stylesheet" href="crm-theme.css?v=3.12.1">
     <style>
         .data-table { border-collapse: collapse; }
-        .data-table th, .data-table td { padding: 10px 12px; vertical-align: middle; font-size: 13px; }
+        .data-table th, .data-table td { padding: 10px 12px; vertical-align: middle; }
         .metric-value { font-variant-numeric: tabular-nums; }
         .gst-badge { font-size: 10px; padding: 1px 8px; border-radius: 9999px; font-weight: 600; }
         .ledgerflow-gradient { background: linear-gradient(135deg, #070b14 0%, #0f172a 100%); }
     </style>
 </head>
-<body class="lf-app bg-slate-950 text-slate-200">
+<body class="lf-app">
     <!-- Login Screen -->
     <div id="login-screen" class="lf-login-screen fixed inset-0 z-[300] flex items-center justify-center p-4">
         <div class="lf-login-card w-full max-w-lg rounded-3xl p-8">
@@ -222,6 +250,8 @@
                 <button type="button" onclick="showLoginPanel()" class="w-full py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm">← Back to Sign In</button>
             </div>
 
+            <p class="text-center text-[10px] text-slate-600 mt-4" id="login-version-tag">v3.12.1</p>
+
             <div id="auth-demo-section" class="mt-6 pt-6 border-t border-slate-700">
                 <div class="text-xs text-slate-500 text-center mb-3" id="demo-creds-title">Demo Client Logins (click to fill)</div>
                 <div id="demo-client-creds" class="grid grid-cols-1 gap-2 text-xs">
@@ -248,6 +278,13 @@
                         <span class="font-mono text-violet-400">staff@wealthbuilders.in</span>
                     </button>
                 </div>
+                <div id="demo-firm-creds" class="hidden text-xs">
+                    <button type="button" onclick="fillDemoLogin('adityavohra08@gmail.com','2004Aditya@','firm')"
+                            class="w-full bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 flex justify-between text-left transition-colors">
+                        <span class="text-slate-300">Admin (Firm)</span>
+                        <span class="font-mono text-teal-400">adityavohra08@gmail.com</span>
+                    </button>
+                </div>
                 <div id="demo-client-phones" class="hidden grid grid-cols-1 gap-2 text-xs">
                     <button type="button" onclick="fillDemoPhone('+91 98765 43210')"
                             class="lf-demo-btn rounded-xl px-3 py-2 flex justify-between text-left">
@@ -269,221 +306,300 @@
         </div>
     </div>
 
-    <div id="app-shell" class="hidden">
-    <!-- Top Header -->
-    <header class="lf-header sticky top-0 z-50">
-        <div class="max-w-screen-2xl mx-auto">
-            <div class="px-6 py-3 flex items-center justify-between">
-                <div class="flex items-center gap-x-4">
-                    <!-- Logo -->
-                    <div class="flex items-center gap-x-3">
-                        <div class="lf-header-logo w-10 h-10 rounded-2xl flex items-center justify-center">
-                            <i class="fa-solid fa-bolt text-white text-xl"></i>
-                        </div>
-                        <div>
-                            <span class="font-display text-2xl">Ledger</span>
-                            <span class="font-display text-2xl text-teal-400">Flow</span>
-                        </div>
-                    </div>
-                    <div id="header-portal-badge" class="px-3 py-1 bg-emerald-900/60 text-emerald-400 text-xs font-bold rounded-full flex items-center gap-x-1.5 border border-emerald-800">
-                        <i class="fa-solid fa-shield-halved"></i>
-                        <span class="font-medium">Accounting Firm CRM</span>
-                    </div>
-                </div>
-
-                <!-- Client Switcher (Firm View) -->
+    <div id="app-shell" class="lf-app-shell hidden">
+        <!-- [Sidebar] | [Header + KPI row + Main content] -->
+        <aside class="lf-sidebar lf-app-shell__sidebar w-80 p-4 flex flex-col custom-scroll" id="app-sidebar">
+            <div class="lf-sidebar-brand px-2 mb-4 pb-4 border-b border-slate-700/60" id="sidebar-brand-firm">
                 <div class="flex items-center gap-x-3">
-                    <div id="firm-controls" class="flex items-center gap-x-3">
-                        <div class="flex items-center bg-slate-800 border border-slate-700 rounded-2xl px-1 py-1">
-                            <div class="px-3 text-xs text-slate-400">Managing Client:</div>
-                            <select id="client-switcher" onchange="switchClient(this.value)" 
-                                    class="bg-slate-900 border border-slate-700 text-sm font-medium rounded-xl px-3 py-1.5 focus:outline-none focus:border-emerald-500">
-                            </select>
-                        </div>
-                        <button onclick="showFirmOverview()" 
-                                class="flex items-center gap-x-2 px-4 py-2 text-sm font-medium bg-slate-800 hover:bg-slate-700 transition-colors rounded-xl border border-slate-700">
-                            <i class="fa-solid fa-building mr-2"></i>
-                            <span>Firm Overview</span>
-                        </button>
-                        <button onclick="showSection('client-approvals')" 
-                                class="relative flex items-center gap-x-2 px-4 py-2 text-sm font-medium bg-amber-900/50 hover:bg-amber-800 transition-colors rounded-xl border border-amber-700">
-                            <i class="fa-solid fa-user-check"></i>
-                            <span>Approve Signups</span>
-                            <span id="pending-approvals-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">0</span>
-                        </button>
-                        <button onclick="addNewClient()" 
-                                class="flex items-center gap-x-2 px-4 py-2 text-sm font-medium bg-emerald-900/50 hover:bg-emerald-800 transition-colors rounded-xl border border-emerald-700">
-                            <i class="fa-solid fa-user-plus"></i>
-                            <span>Add Client</span>
-                        </button>
-                        <button onclick="showSection('client-management')" 
-                                class="flex items-center gap-x-2 px-4 py-2 text-sm font-medium bg-blue-900/50 hover:bg-blue-800 transition-colors rounded-xl border border-blue-700">
-                            <i class="fa-solid fa-user-gear"></i>
-                            <span>Manage Client</span>
-                        </button>
+                    <div class="lf-header-logo w-9 h-9 rounded-xl flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-bolt text-white text-lg"></i>
                     </div>
-
-                    <div class="flex items-center gap-x-2 pl-3 border-l border-slate-700">
-                        <div class="text-right">
-                            <div class="text-sm font-semibold" id="header-user-name">User</div>
-                            <div class="text-[10px] text-emerald-400" id="header-user-role">Role</div>
+                    <div class="min-w-0">
+                        <div class="font-display text-lg leading-tight">
+                            <span>Ledger</span><span class="text-teal-400">Flow</span>
+                            <span class="text-slate-500 font-normal text-sm ml-1">CRM</span>
                         </div>
-                        <button onclick="handleLogout()" title="Logout" class="w-9 h-9 bg-slate-800 hover:bg-red-900/50 rounded-full flex items-center justify-center border border-slate-700">
-                            <i class="fa-solid fa-right-from-bracket text-slate-400"></i>
-                        </button>
+                        <div class="text-xs text-slate-400 truncate mt-0.5" id="sidebar-firm-name">Accounting Firm</div>
+                        <div class="lf-sidebar-title text-[10px] mt-1" id="sidebar-title">CLIENT MANAGEMENT</div>
                     </div>
                 </div>
             </div>
-        </div>
-    </header>
 
-    <div class="max-w-screen-2xl mx-auto flex">
-        
-        <!-- Sidebar Navigation -->
-        <div class="lf-sidebar w-72 min-h-[calc(100vh-57px)] p-4 flex flex-col custom-scroll">
-            <div class="px-3 mb-4">
-                <div class="lf-sidebar-title text-xs px-2" id="sidebar-title">CLIENT PORTAL</div>
+            <div class="lf-sidebar-brand-client hidden px-2 mb-4 pb-4 border-b border-slate-700/60" id="sidebar-brand-client">
+                <div class="lf-portal-title text-lg font-semibold text-slate-100">My Portal</div>
+                <div class="text-xs text-slate-400 truncate mt-1" id="sidebar-client-firm-name">Accounting Firm</div>
             </div>
-            
-            <nav class="space-y-1" id="sidebar-nav">
-                <a onclick="showSection('dashboard')" class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer nav-active" id="nav-dashboard">
-                    <i class="fa-solid fa-chart-line w-5"></i>
+
+            <nav class="space-y-0.5 flex-1" id="sidebar-nav" data-sidebar-mode="firm">
+
+                <button type="button" onclick="showSection('dashboard')" class="nav-item lf-nav-single flex items-center gap-x-3 px-3 py-2.5 text-sm font-medium rounded-xl cursor-pointer nav-active w-full text-left" id="nav-dashboard">
+                    <i class="fa-solid fa-chart-line w-5 text-center"></i>
                     <span>Dashboard</span>
-                </a>
-                
-                <a onclick="showSection('invoices')" class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-invoices">
-                    <i class="fa-solid fa-file-invoice w-5"></i>
-                    <span id="nav-invoices-label">Make GST Invoice</span>
-                </a>
-                
-                <a onclick="showSection('documents')" class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-documents">
-                    <i class="fa-solid fa-folder-open w-5"></i>
-                    <span id="nav-documents-label">My Documents</span>
-                </a>
-                
-                <a onclick="showSection('requests')" class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-requests">
-                    <i class="fa-solid fa-headset w-5"></i>
-                    <span>Raise Request</span>
-                </a>
+                </button>
 
-                <a onclick="showSection('buy-services')" data-client-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-buy-services">
-                    <i class="fa-solid fa-store w-5"></i>
-                    <span>Buy New Services</span>
-                </a>
-
-                <a onclick="showSection('admin-invoices')" class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-admin-invoices">
-                    <i class="fa-solid fa-file-invoice-dollar w-5"></i>
-                    <span id="nav-admin-invoices-label">CA Invoices</span>
-                </a>
-
-                <a onclick="showSection('service-orders')" data-firm-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-service-orders">
-                    <i class="fa-solid fa-clipboard-list w-5"></i>
-                    <span>Service Orders</span>
-                </a>
-
-                <a onclick="showSection('portal-logins')" class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-portal-logins">
-                    <i class="fa-solid fa-key w-5"></i>
-                    <span id="nav-portal-logins-label">Portal Login Details</span>
-                </a>
-
-                <a onclick="showSection('purchases')" class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-purchases-quick">
-                    <i class="fa-solid fa-file-upload w-5"></i>
-                    <span id="nav-purchases-label">Upload Purchases</span>
-                </a>
-                
-                <div id="sidebar-section-tools" data-team-visible class="pt-3 pb-1 px-2">
-                    <div class="text-xs font-bold text-slate-500 tracking-widest px-2 mb-1">TOOLS</div>
+                <div class="lf-nav-group lf-nav-group-open" data-nav-group="clients">
+                    <button type="button" class="lf-nav-group-toggle" onclick="toggleNavGroup('clients')" aria-expanded="true">
+                        <i class="fa-solid fa-users w-5"></i>
+                        <span>Clients</span>
+                        <i class="fa-solid fa-chevron-down lf-nav-chevron ml-auto text-[10px]"></i>
+                    </button>
+                    <div class="lf-nav-group-items" data-nav-group-items="clients">
+                        <button type="button" onclick="showSection('all-clients')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-client-management">
+                            <span class="lf-nav-tree-line"></span><span>All Clients</span>
+                        </button>
+                        <button type="button" onclick="showSection('client-approvals')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-client-approvals">
+                            <span class="lf-nav-tree-line"></span><span>Pending Approvals</span>
+                            <span id="sidebar-pending-approvals-badge" class="hidden ml-auto min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">0</span>
+                        </button>
+                        <button type="button" onclick="addNewClient()" data-firm-only class="nav-item lf-nav-child lf-nav-action w-full text-left" id="nav-add-client">
+                            <span class="lf-nav-tree-line"></span><span class="text-teal-400">+ Add New Client</span>
+                        </button>
+                        <button type="button" onclick="showSection('team-client-profile')" data-team-only class="nav-item lf-nav-child hidden w-full text-left" id="nav-team-profile">
+                            <span class="lf-nav-tree-line"></span><span>Client Profile</span>
+                        </button>
+                    </div>
                 </div>
-                
-                <a onclick="showSection('gst-calculator')" data-team-visible class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-gst-calculator">
-                    <i class="fa-solid fa-calculator w-5"></i>
-                    <span>GST Calculator</span>
-                </a>
-                
-                <a onclick="showSection('hsn-search')" data-team-visible class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-hsn-search">
-                    <i class="fa-solid fa-search w-5"></i>
-                    <span>HSN Code Search</span>
-                </a>
-                
-                <a onclick="showSection('bank-recon')" data-team-visible class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-bank-recon">
-                    <i class="fa-solid fa-university w-5"></i>
-                    <span>Bank Reconciliation</span>
-                </a>
 
-                <a onclick="showSection('emi-calculator')" data-team-visible class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-emi-calculator">
-                    <i class="fa-solid fa-money-bill-trend-up w-5"></i>
-                    <span>EMI Calculator</span>
-                </a>
-
-                <a onclick="showSection('sales-purchase-report')" data-client-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-sales-purchase-report">
-                    <i class="fa-solid fa-file-excel w-5"></i>
-                    <span>Sales &amp; Purchase Report</span>
-                </a>
-                
-                <div class="pt-3 pb-1 px-2" data-firm-only>
-                    <div class="text-xs font-bold text-slate-500 tracking-widest px-2 mb-1">REPORTS</div>
+                <div class="lf-nav-group lf-nav-group-open" data-nav-group="invoices">
+                    <button type="button" class="lf-nav-group-toggle" onclick="toggleNavGroup('invoices')" aria-expanded="true">
+                        <i class="fa-solid fa-file-invoice w-5"></i>
+                        <span>Invoices</span>
+                        <i class="fa-solid fa-chevron-down lf-nav-chevron ml-auto text-[10px]"></i>
+                    </button>
+                    <div class="lf-nav-group-items" data-nav-group-items="invoices">
+                        <button type="button" onclick="showSection('invoices')" class="nav-item lf-nav-child w-full text-left" id="nav-invoices">
+                            <span class="lf-nav-tree-line"></span><span id="nav-invoices-label">All Invoices</span>
+                        </button>
+                        <button type="button" onclick="launchInvoiceMaker()" class="nav-item lf-nav-child w-full text-left" id="nav-invoices-create">
+                            <span class="lf-nav-tree-line"></span><span>Create New Invoice</span>
+                        </button>
+                        <button type="button" onclick="showInvoicesFiltered('pending')" class="nav-item lf-nav-child w-full text-left" id="nav-invoices-pending">
+                            <span class="lf-nav-tree-line"></span><span>Pending Payments</span>
+                        </button>
+                        <button type="button" onclick="showInvoicesFiltered('recurring')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-invoices-recurring">
+                            <span class="lf-nav-tree-line"></span><span>Recurring Invoices</span>
+                        </button>
+                        <button type="button" onclick="showSection('admin-invoices')" class="nav-item lf-nav-child w-full text-left" id="nav-admin-invoices">
+                            <span class="lf-nav-tree-line"></span><span id="nav-admin-invoices-label">Admin Invoices</span>
+                        </button>
+                        <button type="button" onclick="showSection('buy-services')" data-client-only class="nav-item lf-nav-child w-full text-left" id="nav-buy-services">
+                            <span class="lf-nav-tree-line"></span><span>Buy New Services</span>
+                        </button>
+                        <button type="button" onclick="showSection('service-orders')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-service-orders">
+                            <span class="lf-nav-tree-line"></span><span>Service Orders</span>
+                        </button>
+                    </div>
                 </div>
-                
-                <a onclick="showSection('sales-report')" data-firm-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-sales-report">
-                    <i class="fa-solid fa-chart-bar w-5"></i>
-                    <span>Sales Report (Excel)</span>
-                </a>
-                
-                <a onclick="showSection('purchases')" class="nav-item hidden flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-purchases">
-                    <i class="fa-solid fa-truck-loading w-5"></i>
-                    <span>GST Purchases / ITC</span>
-                </a>
-                
-                <a onclick="showSection('party-pl')" data-firm-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-party-pl">
-                    <i class="fa-solid fa-chart-pie w-5"></i>
-                    <span>Partywise P&amp;L</span>
-                </a>
-                
-                <div class="pt-3 pb-1 px-2">
-                    <div class="text-xs font-bold text-slate-500 tracking-widest px-2 mb-1">MASTERS</div>
+
+                <div class="lf-nav-group lf-nav-group-open" data-nav-group="documents">
+                    <button type="button" class="lf-nav-group-toggle" onclick="toggleNavGroup('documents')" aria-expanded="true">
+                        <i class="fa-solid fa-folder-open w-5"></i>
+                        <span>Documents</span>
+                        <i class="fa-solid fa-chevron-down lf-nav-chevron ml-auto text-[10px]"></i>
+                    </button>
+                    <div class="lf-nav-group-items" data-nav-group-items="documents">
+                        <button type="button" onclick="showSection('documents')" class="nav-item lf-nav-child w-full text-left" id="nav-documents">
+                            <span class="lf-nav-tree-line"></span><span id="nav-documents-label">Client Files</span>
+                        </button>
+                        <button type="button" onclick="showSection('requests')" class="nav-item lf-nav-child w-full text-left" id="nav-requests">
+                            <span class="lf-nav-tree-line"></span><span>Document Requests</span>
+                        </button>
+                        <button type="button" onclick="showSection('purchases')" class="nav-item lf-nav-child w-full text-left" id="nav-purchases-quick">
+                            <span class="lf-nav-tree-line"></span><span id="nav-purchases-label">Upload Documents</span>
+                        </button>
+                        <button type="button" onclick="showSection('portal-logins')" class="nav-item lf-nav-child w-full text-left" id="nav-portal-logins">
+                            <span class="lf-nav-tree-line"></span><span id="nav-portal-logins-label">Portal Logins</span>
+                        </button>
+                    </div>
                 </div>
-                
-                <a onclick="showSection('customers')" class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-customers">
-                    <i class="fa-solid fa-users w-5"></i>
-                    <span>Customers / Parties</span>
-                </a>
-                
-                <a onclick="showSection('stock')" class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-stock">
-                    <i class="fa-solid fa-boxes w-5"></i>
-                    <span>Stock Management</span>
-                </a>
-                
-                <a onclick="showSection('profile')" data-client-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-profile">
-                    <i class="fa-solid fa-user-cog w-5"></i>
-                    <span>My Profile &amp; Invoice Settings</span>
-                </a>
 
-                <a onclick="showSection('team-client-profile')" data-team-only class="nav-item hidden flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-team-profile">
-                    <i class="fa-solid fa-id-card w-5 text-center text-violet-400"></i> Client Profile
-                </a>
-                <a onclick="showSection('team-management')" data-firm-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-team-management">
-                    <i class="fa-solid fa-users w-5 text-center text-violet-400"></i> Team Members
-                </a>
-                <a onclick="showSection('team-approvals')" data-firm-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-team-approvals">
-                    <i class="fa-solid fa-clipboard-check w-5 text-center text-amber-400"></i> Team Approvals
-                    <span id="team-approvals-badge" class="hidden ml-auto px-2 py-0.5 text-xs bg-amber-600 text-white rounded-full font-bold">0</span>
-                </a>
-                <a onclick="showSection('client-management')" data-firm-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-client-management">
-                    <i class="fa-solid fa-user-gear w-5 text-center"></i>
-                    <span>Manage Client</span>
-                </a>
-                <a onclick="showSection('firm-profile')" data-firm-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-firm-profile">
-                    <i class="fa-solid fa-building-circle-check w-5"></i>
-                    <span>Firm Profile &amp; GST Details</span>
-                </a>
+                <div class="lf-nav-group lf-nav-group-open" data-nav-group="gst" data-team-visible>
+                    <button type="button" class="lf-nav-group-toggle" onclick="toggleNavGroup('gst')" aria-expanded="true">
+                        <i class="fa-solid fa-scale-balanced w-5"></i>
+                        <span>GST &amp; Compliance</span>
+                        <i class="fa-solid fa-chevron-down lf-nav-chevron ml-auto text-[10px]"></i>
+                    </button>
+                    <div class="lf-nav-group-items" data-nav-group-items="gst">
+                        <button type="button" onclick="showSection('gst-calculator')" data-team-visible class="nav-item lf-nav-child w-full text-left" id="nav-gst-calculator">
+                            <span class="lf-nav-tree-line"></span><span>GST Overview</span>
+                        </button>
+                        <button type="button" onclick="showSection('hsn-search')" data-team-visible class="nav-item lf-nav-child w-full text-left" id="nav-hsn-search">
+                            <span class="lf-nav-tree-line"></span><span>Invoice Compliance</span>
+                        </button>
+                        <button type="button" onclick="showSection('bank-recon')" data-team-visible class="nav-item lf-nav-child w-full text-left" id="nav-bank-recon">
+                            <span class="lf-nav-tree-line"></span><span>GST Returns Tracker</span>
+                        </button>
+                        <button type="button" onclick="showSection('emi-calculator')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-emi-calculator">
+                            <span class="lf-nav-tree-line"></span><span>EMI Calculator</span>
+                        </button>
+                    </div>
+                </div>
 
-                <a onclick="showSection('client-approvals')" data-firm-only class="nav-item flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium rounded-2xl cursor-pointer" id="nav-client-approvals">
-                    <i class="fa-solid fa-user-check w-5"></i>
-                    <span>Client Signup Approvals</span>
-                </a>
+                <div class="lf-nav-group lf-nav-group-open" data-nav-group="communication">
+                    <button type="button" class="lf-nav-group-toggle" onclick="toggleNavGroup('communication')" aria-expanded="true">
+                        <i class="fa-solid fa-comments w-5"></i>
+                        <span>Communication</span>
+                        <i class="fa-solid fa-chevron-down lf-nav-chevron ml-auto text-[10px]"></i>
+                    </button>
+                    <div class="lf-nav-group-items" data-nav-group-items="communication">
+                        <button type="button" onclick="showSection('requests')" class="nav-item lf-nav-child w-full text-left" id="nav-messages">
+                            <span class="lf-nav-tree-line"></span><span>Messages</span>
+                        </button>
+                        <button type="button" onclick="showSection('team-approvals')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-team-approvals">
+                            <span class="lf-nav-tree-line"></span><span>Approvals</span>
+                            <span id="team-approvals-badge" class="hidden ml-auto px-2 py-0.5 text-xs bg-amber-600 text-white rounded-full font-bold">0</span>
+                        </button>
+                        <button type="button" onclick="showSection('dashboard')" class="nav-item lf-nav-child w-full text-left" id="nav-notifications">
+                            <span class="lf-nav-tree-line"></span><span>Notifications</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lf-nav-group lf-nav-group-open" data-nav-group="reports">
+                    <button type="button" class="lf-nav-group-toggle" onclick="toggleNavGroup('reports')" aria-expanded="true">
+                        <i class="fa-solid fa-chart-pie w-5"></i>
+                        <span>Reports</span>
+                        <i class="fa-solid fa-chevron-down lf-nav-chevron ml-auto text-[10px]"></i>
+                    </button>
+                    <div class="lf-nav-group-items" data-nav-group-items="reports">
+                        <button type="button" onclick="showSection('party-pl')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-party-pl">
+                            <span class="lf-nav-tree-line"></span><span>Client Reports</span>
+                        </button>
+                        <button type="button" onclick="showSection('sales-report')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-sales-report">
+                            <span class="lf-nav-tree-line"></span><span>Revenue Reports</span>
+                        </button>
+                        <button type="button" onclick="showSection('sales-purchase-report')" data-client-only class="nav-item lf-nav-child w-full text-left" id="nav-sales-purchase-report">
+                            <span class="lf-nav-tree-line"></span><span>GST Reports</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lf-nav-group" data-nav-group="capabilities" data-firm-only>
+                    <button type="button" class="lf-nav-group-toggle" onclick="toggleNavGroup('capabilities')" aria-expanded="false">
+                        <i class="fa-solid fa-layer-group w-5"></i>
+                        <span>Product Suite</span>
+                        <i class="fa-solid fa-chevron-down lf-nav-chevron ml-auto text-[10px]"></i>
+                    </button>
+                    <div class="lf-nav-group-items" data-nav-group-items="capabilities">
+                        <button type="button" onclick="showSection('cap-hub')" class="nav-item lf-nav-child w-full text-left" id="nav-cap-hub">
+                            <span class="lf-nav-tree-line"></span><span>All Capabilities</span>
+                        </button>
+                        <button type="button" onclick="showSection('cap-pillar-invoicing')" class="nav-item lf-nav-child w-full text-left" id="nav-cap-pillar-invoicing">
+                            <span class="lf-nav-tree-line"></span><span>Sales &amp; Invoicing</span>
+                        </button>
+                        <button type="button" onclick="showSection('cap-pillar-purchasing')" class="nav-item lf-nav-child w-full text-left" id="nav-cap-pillar-purchasing">
+                            <span class="lf-nav-tree-line"></span><span>Purchasing</span>
+                        </button>
+                        <button type="button" onclick="showSection('cap-pillar-banking')" class="nav-item lf-nav-child w-full text-left" id="nav-cap-pillar-banking">
+                            <span class="lf-nav-tree-line"></span><span>Banking</span>
+                        </button>
+                        <button type="button" onclick="showSection('cap-pillar-gst')" class="nav-item lf-nav-child w-full text-left" id="nav-cap-pillar-gst">
+                            <span class="lf-nav-tree-line"></span><span>GST &amp; Tax</span>
+                        </button>
+                        <button type="button" onclick="showSection('cap-pillar-inventory')" class="nav-item lf-nav-child w-full text-left" id="nav-cap-pillar-inventory">
+                            <span class="lf-nav-tree-line"></span><span>Inventory</span>
+                        </button>
+                        <button type="button" onclick="showSection('cap-pillar-projects')" class="nav-item lf-nav-child w-full text-left" id="nav-cap-pillar-projects">
+                            <span class="lf-nav-tree-line"></span><span>Projects</span>
+                        </button>
+                        <button type="button" onclick="showSection('cap-pillar-reports')" class="nav-item lf-nav-child w-full text-left" id="nav-cap-pillar-reports">
+                            <span class="lf-nav-tree-line"></span><span>Reports &amp; BI</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lf-nav-group lf-nav-group-open" data-nav-group="settings">
+                    <button type="button" class="lf-nav-group-toggle" onclick="toggleNavGroup('settings')" aria-expanded="true">
+                        <i class="fa-solid fa-gear w-5"></i>
+                        <span>Settings</span>
+                        <i class="fa-solid fa-chevron-down lf-nav-chevron ml-auto text-[10px]"></i>
+                    </button>
+                    <div class="lf-nav-group-items" data-nav-group-items="settings">
+                        <button type="button" onclick="showSection('firm-profile')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-firm-profile">
+                            <span class="lf-nav-tree-line"></span><span>Firm Profile</span>
+                        </button>
+                        <button type="button" onclick="showSection('team-management')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-team-management">
+                            <span class="lf-nav-tree-line"></span><span>Team Members</span>
+                        </button>
+                        <button type="button" onclick="showToast('Billing &amp; subscription management coming soon','info')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-billing">
+                            <span class="lf-nav-tree-line"></span><span>Billing &amp; Subscription</span>
+                        </button>
+                        <button type="button" onclick="showSection('profile')" data-client-only class="nav-item lf-nav-child w-full text-left" id="nav-profile">
+                            <span class="lf-nav-tree-line"></span><span>Security</span>
+                        </button>
+                        <button type="button" onclick="showSection('firm-profile')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-security">
+                            <span class="lf-nav-tree-line"></span><span>Security</span>
+                        </button>
+                        <button type="button" onclick="showSection('customers')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-customers">
+                            <span class="lf-nav-tree-line"></span><span>Customers / Parties</span>
+                        </button>
+                        <button type="button" onclick="showSection('stock')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-stock">
+                            <span class="lf-nav-tree-line"></span><span>Stock Management</span>
+                        </button>
+                    </div>
+                </div>
+
+            </nav>
+
+            <!-- Client self-service sidebar (limited view) -->
+            <nav class="space-y-0.5 flex-1 hidden" id="sidebar-nav-client" data-sidebar-mode="client">
+
+                <button type="button" onclick="showSection('dashboard')" class="nav-item lf-nav-single flex items-center gap-x-3 px-3 py-2.5 text-sm font-medium rounded-xl cursor-pointer nav-active w-full text-left" id="client-nav-dashboard">
+                    <i class="fa-solid fa-chart-line w-5 text-center"></i>
+                    <span>Dashboard</span>
+                </button>
+
+                <div class="lf-nav-group lf-nav-group-open" data-nav-group="client-invoices">
+                    <button type="button" class="lf-nav-group-toggle" onclick="toggleNavGroup('client-invoices')" aria-expanded="true">
+                        <i class="fa-solid fa-file-invoice w-5"></i>
+                        <span>My Invoices</span>
+                        <i class="fa-solid fa-chevron-down lf-nav-chevron ml-auto text-[10px]"></i>
+                    </button>
+                    <div class="lf-nav-group-items" data-nav-group-items="client-invoices">
+                        <button type="button" onclick="showInvoicesFiltered('outstanding')" class="nav-item lf-nav-child w-full text-left" id="client-nav-invoices-outstanding">
+                            <span class="lf-nav-tree-line"></span><span>Outstanding</span>
+                        </button>
+                        <button type="button" onclick="showInvoicesFiltered('paid')" class="nav-item lf-nav-child w-full text-left" id="client-nav-invoices-paid">
+                            <span class="lf-nav-tree-line"></span><span>Paid</span>
+                        </button>
+                        <button type="button" onclick="showInvoicesFiltered('all')" class="nav-item lf-nav-child w-full text-left" id="client-nav-invoices-all">
+                            <span class="lf-nav-tree-line"></span><span>All Invoices</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lf-nav-group lf-nav-group-open" data-nav-group="client-documents">
+                    <button type="button" class="lf-nav-group-toggle" onclick="toggleNavGroup('client-documents')" aria-expanded="true">
+                        <i class="fa-solid fa-folder-open w-5"></i>
+                        <span>My Documents</span>
+                        <i class="fa-solid fa-chevron-down lf-nav-chevron ml-auto text-[10px]"></i>
+                    </button>
+                    <div class="lf-nav-group-items" data-nav-group-items="client-documents">
+                        <button type="button" onclick="showDocumentsFiltered('mine')" class="nav-item lf-nav-child w-full text-left" id="client-nav-documents-mine">
+                            <span class="lf-nav-tree-line"></span><span>Uploaded by Me</span>
+                        </button>
+                        <button type="button" onclick="showDocumentsFiltered('ca')" class="nav-item lf-nav-child w-full text-left" id="client-nav-documents-ca">
+                            <span class="lf-nav-tree-line"></span><span>Shared by CA</span>
+                        </button>
+                        <button type="button" onclick="showDocumentsFiltered('upload')" class="nav-item lf-nav-child w-full text-left" id="client-nav-documents-upload">
+                            <span class="lf-nav-tree-line"></span><span>Upload New Documents</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="button" onclick="showSection('requests')" class="nav-item lf-nav-single flex items-center gap-x-3 px-3 py-2.5 text-sm font-medium rounded-xl cursor-pointer w-full text-left" id="client-nav-requests">
+                    <i class="fa-solid fa-comments w-5 text-center"></i>
+                    <span>Messages &amp; Requests</span>
+                </button>
+
+                <button type="button" onclick="showSection('profile')" class="nav-item lf-nav-single flex items-center gap-x-3 px-3 py-2.5 text-sm font-medium rounded-xl cursor-pointer w-full text-left" id="client-nav-profile">
+                    <i class="fa-solid fa-user w-5 text-center"></i>
+                    <span>My Profile</span>
+                </button>
+
             </nav>
             
-            <div class="mt-auto pt-6 px-3">
+            <div class="mt-auto pt-6 px-3 lf-sidebar-privacy" id="sidebar-privacy-note">
                 <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 text-xs">
                     <div class="flex items-center gap-x-2 text-emerald-400 mb-1">
                         <i class="fa-solid fa-check-circle"></i>
@@ -492,13 +608,102 @@
                     <div class="text-slate-400 text-[10px]">Only you and your assigned CA can access this portal's data.</div>
                 </div>
             </div>
-        </div>
-        
-        <!-- Main Content Area -->
-        <div class="flex-1 p-6 max-h-[calc(100vh-57px)] overflow-auto custom-scroll relative z-10" id="main-content">
-            <!-- Dynamic content injected by JavaScript -->
+        </aside>
+
+        <div class="lf-app-shell__main">
+            <header class="lf-header lf-app-shell__header sticky top-0 z-50 shrink-0">
+                <div class="lf-app-shell__header-inner px-4 sm:px-6 py-2.5">
+                    <div class="lf-header-bar flex items-center gap-3">
+                        <div class="lf-header-left flex items-center gap-3 shrink-0 min-w-0">
+                            <button type="button" onclick="toggleMobileSidebar()" class="lf-mobile-menu lg:hidden w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0" aria-label="Open menu">
+                                <i class="fa-solid fa-bars"></i>
+                            </button>
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <div class="lf-header-logo w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-bolt text-white text-lg sm:text-xl"></i>
+                                </div>
+                                <div class="min-w-0 hidden sm:block">
+                                    <div class="font-display text-lg sm:text-xl leading-tight whitespace-nowrap">
+                                        <span>Ledger</span><span class="text-teal-400">Flow</span>
+                                    </div>
+                                    <div class="text-xs text-slate-400 truncate max-w-[10rem] md:max-w-[14rem]" id="header-context-name">Accounting Firm</div>
+                                </div>
+                            </div>
+                            <span id="header-portal-badge" class="hidden md:inline-flex px-2.5 py-1 text-[10px] font-bold rounded-full border shrink-0"></span>
+                        </div>
+
+                        <div class="lf-header-center flex-1 flex items-center gap-2 min-w-0 max-w-xl mx-auto">
+                            <div class="lf-header-search relative flex-1 min-w-0">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs pointer-events-none"></i>
+                                <input type="search" id="header-global-search" placeholder="Search clients, invoices…"
+                                       class="w-full h-10 bg-slate-800/90 border border-slate-700 rounded-xl pl-9 pr-3 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-teal-500/60"
+                                       onkeydown="if(event.key==='Enter'){event.preventDefault();handleGlobalSearch(this.value);}">
+                            </div>
+                            <div id="header-client-switch-wrap" class="hidden shrink-0">
+                                <select id="client-switcher" onchange="switchClient(this.value)"
+                                        class="h-10 bg-slate-900 border border-slate-700 text-xs sm:text-sm font-medium rounded-xl px-2 sm:px-3 max-w-[8rem] sm:max-w-[11rem] focus:outline-none focus:border-teal-500"
+                                        title="Switch client">
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="lf-header-right flex items-center gap-1.5 sm:gap-2 shrink-0">
+                            <div class="relative">
+                                <button type="button" id="header-quick-action-btn" onclick="toggleQuickActionMenu()" class="lf-btn lf-btn--primary h-10 px-3 sm:px-4 text-xs sm:text-sm whitespace-nowrap">
+                                    <i class="fa-solid fa-plus sm:mr-1"></i><span class="hidden sm:inline">Quick Action</span>
+                                </button>
+                                <div id="header-quick-action-menu" class="lf-dropdown hidden">
+                                    <div class="lf-dropdown-head">Quick Action</div>
+                                    <div id="header-quick-action-items"></div>
+                                </div>
+                            </div>
+
+                            <div class="relative">
+                                <button type="button" id="header-notif-btn" onclick="toggleNotifPanel()" title="Notifications" class="relative w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center border border-slate-700 text-slate-400 hover:text-teal-400">
+                                    <i class="fa-solid fa-bell"></i>
+                                    <span id="header-notif-badge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">0</span>
+                                </button>
+                                <span id="pending-approvals-badge" class="hidden" aria-hidden="true"></span>
+                                <div id="header-notif-panel" class="lf-notif-panel hidden">
+                                    <div class="lf-notif-panel-head">Notifications</div>
+                                    <div id="header-notif-list" class="lf-notif-panel-body"></div>
+                                </div>
+                            </div>
+
+                            <div class="relative">
+                                <button type="button" id="header-user-menu-btn" onclick="toggleUserMenu()" class="lf-user-avatar-btn flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-slate-800 border border-transparent hover:border-slate-700">
+                                    <div class="lf-user-avatar w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white" id="header-user-avatar">U</div>
+                                    <div class="hidden md:block text-left max-w-[7rem]">
+                                        <div class="text-xs font-semibold truncate" id="header-user-name">User</div>
+                                        <div class="text-[10px] text-teal-400 truncate" id="header-user-role">Role</div>
+                                    </div>
+                                    <i class="fa-solid fa-chevron-down text-[10px] text-slate-500 hidden md:inline"></i>
+                                </button>
+                                <div id="header-user-menu" class="lf-dropdown lf-dropdown--user hidden">
+                                    <div class="lf-dropdown-user-head">
+                                        <div class="lf-user-avatar w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold" id="header-user-avatar-lg">U</div>
+                                        <div class="min-w-0">
+                                            <div class="font-semibold text-sm truncate" id="header-user-name-menu">User</div>
+                                            <div class="text-xs text-slate-400 truncate" id="header-user-role-menu">Role</div>
+                                        </div>
+                                    </div>
+                                    <div id="header-user-menu-items"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div id="lf-kpi-row" class="lf-kpi-row lf-kpi-row--empty" aria-hidden="true"></div>
+            <div id="lf-page-chrome" class="lf-page-chrome shrink-0"></div>
+            <main class="lf-main-content flex-1 overflow-auto custom-scroll p-6 pt-3" id="main-content"></main>
         </div>
     </div>
+
+    <button type="button" id="lf-fab" onclick="launchInvoiceMaker()" class="lf-fab hidden" title="Create Invoice">
+        <i class="fa-solid fa-plus"></i>
+    </button>
 
     <!-- GST Invoice Maker Modal (Full Invoice Maker via iframe) -->
     <div id="invoice-maker-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-2">
@@ -520,18 +725,19 @@
     </div>
 
     <!-- Master Data Form Modal -->
-    <div id="master-form-modal" class="hidden fixed inset-0 z-[250] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this) closeMasterFormModal()">
-        <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl invoice-modal" onclick="event.stopPropagation()">
-            <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between sticky top-0 bg-slate-900 z-10 rounded-t-3xl">
+    <div id="master-form-modal" class="hidden lf-modal" onclick="if(event.target===this) closeMasterFormModal()">
+        <div class="lf-modal__backdrop" aria-hidden="true"></div>
+        <div class="lf-modal__dialog lf-modal__dialog--lg" onclick="event.stopPropagation()">
+            <header class="lf-modal__header">
                 <div>
-                    <h3 id="master-form-title" class="text-lg font-semibold">Form</h3>
-                    <p id="master-form-subtitle" class="text-xs text-slate-400 mt-0.5"></p>
+                    <h3 id="master-form-title" class="lf-modal__title">Form</h3>
+                    <p id="master-form-subtitle" class="lf-modal__subtitle"></p>
                 </div>
-                <button type="button" onclick="closeMasterFormModal()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600">
+                <button type="button" onclick="closeMasterFormModal()" class="lf-modal__close" aria-label="Close">
                     <i class="fa-solid fa-times"></i>
                 </button>
-            </div>
-            <form id="master-form-body" class="p-6 space-y-4" onsubmit="submitMasterForm(event)"></form>
+            </header>
+            <form id="master-form-body" class="lf-modal__body space-y-4" onsubmit="submitMasterForm(event)"></form>
         </div>
     </div>
 
@@ -636,13 +842,18 @@
             const demo = document.getElementById('auth-demo-section');
             if (!demo) return;
             const loginPanelVisible = !document.getElementById('auth-panel-login').classList.contains('hidden');
-            const showDemo = (loginMode === 'client' || loginMode === 'team') && loginPanelVisible;
+            const showDemo = loginPanelVisible;
             demo.classList.toggle('hidden', !showDemo);
             document.getElementById('demo-client-creds')?.classList.toggle('hidden', loginMode !== 'client');
             document.getElementById('demo-client-phones')?.classList.add('hidden');
             document.getElementById('demo-team-creds')?.classList.toggle('hidden', loginMode !== 'team');
+            document.getElementById('demo-firm-creds')?.classList.toggle('hidden', loginMode !== 'firm');
             const title = document.getElementById('demo-creds-title');
-            if (title) title.textContent = loginMode === 'team' ? 'Demo Team Login (click to fill)' : 'Demo Client Logins (click to fill)';
+            if (title) {
+                if (loginMode === 'firm') title.textContent = 'Demo Admin Login (click to fill)';
+                else if (loginMode === 'team') title.textContent = 'Demo Team Login (click to fill)';
+                else title.textContent = 'Demo Client Logins (click to fill)';
+            }
         }
 
         function setLoginMode(mode) {
@@ -721,7 +932,7 @@
             updateHeaderForUser();
             applyRoleBasedUI();
             beginClientSessionIfNeeded(user);
-            showSection('dashboard');
+            navigateAfterLogin();
             showToast(`Welcome to your Client Portal, ${user.name}!`);
         }
 
@@ -1029,15 +1240,17 @@ Log in to Firm / Admin portal → Approve Signups to review.`
         }
 
         function updatePendingApprovalsBadge() {
-            const badge = document.getElementById('pending-approvals-badge');
-            if (!badge) return;
             const count = getPendingApprovals().length;
-            if (count > 0) {
-                badge.textContent = count;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
+            ['pending-approvals-badge', 'sidebar-pending-approvals-badge'].forEach(id => {
+                const badge = document.getElementById(id);
+                if (!badge) return;
+                if (count > 0) {
+                    badge.textContent = count;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            });
         }
 
         function approveClientSignup(signupId) {
@@ -1506,7 +1719,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     updateHeaderForUser();
                     applyRoleBasedUI();
                     beginClientSessionIfNeeded(user);
-                    showSection('dashboard');
+                    navigateAfterLogin();
                     showToast(user.role === 'client'
                         ? `Welcome to your Client Portal, ${user.name}!`
                         : user.role === 'team'
@@ -1609,7 +1822,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             updateHeaderForUser();
             applyRoleBasedUI();
             beginClientSessionIfNeeded(user);
-            showSection('dashboard');
+            navigateAfterLogin();
             showToast(user.role === 'client'
                 ? `Welcome to your Client Portal, ${user.name}!`
                 : user.role === 'team'
@@ -1635,35 +1848,151 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             document.getElementById('app-shell').classList.remove('hidden');
         }
 
+        function userInitials(name) {
+            const parts = (name || 'U').trim().split(/\s+/).filter(Boolean);
+            if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+            return (parts[0]?.[0] || 'U').toUpperCase();
+        }
+
+        function buildQuickActionMenu() {
+            const container = document.getElementById('header-quick-action-items');
+            if (!container) return;
+            const items = [];
+            if (isFirmUser() || isClientUser()) {
+                items.push({ icon: 'fa-file-invoice', label: 'Create Invoice', action: 'launchInvoiceMaker();toggleQuickActionMenu(false)' });
+            }
+            if (isFirmUser() || isTeamUser() || isClientUser()) {
+                items.push({ icon: 'fa-cloud-upload-alt', label: 'Upload Document', action: "showDocumentsFiltered('upload');toggleQuickActionMenu(false)" });
+            }
+            if (isFirmUser()) {
+                items.push({ icon: 'fa-user-plus', label: 'Add Client', action: 'addNewClient();toggleQuickActionMenu(false)' });
+            }
+            container.innerHTML = items.map(it => `
+                <button type="button" onclick="${it.action}" class="lf-dropdown-item w-full text-left">
+                    <i class="fa-solid ${it.icon} text-teal-400 w-4"></i><span>${it.label}</span>
+                </button>`).join('');
+        }
+
+        function buildUserMenu() {
+            const container = document.getElementById('header-user-menu-items');
+            if (!container || !currentUser) return;
+            const items = [];
+            if (isFirmUser()) {
+                items.push({ icon: 'fa-building', label: 'Firm Profile', action: "showSection('firm-profile');toggleUserMenu(false)" });
+                items.push({ icon: 'fa-users', label: 'All Clients', action: "showSection('all-clients');toggleUserMenu(false)" });
+                items.push({ icon: 'fa-repeat', label: 'Switch Client', action: 'focusClientSwitcher();toggleUserMenu(false)', divider: true });
+            } else if (isTeamUser()) {
+                items.push({ icon: 'fa-id-card', label: 'Client Profile', action: "showSection('team-client-profile');toggleUserMenu(false)" });
+            } else {
+                items.push({ icon: 'fa-user', label: 'My Profile', action: "showSection('profile');toggleUserMenu(false)" });
+            }
+            const appearanceTarget = isFirmUser() ? 'firm-profile' : isClientUser() ? 'profile' : 'dashboard';
+            items.push({ icon: 'fa-circle-half-stroke', label: 'Appearance', action: `showSection('${appearanceTarget}');toggleUserMenu(false)`, divider: true });
+            items.push({ icon: 'fa-right-from-bracket', label: 'Logout', action: 'handleLogout()', danger: true });
+            container.innerHTML = items.map(it => `
+                ${it.divider ? '<div class="lf-dropdown-divider"></div>' : ''}
+                <button type="button" onclick="${it.action}" class="lf-dropdown-item w-full text-left ${it.danger ? 'lf-dropdown-item--danger' : ''}">
+                    <i class="fa-solid ${it.icon} w-4"></i><span>${it.label}</span>
+                </button>`).join('');
+        }
+
+        window.toggleQuickActionMenu = function (force) {
+            const menu = document.getElementById('header-quick-action-menu');
+            const userMenu = document.getElementById('header-user-menu');
+            const notif = document.getElementById('header-notif-panel');
+            if (!menu) return;
+            const open = force === false ? false : force === true ? true : menu.classList.contains('hidden');
+            menu.classList.toggle('hidden', !open);
+            if (open) {
+                userMenu?.classList.add('hidden');
+                notif?.classList.add('hidden');
+            }
+        };
+
+        window.toggleUserMenu = function (force) {
+            const menu = document.getElementById('header-user-menu');
+            const qa = document.getElementById('header-quick-action-menu');
+            const notif = document.getElementById('header-notif-panel');
+            if (!menu) return;
+            const open = force === false ? false : force === true ? true : menu.classList.contains('hidden');
+            menu.classList.toggle('hidden', !open);
+            if (open) {
+                qa?.classList.add('hidden');
+                notif?.classList.add('hidden');
+            }
+        };
+
+        window.focusClientSwitcher = function () {
+            const sel = document.getElementById('client-switcher');
+            if (sel) { sel.focus(); sel.click(); }
+        };
+
+        window.handleGlobalSearch = function (query) {
+            handleSidebarSearch(query);
+            const headerInput = document.getElementById('header-global-search');
+            if (headerInput) headerInput.value = '';
+        };
+
         function updateHeaderForUser() {
-            const nameEl = document.getElementById('header-user-name');
-            const roleEl = document.getElementById('header-user-role');
-            const firmControls = document.getElementById('firm-controls');
-            const badge = document.getElementById('header-portal-badge');
-
             if (!currentUser) return;
-            nameEl.textContent = currentUser.name;
+            const firmName = appData.firmSettings?.name || 'LedgerFlow Accounting Firm';
+            const initials = userInitials(currentUser.name);
+            const contextEl = document.getElementById('header-context-name');
+            const badge = document.getElementById('header-portal-badge');
+            const switchWrap = document.getElementById('header-client-switch-wrap');
+            const searchInput = document.getElementById('header-global-search');
 
+            ['header-user-name', 'header-user-name-menu'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = currentUser.name;
+            });
+            ['header-user-avatar', 'header-user-avatar-lg'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = initials;
+            });
+
+            let roleLabel = '';
             if (currentUser.role === 'firm') {
-                roleEl.textContent = 'Accounting Firm • Admin Access';
-                firmControls.classList.remove('hidden');
-                badge.innerHTML = '<i class="fa-solid fa-shield-halved"></i><span class="font-medium">Accounting Firm CRM</span>';
-                badge.className = 'px-3 py-1 bg-emerald-900/60 text-emerald-400 text-xs font-bold rounded-full flex items-center gap-x-1.5 border border-emerald-800';
+                roleLabel = 'CA / Firm Admin';
+                if (contextEl) contextEl.textContent = firmName;
+                if (badge) {
+                    badge.className = 'md:inline-flex px-2.5 py-1 bg-emerald-900/60 text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-800 items-center gap-1';
+                    badge.innerHTML = '<i class="fa-solid fa-shield-halved"></i><span>CA Portal</span>';
+                }
+                switchWrap?.classList.remove('hidden');
+                if (searchInput) searchInput.placeholder = 'Search clients, invoices…';
                 updatePendingApprovalsBadge();
             } else if (currentUser.role === 'team') {
-                roleEl.textContent = 'Team Member • Assigned Clients Only';
-                firmControls.classList.remove('hidden');
-                badge.innerHTML = '<i class="fa-solid fa-users"></i><span class="font-medium">Team Portal</span>';
-                badge.className = 'px-3 py-1 bg-violet-900/60 text-violet-400 text-xs font-bold rounded-full flex items-center gap-x-1.5 border border-violet-800';
+                roleLabel = 'Team Member';
+                if (contextEl) contextEl.textContent = firmName;
+                if (badge) {
+                    badge.className = 'md:inline-flex px-2.5 py-1 bg-violet-900/60 text-violet-400 text-[10px] font-bold rounded-full border border-violet-800 items-center gap-1';
+                    badge.innerHTML = '<i class="fa-solid fa-users"></i><span>Team</span>';
+                }
+                switchWrap?.classList.remove('hidden');
+                if (searchInput) searchInput.placeholder = 'Search clients, invoices…';
             } else {
-                roleEl.textContent = getCurrentClient()?.name || 'Client Business';
-                firmControls.classList.add('hidden');
-                badge.innerHTML = '<i class="fa-solid fa-user"></i><span class="font-medium">Client Portal</span>';
-                badge.className = 'px-3 py-1 bg-blue-900/60 text-blue-400 text-xs font-bold rounded-full flex items-center gap-x-1.5 border border-blue-800';
+                roleLabel = 'Client Portal';
+                if (contextEl) contextEl.textContent = getCurrentClient()?.name || 'My Business';
+                if (badge) {
+                    badge.className = 'md:inline-flex px-2.5 py-1 bg-blue-900/60 text-blue-400 text-[10px] font-bold rounded-full border border-blue-800 items-center gap-1';
+                    badge.innerHTML = '<i class="fa-solid fa-user"></i><span>Client</span>';
+                }
+                switchWrap?.classList.add('hidden');
+                if (searchInput) searchInput.placeholder = 'Search invoices…';
             }
+
+            ['header-user-role', 'header-user-role-menu'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = roleLabel;
+            });
+
+            buildQuickActionMenu();
+            buildUserMenu();
         }
 
         const CLIENT_HIDDEN_NAV_IDS = [
+            'nav-add-client',
             'nav-service-orders',
             'nav-profile',
             'nav-team-profile',
@@ -1678,24 +2007,127 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             'nav-emi-calculator',
             'nav-sales-report',
             'nav-party-pl',
-            'nav-purchases'
+            'nav-invoices-recurring',
+            'nav-billing',
+            'nav-security',
+            'nav-customers',
+            'nav-stock',
+            'nav-messages',
+            'nav-notifications'
         ];
 
-        window.applyClientSidebarNav = function applyClientSidebarNav() {
-            document.querySelectorAll('#sidebar-nav .nav-item, #sidebar-nav .pt-3').forEach(el => {
-                el.classList.remove('hidden');
+        window.refreshSidebarSections = function refreshSidebarSections() {
+            document.querySelectorAll('#sidebar-nav .lf-nav-group').forEach(group => {
+                const items = group.querySelectorAll('.lf-nav-group-items .nav-item');
+                const hasVisible = Array.from(items).some(el => !el.classList.contains('hidden'));
+                group.classList.toggle('hidden', !hasVisible);
             });
-            document.getElementById('nav-purchases')?.classList.add('hidden');
+        };
 
-            document.querySelectorAll('[data-firm-only], [data-team-only], [data-team-visible]').forEach(el => {
-                el.classList.add('hidden');
-            });
-            CLIENT_HIDDEN_NAV_IDS.forEach(id => {
-                document.getElementById(id)?.classList.add('hidden');
-            });
-            document.querySelectorAll('[data-client-only]').forEach(el => {
-                el.classList.remove('hidden');
-            });
+        window.toggleNavGroup = function toggleNavGroup(groupId) {
+            const group = document.querySelector(`[data-nav-group="${groupId}"]`);
+            if (!group) return;
+            const open = group.classList.toggle('lf-nav-group-open');
+            const toggle = group.querySelector('.lf-nav-group-toggle');
+            if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+
+        function navigateAfterLogin() {
+            if (typeof LedgerFlowPages !== 'undefined') {
+                const hash = window.location.hash || '#/dashboard';
+                LedgerFlowPages.navigateFromHash(hash, { replace: true });
+                return;
+            }
+            showSection('dashboard');
+        }
+
+        window.handleSidebarSearch = function handleSidebarSearch(query) {
+            const q = (query || '').trim().toLowerCase();
+            if (!q) return;
+
+            if (typeof LedgerFlowPages !== 'undefined') {
+                const pages = LedgerFlowPages.searchPages(q);
+                if (pages.length) {
+                    LedgerFlowPages.go(pages[0].section);
+                    showToast(pages.length > 1
+                        ? `Found ${pages.length} pages — opened ${pages[0].label}`
+                        : `Opened ${pages[0].label}`);
+                    return;
+                }
+            }
+
+            if (isFirmUser() || isTeamUser()) {
+                const match = Object.entries(appData.clients || {}).find(([, c]) => (c.name || '').toLowerCase().includes(q));
+                if (match) {
+                    currentClientId = match[0];
+                    if (typeof populateClientSwitcher === 'function') populateClientSwitcher();
+                    if (typeof populateClientSwitcherFiltered === 'function' && isTeamUser()) populateClientSwitcherFiltered();
+                    showSection('all-clients');
+                    showToast(`Found client: ${match[1].name}`);
+                    return;
+                }
+            }
+            const client = getCurrentClient();
+            const inv = (client?.invoices || []).find(i =>
+                (i.number || '').toLowerCase().includes(q) || (i.partyName || '').toLowerCase().includes(q)
+            );
+            if (inv) {
+                showSection('invoices');
+                showToast(`Found invoice ${inv.number}`);
+                return;
+            }
+            showToast('No matching clients or invoices', 'info');
+        };
+
+        window.showInvoicesFiltered = function showInvoicesFiltered(filter) {
+            if (filter === 'recurring') {
+                showToast('Recurring invoices — coming soon', 'info');
+                return;
+            }
+            window.invoiceListFilter = filter === 'outstanding' ? 'outstanding' : filter;
+            showSection('invoices');
+        };
+
+        window.showDocumentsFiltered = function showDocumentsFiltered(filter) {
+            window.documentListFilter = filter;
+            showSection('documents');
+        };
+
+        function setSidebarMode(mode) {
+            const isClient = mode === 'client';
+            const sidebar = document.getElementById('app-sidebar');
+            const firmNav = document.getElementById('sidebar-nav');
+            const clientNav = document.getElementById('sidebar-nav-client');
+            const brandFirm = document.getElementById('sidebar-brand-firm');
+            const brandClient = document.getElementById('sidebar-brand-client');
+
+            sidebar?.classList.toggle('lf-sidebar--client', isClient);
+            firmNav?.classList.toggle('hidden', isClient);
+            clientNav?.classList.toggle('hidden', !isClient);
+            brandFirm?.classList.toggle('hidden', true);
+            brandClient?.classList.toggle('hidden', true);
+        }
+
+        function updateSidebarBrand() {
+            const firmEl = document.getElementById('sidebar-firm-name');
+            const titleEl = document.getElementById('sidebar-title');
+            const clientFirmEl = document.getElementById('sidebar-client-firm-name');
+            const firmName = appData.firmSettings?.name || 'LedgerFlow Accounting Firm';
+
+            if (isClientUser()) {
+                if (clientFirmEl) clientFirmEl.textContent = firmName;
+            } else if (isTeamUser()) {
+                if (firmEl) firmEl.textContent = firmName;
+                if (titleEl) titleEl.textContent = 'TEAM PORTAL';
+            } else {
+                if (firmEl) firmEl.textContent = firmName;
+                if (titleEl) titleEl.textContent = 'CLIENT MANAGEMENT';
+            }
+        }
+
+        window.applyClientSidebarNav = function applyClientSidebarNav() {
+            setSidebarMode('client');
+            updateSidebarBrand();
         }
 
         function applyRoleBasedUI() {
@@ -1705,15 +2137,25 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
 
             if (isClient) {
                 applyClientSidebarNav();
-            } else if (isFirm && typeof resetSidebarNav === 'function') {
-                resetSidebarNav();
+            } else {
+                setSidebarMode('firm');
+                if (isFirm && typeof resetSidebarNav === 'function') {
+                    resetSidebarNav();
+                }
+                updateSidebarBrand();
             }
 
-            document.getElementById('sidebar-title').textContent = isClient ? 'MY BUSINESS PORTAL' : isTeam ? 'TEAM PORTAL' : 'CLIENT MANAGEMENT';
-            document.getElementById('nav-invoices-label').textContent = isClient ? 'Make GST Invoice' : 'Client Invoices';
-            document.getElementById('nav-documents-label').textContent = isClient ? 'Documents from CA' : isTeam ? 'Documents' : 'Documents Center';
-            document.getElementById('nav-purchases-label').textContent = isClient ? 'Upload Purchases' : 'GST Purchases / ITC';
-            document.getElementById('nav-portal-logins-label').textContent = isClient ? 'Share Portal Logins' : 'Client Portal Logins';
+            if (!isClient) {
+                updateSidebarBrand();
+            }
+            const invLabel = document.getElementById('nav-invoices-label');
+            if (invLabel) invLabel.textContent = 'All Invoices';
+            const docLabel = document.getElementById('nav-documents-label');
+            if (docLabel) docLabel.textContent = isClient ? 'My Documents' : 'Client Files';
+            const purchLabel = document.getElementById('nav-purchases-label');
+            if (purchLabel) purchLabel.textContent = isClient ? 'Upload Purchases' : 'Upload Documents';
+            const portalLabel = document.getElementById('nav-portal-logins-label');
+            if (portalLabel) portalLabel.textContent = isClient ? 'Share Portal Logins' : 'Portal Logins';
 
             if (!isClient) {
                 document.querySelectorAll('[data-firm-only]').forEach(el => {
@@ -1731,6 +2173,10 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             if (adminInvLabel) adminInvLabel.textContent = isClient ? 'CA Invoices' : 'Admin Invoices';
             if (typeof applyTeamRoleUI === 'function') applyTeamRoleUI();
             if (typeof updateTeamApprovalsBadge === 'function') updateTeamApprovalsBadge();
+            if (typeof refreshSidebarSections === 'function') refreshSidebarSections();
+            if (typeof LedgerFlowUI !== 'undefined') LedgerFlowUI.updateNotificationUI(appData);
+            buildQuickActionMenu();
+            buildUserMenu();
         }
 
         async function restoreSession() {
@@ -1841,10 +2287,66 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             }, 2800);
         }
 
+        const NAV_SECTION_ALIASES = {
+            requests: ['nav-messages'],
+            dashboard: ['nav-notifications'],
+            'all-clients': ['nav-client-management']
+        };
+
+        const CLIENT_INVOICE_NAV_IDS = {
+            all: 'client-nav-invoices-all',
+            outstanding: 'client-nav-invoices-outstanding',
+            pending: 'client-nav-invoices-outstanding',
+            paid: 'client-nav-invoices-paid'
+        };
+
+        const CLIENT_DOCUMENT_NAV_IDS = {
+            mine: 'client-nav-documents-mine',
+            ca: 'client-nav-documents-ca',
+            upload: 'client-nav-documents-upload',
+            all: 'client-nav-documents-ca'
+        };
+
+        function expandNavGroupForActive(navEl) {
+            const group = navEl?.closest('.lf-nav-group');
+            if (!group) return;
+            group.classList.add('lf-nav-group-open');
+            const toggle = group.querySelector('.lf-nav-group-toggle');
+            if (toggle) toggle.setAttribute('aria-expanded', 'true');
+        }
+
         function updateActiveNav(section) {
+            if (isClientUser()) {
+                document.querySelectorAll('#sidebar-nav-client .nav-item').forEach(el => el.classList.remove('nav-active'));
+                let navId = null;
+                if (section === 'invoices') {
+                    const filter = window.invoiceListFilter || 'all';
+                    navId = CLIENT_INVOICE_NAV_IDS[filter] || CLIENT_INVOICE_NAV_IDS.all;
+                } else if (section === 'documents') {
+                    const filter = window.documentListFilter || 'ca';
+                    navId = CLIENT_DOCUMENT_NAV_IDS[filter] || CLIENT_DOCUMENT_NAV_IDS.ca;
+                } else {
+                    navId = 'client-nav-' + section;
+                }
+                const el = document.getElementById(navId);
+                if (el) {
+                    el.classList.add('nav-active');
+                    expandNavGroupForActive(el);
+                }
+                return;
+            }
+
             document.querySelectorAll('#sidebar-nav .nav-item').forEach(el => el.classList.remove('nav-active'));
-            const navEl = document.getElementById('nav-' + section);
-            if (navEl) navEl.classList.add('nav-active');
+            const ids = ['nav-' + section].concat(NAV_SECTION_ALIASES[section] || []);
+            let first = null;
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && !el.classList.contains('hidden')) {
+                    el.classList.add('nav-active');
+                    if (!first) first = el;
+                }
+            });
+            if (first) expandNavGroupForActive(first);
         }
 
         let masterFormSubmitHandler = null;
@@ -1855,15 +2357,29 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             ).join('');
         }
 
-        function formField(label, inputHtml, required) {
-            return `<div>
-                <label class="text-xs font-medium text-slate-400 block mb-1.5">${label}${required ? ' <span class="text-red-400">*</span>' : ''}</label>
+        function formField(label, inputHtml, required, hint) {
+            if (typeof LedgerFlowComponents !== 'undefined') {
+                const idMatch = inputHtml.match(/\bid="([^"]+)"/);
+                return LedgerFlowComponents.formField({
+                    label,
+                    inputHtml,
+                    required,
+                    hint,
+                    id: idMatch ? idMatch[1] : undefined
+                });
+            }
+            return `<div class="lf-form-field">
+                <label class="lf-form-label">${label}${required ? ' <span class="lf-form-required">*</span>' : ''}</label>
                 ${inputHtml}
+                ${hint ? `<p class="lf-form-hint">${hint}</p>` : ''}
             </div>`;
         }
 
         function formInput(id, type, placeholder, extraClass = '') {
-            return `<input type="${type}" id="${id}" placeholder="${placeholder}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm ${extraClass}">`;
+            if (typeof LedgerFlowComponents !== 'undefined') {
+                return LedgerFlowComponents.input({ id, type, placeholder, className: extraClass });
+            }
+            return `<input type="${type}" id="${id}" placeholder="${placeholder}" class="lf-input form-input ${extraClass}">`;
         }
 
         function escAttr(s) {
@@ -1881,9 +2397,9 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             document.getElementById('master-form-subtitle').textContent = subtitle || '';
             const form = document.getElementById('master-form-body');
             form.innerHTML = fieldsHtml + `
-                <div class="flex gap-3 pt-2">
-                    <button type="button" onclick="closeMasterFormModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl text-sm font-medium">Cancel</button>
-                    <button type="submit" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-semibold">${submitLabel || 'Save'}</button>
+                <div class="flex gap-3 pt-4 mt-2 border-t border-slate-700/80">
+                    <button type="button" onclick="closeMasterFormModal()" class="lf-btn lf-btn--secondary flex-1">Cancel</button>
+                    <button type="submit" class="lf-btn lf-btn--primary flex-1">${submitLabel || 'Save'}</button>
                 </div>`;
             masterFormSubmitHandler = onSubmit;
             document.getElementById('master-form-modal').classList.remove('hidden');
@@ -2092,13 +2608,17 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         }
 
         // ==================== SECTION RENDERERS ====================
-        function showSection(section) {
+        window.__showSectionCore = function __showSectionCore(section) {
             currentSection = section;
             updateActiveNav(section);
-            
+            if (typeof LedgerFlowUI !== 'undefined') LedgerFlowUI.updatePageChrome(section, appData);
+            if (section !== 'dashboard' && typeof LedgerFlowLayout !== 'undefined') {
+                LedgerFlowLayout.clearKpiRow();
+            }
+
             const main = document.getElementById('main-content');
             main.innerHTML = '';
-            
+
             switch(section) {
                 case 'dashboard': renderDashboard(main); break;
                 case 'invoices': renderInvoices(main); break;
@@ -2121,12 +2641,54 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 case 'emi-calculator': renderEMICalculator(main); break;
                 case 'sales-purchase-report': renderSalesPurchaseReport(main); break;
                 case 'firm-profile': renderFirmProfile(main); break;
+                case 'all-clients': renderAllClients(main); break;
                 case 'client-management': renderAdminClientManagement(main); break;
                 case 'team-management': renderTeamManagement(main); break;
                 case 'team-approvals': renderTeamApprovals(main); break;
                 case 'team-client-profile': renderTeamClientProfile(main); break;
-                default: renderDashboard(main);
+                case 'cap-hub':
+                case 'cap-pillar-invoicing':
+                case 'cap-pillar-purchasing':
+                case 'cap-pillar-banking':
+                case 'cap-pillar-gst':
+                case 'cap-pillar-inventory':
+                case 'cap-pillar-projects':
+                case 'cap-pillar-reports':
+                    if (typeof LedgerFlowCapabilityModules !== 'undefined') {
+                        LedgerFlowCapabilityModules.render(main, section);
+                    } else {
+                        renderDashboard(main);
+                    }
+                    break;
+                default:
+                    if (section.startsWith('cap-') && typeof LedgerFlowCapabilityModules !== 'undefined') {
+                        LedgerFlowCapabilityModules.render(main, section);
+                    } else {
+                        renderDashboard(main);
+                    }
             }
+        };
+
+        window.__applyRouteContext = function __applyRouteContext(ctx) {
+            if (ctx?.clientId && appData.clients?.[ctx.clientId]) {
+                currentClientId = ctx.clientId;
+                populateClientSwitcher();
+                if (isTeamUser()) populateClientSwitcherFiltered();
+            }
+            if (ctx?.invoiceId) window.activeInvoiceId = ctx.invoiceId;
+            else if (!ctx?.keepInvoiceId) window.activeInvoiceId = null;
+        };
+
+        function showSection(section) {
+            if (typeof LedgerFlowPages !== 'undefined' && LedgerFlowPages.navigateTo) {
+                const opts = {};
+                if (section === 'invoices' && window.invoiceListFilter) opts.invoiceListFilter = window.invoiceListFilter;
+                if (section === 'documents' && window.documentListFilter) opts.documentListFilter = window.documentListFilter;
+                if (currentClientId) opts.clientId = currentClientId;
+                LedgerFlowPages.navigateTo(section, opts);
+                return;
+            }
+            __showSectionCore(section);
         }
 
         function ensurePortalLogins(client) {
@@ -2488,7 +3050,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                         Pending Approval (Email Verified) — Action Required
                     </div>
                     ${pending.length ? `
-                    <table class="w-full data-table">
+                    <table class="w-full data-table lf-table lf-table--zebra">
                         <thead><tr>
                             <th>Business</th><th>Email</th><th>Phone</th><th>GSTIN</th><th>Registered</th><th>Verified</th><th></th>
                         </tr></thead>
@@ -2542,7 +3104,68 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             `;
         }
 
+        function renderFirmDashboard(container) {
+            const dashData = typeof LedgerFlowScreens !== 'undefined'
+                ? LedgerFlowScreens.computeFirmDashboardData(appData)
+                : LedgerFlowModules.getFirmMetrics(appData);
+            const recentActivity = [];
+
+            Object.values(appData.clients).forEach(c => {
+                (c.invoices || []).slice(0, 2).forEach(inv => {
+                    recentActivity.push({
+                        date: inv.date,
+                        text: `Invoice ${inv.number} — ${c.name}`,
+                        type: 'invoice',
+                        clientId: c.id
+                    });
+                });
+                (c.requests || []).filter(r => r.status !== 'Resolved').slice(0, 1).forEach(r => {
+                    recentActivity.push({
+                        date: r.date,
+                        text: `Request: ${r.subject} — ${c.name}`,
+                        type: 'request',
+                        clientId: c.id
+                    });
+                });
+            });
+            recentActivity.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+            recentActivity.splice(8);
+
+            if (typeof LedgerFlowLayout !== 'undefined') {
+                const kpis = typeof LedgerFlowScreens !== 'undefined'
+                    ? LedgerFlowScreens.renderCaKpiMetrics(dashData)
+                    : [
+                        { label: 'Total Clients', value: dashData.totalClients },
+                        { label: 'Pending Invoices', value: dashData.pendingInvoices, valueClass: 'text-amber-400' },
+                        { label: 'Outstanding Amount', value: `₹${dashData.pendingAmount.toLocaleString('en-IN')}` },
+                        { label: 'Open Requests', value: dashData.openRequests }
+                    ];
+                LedgerFlowLayout.setKpiRow(kpis);
+            }
+
+            const dashHeader = LedgerFlowDesign.renderPageHeader({
+                title: 'Firm Dashboard',
+                subtitle: LedgerFlowDesign.getApproachableCopy('welcomeFirm') + ` · ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}`,
+                actionsHtml: `<button onclick="launchInvoiceMaker()" class="lf-btn lf-btn--primary"><i class="fa-solid fa-plus mr-1"></i>Create Invoice</button>`
+            });
+
+            const body = typeof LedgerFlowScreens !== 'undefined'
+                ? LedgerFlowScreens.renderCaDashboardBody(dashData, recentActivity, escHtml)
+                : '';
+
+            container.innerHTML = `
+                ${LedgerFlowModules.renderModuleGuide('dashboard', { checkedFeatures: ['Total clients', 'Pending invoices', 'Upcoming GST deadlines', 'Quick Create Invoice'] })}
+                ${dashHeader}
+                ${body}
+            `;
+        }
+
         function renderDashboard(container) {
+            if (isFirmUser()) {
+                renderFirmDashboard(container);
+                return;
+            }
+
             const client = getCurrentClient();
             if (!client) return;
 
@@ -2557,116 +3180,49 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             const pendingServiceOrders = (client.serviceOrders || []).filter(o => o.status === 'pending').length;
             const unpaidAdminInvoices = (client.adminInvoices || []).filter(i => i.paymentStatus !== 'paid').length;
             const isClient = isClientUser();
+            const teamAppearance = (!isClient && typeof LedgerFlowTheme !== 'undefined')
+                ? LedgerFlowTheme.renderAppearanceCard()
+                : '';
+
+            const unpaidCount = client.invoices.filter(i => i.status !== 'Paid').length;
+            const recentMsg = (client.requests || []).filter(r => r.status !== 'Resolved')[0];
+
+            if (isClient && typeof LedgerFlowLayout !== 'undefined') {
+                LedgerFlowLayout.clearKpiRow();
+            } else if (typeof LedgerFlowLayout !== 'undefined') {
+                LedgerFlowLayout.setKpiRow([
+                    { label: 'Total Invoices', value: totalInvoices, hint: '+2 this month', valueClass: 'text-emerald-400', icon: 'fa-file-invoice', tint: 'teal' },
+                    { label: 'Taxable Turnover', value: `₹${totalTaxable.toLocaleString('en-IN')}`, hint: 'This financial year', icon: 'fa-chart-line', tint: 'emerald' },
+                    { label: 'Outstanding', value: `₹${pendingAmount.toLocaleString('en-IN')}`, valueClass: 'text-amber-500', hint: `${unpaidCount} invoices pending`, icon: 'fa-clock', tint: 'amber' },
+                    { label: 'ITC Available', value: `₹${totalITC.toLocaleString('en-IN')}`, hint: `From ${client.purchases.length} purchases`, icon: 'fa-hand-holding-dollar', tint: 'cyan' }
+                ]);
+            }
+
+            if (isClient && typeof LedgerFlowScreens !== 'undefined') {
+                const portalBody = LedgerFlowScreens.renderClientPortalBody(client, {
+                    pendingAmount,
+                    unpaidCount,
+                    adminDocCount,
+                    openRequests,
+                    recentMessages: recentMsg ? recentMsg.subject : 'All caught up',
+                    firmName: appData.firmSettings?.name
+                });
+                container.innerHTML = portalBody;
+                return;
+            }
+
+            const dashHeader = LedgerFlowDesign.renderPageHeader({
+                title: `Managing: ${client.name.split(' ')[0]}`,
+                subtitle: `Business overview for ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}`,
+                actionsHtml: `<button onclick="launchInvoiceMaker()" class="lf-btn lf-btn--primary"><i class="fa-solid fa-plus mr-1"></i>Create Invoice</button>`
+            });
 
             container.innerHTML = `
-                <div class="mb-6">
-                    <div class="flex items-end justify-between">
-                        <div>
-                            <h1 class="text-3xl font-semibold tracking-tight">${isClient ? 'Welcome,' : 'Managing:'} ${client.name.split(' ')[0]}</h1>
-                            <p class="text-slate-400 mt-1">${isClient
-                                ? 'Your private business portal — make invoices, view CA documents, submit purchases'
-                                : `Business overview for ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}`}</p>
-                        </div>
-                        <button onclick="showSection('invoices')" 
-                                class="flex items-center gap-x-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 transition-all rounded-2xl text-sm font-semibold shadow-sm">
-                            <i class="fa-solid fa-plus mr-2"></i>
-                            <span>Create New Invoice</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Stats Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-                    <div class="stat-card rounded-3xl p-5">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <div class="text-xs text-slate-400">TOTAL INVOICES</div>
-                                <div class="text-4xl font-semibold mt-2 tracking-tighter">${totalInvoices}</div>
-                            </div>
-                            <i class="fa-solid fa-file-invoice text-3xl text-emerald-500/70"></i>
-                        </div>
-                        <div class="mt-4 text-xs text-emerald-400">+2 this month</div>
-                    </div>
-                    
-                    <div class="stat-card rounded-3xl p-5">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <div class="text-xs text-slate-400">TAXABLE TURNOVER</div>
-                                <div class="text-4xl font-semibold mt-2 tracking-tighter">₹${totalTaxable.toLocaleString('en-IN')}</div>
-                            </div>
-                            <i class="fa-solid fa-indian-rupee-sign text-3xl text-emerald-500/70"></i>
-                        </div>
-                        <div class="mt-4 text-xs text-emerald-400">This financial year</div>
-                    </div>
-                    
-                    <div class="stat-card rounded-3xl p-5">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <div class="text-xs text-slate-400">OUTSTANDING RECEIVABLES</div>
-                                <div class="text-4xl font-semibold mt-2 tracking-tighter text-amber-400">₹${pendingAmount.toLocaleString('en-IN')}</div>
-                            </div>
-                            <i class="fa-solid fa-clock text-3xl text-amber-500/70"></i>
-                        </div>
-                        <div class="mt-4 text-xs text-amber-400">${client.invoices.filter(i => i.status === 'Pending').length} invoices pending</div>
-                    </div>
-                    
-                    <div class="stat-card rounded-3xl p-5">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <div class="text-xs text-slate-400">${isClient ? 'CA DOCUMENTS' : 'ITC AVAILABLE'}</div>
-                                <div class="text-4xl font-semibold mt-2 tracking-tighter">${isClient ? adminDocCount : '₹' + totalITC.toLocaleString('en-IN')}</div>
-                            </div>
-                            <i class="fa-solid ${isClient ? 'fa-folder-open' : 'fa-hand-holding-usd'} text-3xl text-emerald-500/70"></i>
-                        </div>
-                        <div class="mt-4 text-xs text-emerald-400">${isClient ? 'Files uploaded by your CA' : 'From ' + client.purchases.length + ' purchase entries'}</div>
-                    </div>
-                </div>
-
-                ${isClient ? `
-                <div class="mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                    <button onclick="launchInvoiceMaker()" class="lf-quick-action p-4 bg-emerald-900/30 border border-emerald-700/60 rounded-2xl text-left hover:bg-emerald-900/50 transition-colors">
-                        <i class="fa-solid fa-file-invoice text-emerald-400 text-xl mb-2"></i>
-                        <div class="font-semibold text-sm">Make Invoice</div>
-                        <div class="text-xs text-slate-400">Create GST invoice</div>
-                    </button>
-                    <button onclick="showSection('buy-services')" class="lf-quick-action p-4 bg-teal-900/30 border border-teal-700/60 rounded-2xl text-left hover:bg-teal-900/50 transition-colors">
-                        <i class="fa-solid fa-store text-teal-400 text-xl mb-2"></i>
-                        <div class="font-semibold text-sm">Buy Services</div>
-                        <div class="text-xs text-slate-400">${pendingServiceOrders} pending request(s)</div>
-                    </button>
-                    <button onclick="showSection('admin-invoices')" class="lf-quick-action p-4 bg-rose-900/30 border border-rose-700/60 rounded-2xl text-left hover:bg-rose-900/50 transition-colors">
-                        <i class="fa-solid fa-file-invoice-dollar text-rose-400 text-xl mb-2"></i>
-                        <div class="font-semibold text-sm">CA Invoices</div>
-                        <div class="text-xs text-slate-400">${unpaidAdminInvoices} unpaid</div>
-                    </button>
-                    <button onclick="showSection('documents')" class="lf-quick-action p-4 bg-blue-900/30 border border-blue-700/60 rounded-2xl text-left hover:bg-blue-900/50 transition-colors">
-                        <i class="fa-solid fa-folder-open text-blue-400 text-xl mb-2"></i>
-                        <div class="font-semibold text-sm">CA Documents</div>
-                        <div class="text-xs text-slate-400">${adminDocCount} files available</div>
-                    </button>
-                    <button onclick="showSection('purchases')" class="lf-quick-action p-4 bg-purple-900/30 border border-purple-700/60 rounded-2xl text-left hover:bg-purple-900/50 transition-colors">
-                        <i class="fa-solid fa-file-upload text-purple-400 text-xl mb-2"></i>
-                        <div class="font-semibold text-sm">Upload Purchases</div>
-                        <div class="text-xs text-slate-400">Submit purchase bills</div>
-                    </button>
-                    <button onclick="showSection('requests')" class="lf-quick-action p-4 bg-amber-900/30 border border-amber-700/60 rounded-2xl text-left hover:bg-amber-900/50 transition-colors">
-                        <i class="fa-solid fa-headset text-amber-400 text-xl mb-2"></i>
-                        <div class="font-semibold text-sm">Raise Request</div>
-                        <div class="text-xs text-slate-400">${openRequests} open ticket(s)</div>
-                    </button>
-                </div>` : ''}
-
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    <!-- Recent Invoices -->
-                    <div class="lg:col-span-7 bg-slate-900 border border-slate-700 rounded-3xl p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="font-semibold flex items-center gap-x-2">
-                                <i class="fa-solid fa-file-invoice text-emerald-400"></i>
-                                <span>Recent Invoices</span>
-                            </div>
-                            <button onclick="showSection('invoices')" class="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-x-1">View All <i class="fa-solid fa-arrow-right ml-1 text-xs"></i></button>
-                        </div>
-                        
+                ${teamAppearance}
+                ${LedgerFlowModules.renderModuleGuide('dashboard', { compact: true })}
+                ${dashHeader}
+                ${(() => {
+                    const invoicesBody = `
                         <div class="space-y-2">
                             ${client.invoices.length > 0 ? client.invoices.slice(0, 4).map(inv => `
                                 <div class="flex items-center justify-between bg-slate-800 hover:bg-slate-700 transition-colors rounded-2xl px-4 py-3 text-sm">
@@ -2677,93 +3233,91 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                                             <div class="text-xs text-slate-400">${inv.date}</div>
                                         </div>
                                     </div>
-                                    <div class="text-right">
+                                    <div class="text-right lf-col-amount">
                                         <div class="font-semibold">₹${inv.grandTotal.toLocaleString('en-IN')}</div>
                                         <div class="text-xs ${inv.status === 'Paid' ? 'text-emerald-400' : 'text-amber-400'}">${inv.status}</div>
                                     </div>
                                 </div>
                             `).join('') : '<div class="text-center py-8 text-slate-400 text-sm">No invoices yet. Create your first one!</div>'}
-                        </div>
-                    </div>
-
-                    <!-- Quick Actions + Pending Requests -->
-                    <div class="lg:col-span-5 space-y-6">
-                        <div class="bg-slate-900 border border-slate-700 rounded-3xl p-6">
-                            <div class="font-semibold mb-4 flex items-center gap-x-2">
-                                <i class="fa-solid fa-bolt text-emerald-400"></i>
-                                <span>Quick Actions</span>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <button onclick="launchInvoiceMaker()" class="flex flex-col items-center justify-center gap-y-2 p-4 bg-slate-800 hover:bg-emerald-900/30 transition-all rounded-2xl border border-slate-700 hover:border-emerald-600 text-sm">
-                                    <i class="fa-solid fa-file-invoice text-2xl text-emerald-400"></i>
-                                    <span class="font-medium">Create GST Invoice</span>
-                                </button>
-                                <button onclick="showSection('documents')" class="flex flex-col items-center justify-center gap-y-2 p-4 bg-slate-800 hover:bg-emerald-900/30 transition-all rounded-2xl border border-slate-700 hover:border-emerald-600 text-sm">
-                                    <i class="fa-solid fa-upload text-2xl text-emerald-400"></i>
-                                    <span class="font-medium">Submit Documents</span>
-                                </button>
-                                <button onclick="showSection('gst-calculator')" class="flex flex-col items-center justify-center gap-y-2 p-4 bg-slate-800 hover:bg-emerald-900/30 transition-all rounded-2xl border border-slate-700 hover:border-emerald-600 text-sm">
-                                    <i class="fa-solid fa-calculator text-2xl text-emerald-400"></i>
-                                    <span class="font-medium">GST Calculator</span>
-                                </button>
-                                <button onclick="showSection('requests')" class="flex flex-col items-center justify-center gap-y-2 p-4 bg-slate-800 hover:bg-emerald-900/30 transition-all rounded-2xl border border-slate-700 hover:border-emerald-600 text-sm">
-                                    <i class="fa-solid fa-headset text-2xl text-emerald-400"></i>
-                                    <span class="font-medium">Raise Request</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="bg-slate-900 border border-slate-700 rounded-3xl p-6">
-                            <div class="font-semibold mb-3 flex items-center gap-x-2">
-                                <i class="fa-solid fa-headset text-emerald-400"></i>
-                                <span>Open Requests</span>
-                            </div>
-                            ${client.requests.length > 0 ? 
-                                client.requests.map(r => `
-                                    <div class="text-sm bg-slate-800 rounded-2xl p-3 mb-2">
-                                        <div class="flex justify-between">
-                                            <span class="font-medium">${r.subject}</span>
-                                            <span class="text-xs px-2 py-0.5 rounded-full ${r.status === 'Open' ? 'bg-amber-900 text-amber-300' : 'bg-blue-900 text-blue-300'}">${r.status}</span>
-                                        </div>
-                                        <div class="text-xs text-slate-400 mt-1">${r.type} • ${r.date}</div>
-                                    </div>
-                                `).join('') : 
-                                '<div class="text-sm text-slate-400 italic">No open requests. Great!</div>'
-                            }
-                        </div>
-                    </div>
-                </div>
+                        </div>`;
+                    const requestsBody = client.requests.length > 0
+                        ? client.requests.map(r => `
+                            <div class="text-sm bg-slate-800 rounded-2xl p-3 mb-2">
+                                <div class="flex justify-between">
+                                    <span class="font-medium">${r.subject}</span>
+                                    <span class="text-xs px-2 py-0.5 rounded-full ${r.status === 'Open' ? 'bg-amber-900 text-amber-300' : 'bg-blue-900 text-blue-300'}">${r.status}</span>
+                                </div>
+                                <div class="text-xs text-slate-400 mt-1">${r.type} • ${r.date}</div>
+                            </div>`).join('')
+                        : '<div class="text-sm text-slate-400 italic">No open requests. Great!</div>';
+                    const quickActionsBody = `
+                        <div class="grid grid-cols-2 gap-3">
+                            <button onclick="launchInvoiceMaker()" class="flex flex-col items-center justify-center gap-y-2 p-4 bg-slate-800 hover:bg-emerald-900/30 transition-all rounded-2xl border border-slate-700 hover:border-emerald-600 text-sm">
+                                <i class="fa-solid fa-file-invoice text-2xl text-emerald-400"></i>
+                                <span class="font-medium">Create GST Invoice</span>
+                            </button>
+                            <button onclick="showSection('documents')" class="flex flex-col items-center justify-center gap-y-2 p-4 bg-slate-800 hover:bg-emerald-900/30 transition-all rounded-2xl border border-slate-700 hover:border-emerald-600 text-sm">
+                                <i class="fa-solid fa-upload text-2xl text-emerald-400"></i>
+                                <span class="font-medium">Submit Documents</span>
+                            </button>
+                            <button onclick="showSection('gst-calculator')" class="flex flex-col items-center justify-center gap-y-2 p-4 bg-slate-800 hover:bg-emerald-900/30 transition-all rounded-2xl border border-slate-700 hover:border-emerald-600 text-sm">
+                                <i class="fa-solid fa-calculator text-2xl text-emerald-400"></i>
+                                <span class="font-medium">GST Calculator</span>
+                            </button>
+                            <button onclick="showSection('requests')" class="flex flex-col items-center justify-center gap-y-2 p-4 bg-slate-800 hover:bg-emerald-900/30 transition-all rounded-2xl border border-slate-700 hover:border-emerald-600 text-sm">
+                                <i class="fa-solid fa-headset text-2xl text-emerald-400"></i>
+                                <span class="font-medium">Raise Request</span>
+                            </button>
+                        </div>`;
+                    if (typeof LedgerFlowLayout === 'undefined') return '';
+                    const invoicesPanel = LedgerFlowLayout.panel('Recent Invoices', invoicesBody, {
+                        icon: 'fa-file-invoice',
+                        iconClass: 'text-emerald-400',
+                        headExtra: `<button onclick="showSection('invoices')" class="text-xs text-emerald-400 hover:text-emerald-300">View All →</button>`
+                    });
+                    const sidePanel = `<div class="space-y-6">
+                            ${LedgerFlowLayout.panel('Quick Actions', quickActionsBody, { icon: 'fa-bolt', iconClass: 'text-emerald-400' })}
+                            ${LedgerFlowLayout.panel('Open Requests', requestsBody, { icon: 'fa-headset', iconClass: 'text-emerald-400' })}
+                           </div>`;
+                    return LedgerFlowLayout.contentGrid(`${invoicesPanel}${sidePanel}`, { cols: '2-1' });
+                })()}
             `;
         }
 
         function renderInvoices(container) {
             const client = getCurrentClient();
+            const filter = window.invoiceListFilter || 'all';
+            const allInvoices = client.invoices || [];
+            let invoices = allInvoices;
+            let title = 'My Invoices';
+            let subtitle = 'All GST compliant tax invoices generated for your business';
+
+            if (filter === 'pending' || filter === 'outstanding') {
+                invoices = allInvoices.filter(inv => inv.status !== 'Paid');
+                title = 'Outstanding Invoices';
+                subtitle = 'Invoices awaiting payment';
+            } else if (filter === 'paid') {
+                invoices = allInvoices.filter(inv => inv.status === 'Paid');
+                title = 'Paid Invoices';
+                subtitle = 'Invoices marked as paid';
+            }
             
+            const invActions = `
+                <label class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl text-sm font-semibold flex items-center gap-x-2 cursor-pointer h-10">
+                    <i class="fa-solid fa-file-csv"></i><span class="hidden sm:inline">Bulk CSV</span>
+                    <input type="file" accept=".csv,.txt" class="hidden" onchange="bulkImportInvoicesCSV(this)">
+                </label>
+                <button type="button" onclick="downloadSampleCSV('invoices')" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl text-sm font-semibold h-10">
+                    <i class="fa-solid fa-download"></i>
+                </button>
+                <button onclick="LedgerFlowPages.goPath('/invoices/create')" class="lf-btn lf-btn--primary"><i class="fa-solid fa-plus mr-1"></i>Create Invoice</button>`;
+
             container.innerHTML = `
-                <div class="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 class="text-2xl font-semibold tracking-tight">My Invoices</h2>
-                        <p class="text-sm text-slate-400">All GST compliant tax invoices generated for your business</p>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        <label class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-2xl text-sm font-semibold flex items-center gap-x-2 cursor-pointer">
-                            <i class="fa-solid fa-file-csv"></i>
-                            <span>Bulk Upload CSV</span>
-                            <input type="file" accept=".csv,.txt" class="hidden" onchange="bulkImportInvoicesCSV(this)">
-                        </label>
-                        <button type="button" onclick="downloadSampleCSV('invoices')" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-2xl text-sm font-semibold">
-                            <i class="fa-solid fa-download"></i> Sample CSV
-                        </button>
-                        <button onclick="launchInvoiceMaker()" 
-                                class="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 transition-all rounded-2xl font-semibold flex items-center gap-x-2 shadow-sm">
-                            <i class="fa-solid fa-plus"></i>
-                            <span>Create New GST Invoice</span>
-                        </button>
-                    </div>
-                </div>
+                ${LedgerFlowModules.renderModuleGuide('invoices', { compact: true, checkedFeatures: ['GST-compliant PDF', 'Payment status', 'Send to client', 'Record payment'] })}
+                ${LedgerFlowDesign.renderPageHeader({ title, subtitle, actionsHtml: invActions })}
 
                 <div class="lf-panel overflow-hidden">
-                    <table class="w-full data-table">
+                    <table class="w-full data-table lf-table lf-table--zebra">
                         <thead>
                             <tr>
                                 <th>Invoice No.</th>
@@ -2780,19 +3334,20 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                             </tr>
                         </thead>
                         <tbody>
-                            ${client.invoices.length > 0 ? client.invoices.map(inv => `
-                                <tr class="hover:bg-slate-800">
+                            ${invoices.length > 0 ? invoices.map(inv => {
+                                const activeKey = window.activeInvoiceId;
+                                const highlighted = activeKey && (inv.id === activeKey || inv.number === activeKey);
+                                return `
+                                <tr class="hover:bg-slate-800 ${highlighted ? 'lf-row-highlight' : ''}" id="inv-row-${inv.id}">
                                     <td class="font-mono font-semibold">${inv.number}</td>
                                     <td>${inv.date}</td>
                                     <td class="font-medium">${inv.partyName}</td>
-                                    <td class="text-right font-medium">₹${inv.taxable.toLocaleString('en-IN')}</td>
-                                    <td class="text-right text-emerald-400">₹${inv.cgst.toLocaleString('en-IN')}</td>
-                                    <td class="text-right text-emerald-400">₹${inv.sgst.toLocaleString('en-IN')}</td>
-                                    <td class="text-right text-blue-400">₹${inv.igst.toLocaleString('en-IN')}</td>
-                                    <td class="text-right font-bold">₹${inv.grandTotal.toLocaleString('en-IN')}</td>
-                                    <td>
-                                        <span class="inline-block px-3 py-0.5 text-xs font-bold rounded-full ${inv.status === 'Paid' ? 'bg-emerald-900 text-emerald-300' : 'bg-amber-900 text-amber-300'}">${inv.status}</span>
-                                    </td>
+                                    <td class="text-right lf-col-amount">₹${inv.taxable.toLocaleString('en-IN')}</td>
+                                    <td class="text-right lf-col-amount text-emerald-400">₹${inv.cgst.toLocaleString('en-IN')}</td>
+                                    <td class="text-right lf-col-amount text-emerald-400">₹${inv.sgst.toLocaleString('en-IN')}</td>
+                                    <td class="text-right lf-col-amount text-blue-400">₹${inv.igst.toLocaleString('en-IN')}</td>
+                                    <td class="text-right lf-col-amount font-bold">₹${inv.grandTotal.toLocaleString('en-IN')}</td>
+                                    <td>${LedgerFlowUI.statusBadge(inv.status)}</td>
                                     <td class="text-xs font-mono whitespace-nowrap">
                                         ${inv.ewayBill?.ewbNo
                                             ? `<span class="text-amber-300" title="Valid upto ${inv.ewayBill.validUpto ? new Date(inv.ewayBill.validUpto).toLocaleString('en-IN') : ''}">${LedgerFlowEwayBill.formatEwbNo(inv.ewayBill.ewbNo)}</span>`
@@ -2805,15 +3360,22 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                                         <button onclick="downloadInvoicePDF('${inv.id}')" title="Download PDF" class="text-emerald-400 hover:text-emerald-300 px-2"><i class="fa-solid fa-download"></i></button>
                                         ${!inv.ewayBill?.ewbNo && inv.grandTotal >= 50000 ? `<button onclick="generateEwayBillForInvoice('${inv.id}')" title="E-Way Bill" class="text-amber-400 hover:text-amber-300 px-2"><i class="fa-solid fa-truck-fast"></i></button>` : ''}
                                         <button onclick="sendInvoiceEmail('${inv.id}')" title="Send via Email" class="text-blue-400 hover:text-blue-300 px-2"><i class="fa-solid fa-envelope"></i></button>
+                                        ${inv.status !== 'Paid' ? `<button onclick="recordInvoicePayment('${inv.id}')" title="Record payment" class="text-violet-400 hover:text-violet-300 px-2"><i class="fa-solid fa-indian-rupee-sign"></i></button>` : ''}
                                     </td>
-                                </tr>
-                            `).join('') : `
-                                <tr><td colspan="11" class="text-center py-12 text-slate-400">No invoices created yet. Click "Create New GST Invoice" to get started.</td></tr>
+                                </tr>`;
+                            }).join('') : `
+                                <tr><td colspan="11">${LedgerFlowUI.renderEmptyState({ icon: 'fa-file-invoice', title: 'No invoices yet', copyKey: 'emptyInvoices', ctaLabel: 'Create Invoice', ctaOnclick: "LedgerFlowPages.goPath('/invoices/create')" })}</td></tr>
                             `}
                         </tbody>
                     </table>
                 </div>
             `;
+
+            if (window.activeInvoiceId) {
+                requestAnimationFrame(() => {
+                    document.querySelector('.lf-row-highlight')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                });
+            }
         }
 
         function renderDocTable(docs, options = {}) {
@@ -2831,6 +3393,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     <td class="text-xs text-slate-400">${doc.size}</td>
                     <td class="text-right whitespace-nowrap">
                         <button onclick="downloadDocument('${doc.id}')" title="Download" class="text-emerald-400 hover:text-emerald-300 px-2"><i class="fa-solid fa-download"></i></button>
+                        <button onclick="requestDocESign('${doc.id}')" title="Request e-Signature" class="text-violet-400 hover:text-violet-300 px-2"><i class="fa-solid fa-signature"></i></button>
                         ${!readOnly && allowDelete ? `<button onclick="deleteDocument('${doc.id}')" title="Delete" class="text-red-400 hover:text-red-300 px-2"><i class="fa-solid fa-trash"></i></button>` : ''}
                     </td>
                 </tr>
@@ -2845,14 +3408,35 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             const clientDocs = getClientDocuments(client);
             const isClient = isClientUser();
             const isFirm = isFirmUser();
+            const docFilter = isClient ? (window.documentListFilter || 'ca') : 'all';
+            const showCaDocs = !isClient || docFilter === 'ca' || docFilter === 'all';
+            const showMineDocs = !isClient || docFilter === 'mine' || docFilter === 'all';
+            const showUpload = !isClient || docFilter === 'upload' || docFilter === 'all';
+
+            const docTitles = {
+                mine: ['My Uploaded Documents', 'Purchase bills, invoices & receipts you submitted'],
+                ca: ['Shared by CA', 'GST returns, bank statements & compliance files from your accounting firm'],
+                upload: ['Upload New Documents', 'Submit purchase bills, receipts and supporting files to your CA'],
+                all: ['My Documents', 'View and upload documents for your business']
+            };
+            const [docTitle, docSubtitle] = docTitles[docFilter] || docTitles.all;
+
+            const allDocs = [...adminDocs, ...clientDocs];
+            const dropzone = typeof LedgerFlowScreens !== 'undefined' && showUpload
+                ? LedgerFlowScreens.renderDocDropzone()
+                : '';
+            const folders = typeof LedgerFlowScreens !== 'undefined'
+                ? `<div class="lf-doc-folders">${LedgerFlowScreens.renderDocFolders(allDocs)}</div>`
+                : '';
 
             container.innerHTML = `
-                <div class="mb-6">
-                    <h2 class="text-2xl font-semibold tracking-tight">${isClient ? 'Documents from Your CA' : 'Documents Center'}</h2>
-                    <p class="text-sm text-slate-400">${isClient
-                        ? 'View GST returns, bank statements & compliance files uploaded by your accounting firm'
-                        : 'Upload documents for clients or manage all client files'}</p>
-                </div>
+                ${LedgerFlowModules.renderModuleGuide('documents', { compact: true, checkedFeatures: ['Drag & drop', 'Folder view', 'Upload progress', 'e-Signature'] })}
+                ${LedgerFlowDesign.renderPageHeader({
+                    title: isClient ? docTitle : 'Documents Center',
+                    subtitle: isClient ? docSubtitle : 'Upload, organize, and review client files'
+                })}
+                ${folders}
+                ${showUpload ? dropzone : ''}
 
                 ${isFirm ? `
                 <div class="border-2 border-dashed border-blue-700 hover:border-blue-500 transition-colors rounded-3xl p-6 mb-6 bg-blue-950/30">
@@ -2876,58 +3460,52 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     </button>
                 </div>` : ''}
 
-                <!-- Documents from CA / Admin -->
+                ${showCaDocs ? `
                 <div class="bg-slate-900 border border-blue-800/50 rounded-3xl overflow-hidden mb-6">
                     <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between bg-blue-950/20">
                         <div class="font-semibold flex items-center gap-2">
                             <i class="fa-solid fa-building text-blue-400"></i>
-                            Documents from Accounting Firm (${adminDocs.length})
+                            Shared by CA (${adminDocs.length})
                         </div>
-                        <span class="text-xs text-blue-400 px-2 py-1 bg-blue-900/40 rounded-lg">Uploaded by your CA</span>
+                        <span class="text-xs text-blue-400 px-2 py-1 bg-blue-900/40 rounded-lg">From your accounting firm</span>
                     </div>
-                    <table class="w-full data-table">
+                    <table class="w-full data-table lf-table lf-table--zebra">
                         <thead><tr>
                             <th>Document</th><th>Type</th><th>Uploaded By</th><th>Date</th><th>Size</th><th></th>
                         </tr></thead>
                         <tbody>${renderDocTable(adminDocs, { readOnly: true, allowDelete: isFirm })}</tbody>
                     </table>
-                </div>
+                </div>` : ''}
 
-                <!-- Client own uploads -->
+                ${showMineDocs ? `
                 <div class="mb-4">
-                    <h3 class="font-semibold text-lg mb-1">${isClient ? 'My Uploaded Documents' : 'Client Uploaded Documents'}</h3>
+                    <h3 class="font-semibold text-lg mb-1">${isClient ? 'Uploaded by Me' : 'Client Uploaded Documents'}</h3>
                     <p class="text-xs text-slate-400 mb-3">Purchase bills, invoices, receipts you submit to your CA</p>
                 </div>
-                <div class="border-2 border-dashed border-slate-700 hover:border-emerald-500 transition-colors rounded-3xl p-6 text-center mb-4 bg-slate-900" id="dropzone">
-                    <i class="fa-solid fa-cloud-upload-alt text-4xl text-emerald-500 mb-3"></i>
-                    <div class="font-semibold text-sm">Upload your documents here</div>
-                    <div class="text-xs text-slate-400 mt-1">Purchase bills, expense receipts, bank slips, etc.</div>
-                    <input type="file" id="doc-upload" multiple class="hidden" onchange="handleDocumentUpload(event)">
-                    <button onclick="document.getElementById('doc-upload').click()" class="mt-3 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-semibold">Choose Files</button>
-                </div>
                 <div class="bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden">
-                    <table class="w-full data-table">
+                    <table class="w-full data-table lf-table lf-table--zebra">
                         <thead><tr>
                             <th>Document</th><th>Type</th><th>Uploaded By</th><th>Date</th><th>Size</th><th></th>
                         </tr></thead>
                         <tbody>${renderDocTable(clientDocs, { allowDelete: true })}</tbody>
                     </table>
-                </div>
+                </div>` : ''}
             `;
 
-            setTimeout(() => {
-                const dropzone = document.getElementById('dropzone');
-                if (dropzone) {
-                    dropzone.ondragover = e => { e.preventDefault(); dropzone.classList.add('border-emerald-500'); };
-                    dropzone.ondragleave = () => dropzone.classList.remove('border-emerald-500');
-                    dropzone.ondrop = e => {
-                        e.preventDefault();
-                        dropzone.classList.remove('border-emerald-500');
-                        handleDocumentUpload({ target: { files: e.dataTransfer.files } });
-                    };
-                }
-            }, 100);
+            setTimeout(() => wireDocDropzone(), 100);
         }
+
+        window.wireDocDropzone = function wireDocDropzone() {
+            const dropzone = document.getElementById('lf-dropzone');
+            if (!dropzone) return;
+            dropzone.ondragover = e => { e.preventDefault(); dropzone.classList.add('lf-dropzone--active'); };
+            dropzone.ondragleave = () => dropzone.classList.remove('lf-dropzone--active');
+            dropzone.ondrop = e => {
+                e.preventDefault();
+                dropzone.classList.remove('lf-dropzone--active');
+                handleDocumentUpload({ target: { files: e.dataTransfer.files } });
+            };
+        };
 
         function addDocumentRecord(file, opts = {}) {
             const client = getCurrentClient();
@@ -2945,7 +3523,8 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 uploadedByName: opts.uploadedByName || (uploadedBy === 'admin' ? (currentUser?.name || 'CA') : client.name),
                 notes: opts.notes || '',
                 fileData: opts.fileData || '',
-                approvalStatus: opts.approvalStatus || (uploadedBy === 'admin' ? 'approved' : uploadedBy === 'client' ? 'approved' : 'pending')
+                approvalStatus: opts.approvalStatus || (uploadedBy === 'admin' ? 'approved' : 'pending'),
+                reviewStatus: opts.reviewStatus || (uploadedBy === 'client' ? 'pending' : 'approved')
             };
             client.documents.unshift(doc);
             if (!doc.fileData && file.size < 512000) {
@@ -2961,11 +3540,40 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         function handleDocumentUpload(e) {
             const files = e.target.files;
             if (!files || !files.length) return;
-            Array.from(files).forEach(file => addDocumentRecord(file, { uploadedBy: 'client' }));
-            saveAppData();
-            showToast(`${files.length} document(s) uploaded`);
-            showSection('documents');
+            const progress = document.getElementById('lf-upload-progress');
+            const fill = document.getElementById('lf-upload-progress-fill');
+            const text = document.getElementById('lf-upload-progress-text');
+            if (progress) progress.classList.remove('hidden');
+            const list = Array.from(files);
+            let done = 0;
+            list.forEach((file, idx) => {
+                setTimeout(() => {
+                    addDocumentRecord(file, { uploadedBy: isFirmUser() ? 'admin' : 'client' });
+                    done++;
+                    const pct = Math.round((done / list.length) * 100);
+                    if (fill) fill.style.width = pct + '%';
+                    if (text) text.textContent = `Uploading ${done} of ${list.length}…`;
+                    if (done === list.length) {
+                        saveAppData();
+                        showToast(`${list.length} document(s) uploaded`);
+                        if (progress) setTimeout(() => progress.classList.add('hidden'), 600);
+                        showSection('documents');
+                    }
+                }, idx * 180);
+            });
         }
+
+        window.requestDocESign = function requestDocESign(docId) {
+            showToast('e-Signature request queued — your CA will be notified', 'info');
+        };
+
+        window.showPayQrModal = function showPayQrModal() {
+            const client = getCurrentClient();
+            const upi = appData.firmSettings?.bank?.account
+                ? `upi://pay?pa=${encodeURIComponent(appData.firmSettings.email || 'ca@firm.in')}&pn=${encodeURIComponent(appData.firmSettings?.name || 'CA')}&cu=INR`
+                : '';
+            alert(`Pay via UPI\n\nScan QR in your UPI app or ask ${appData.firmSettings?.name || 'your CA'} for payment details.\n\nOutstanding invoices are listed under My Invoices.`);
+        };
 
         function handleAdminDocumentUpload() {
             if (!isFirmUser()) return;
@@ -2999,10 +3607,17 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
 
         function renderRequests(container) {
             const client = getCurrentClient();
+            const tab = window.commTab || 'messages';
             
             container.innerHTML = `
                 <div class="max-w-3xl">
-                    <h2 class="text-2xl font-semibold tracking-tight mb-1">Raise a Request / Ticket</h2>
+                    ${LedgerFlowModules.renderModuleGuide('communication', { checkedFeatures: ['In-app messaging', 'Approval workflow'] })}
+                    <div class="flex gap-2 mb-6 border-b border-slate-700 pb-2">
+                        <button onclick="window.commTab='messages';showSection('requests')" class="px-4 py-2 text-sm font-semibold rounded-t-xl ${tab === 'messages' ? 'bg-slate-800 text-teal-400 border-b-2 border-teal-400' : 'text-slate-400'}">Messages</button>
+                        ${isFirmUser() ? `<button onclick="showSection('team-approvals')" class="px-4 py-2 text-sm font-semibold rounded-t-xl text-slate-400 hover:text-slate-200">Approvals</button>` : ''}
+                        <button onclick="window.commTab='notifications';showSection('dashboard')" class="px-4 py-2 text-sm font-semibold rounded-t-xl ${tab === 'notifications' ? 'bg-slate-800 text-teal-400' : 'text-slate-400'}">Notifications</button>
+                    </div>
+                    <h2 class="text-2xl font-semibold tracking-tight mb-1">Messages &amp; Requests</h2>
                     <p class="text-slate-400 mb-6">Send a message directly to your dedicated accounting team. We usually respond within 4 business hours.</p>
                     
                     <div class="bg-slate-900 border border-slate-700 rounded-3xl p-7">
@@ -3096,7 +3711,33 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         }
 
         function renderGSTCalculator(container) {
-            container.innerHTML = `
+            const client = getCurrentClient();
+            const deadlines = LedgerFlowModules.getUpcomingGstDeadlines(3);
+            const invoiceCount = (client?.invoices || []).length;
+            const compliantCount = (client?.invoices || []).filter(i => i.number && i.partyName && i.grandTotal > 0).length;
+
+            const gstHeader = `
+                ${LedgerFlowModules.renderModuleGuide('gst', { checkedFeatures: ['GSTR-1 / GSTR-3B status', 'Invoice validation (Rule 46)'] })}
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="stat-card rounded-2xl p-4">
+                        <div class="text-xs text-slate-400">GSTR-1 (monthly)</div>
+                        <div class="text-lg font-semibold mt-1 text-emerald-400">Ready to file</div>
+                        <div class="text-xs text-slate-500 mt-1">${invoiceCount} outward invoices</div>
+                    </div>
+                    <div class="stat-card rounded-2xl p-4">
+                        <div class="text-xs text-slate-400">GSTR-3B</div>
+                        <div class="text-lg font-semibold mt-1 text-amber-400">Due ${deadlines.find(d => d.name === 'GSTR-3B')?.dueLabel || '—'}</div>
+                        <div class="text-xs text-slate-500 mt-1">ITC & liability summary</div>
+                    </div>
+                    <div class="stat-card rounded-2xl p-4">
+                        <div class="text-xs text-slate-400">Rule 46 compliance</div>
+                        <div class="text-lg font-semibold mt-1">${compliantCount}/${invoiceCount} invoices</div>
+                        <div class="text-xs text-slate-500 mt-1">Required fields present</div>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = gstHeader + `
                 <div class="max-w-2xl mx-auto">
                     <h2 class="text-2xl font-semibold tracking-tight mb-1">GST Tax Calculator</h2>
                     <p class="text-slate-400 mb-6">Instantly calculate CGST, SGST, IGST and total invoice value</p>
@@ -3218,7 +3859,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     <div id="hsn-search-stats" class="text-xs text-slate-400 mb-2"></div>
                     
                     <div class="bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden max-h-[calc(100vh-280px)] overflow-y-auto custom-scroll">
-                        <table class="w-full data-table" id="hsn-table">
+                        <table class="w-full data-table lf-table lf-table--zebra" id="hsn-table">
                             <thead class="sticky top-0 z-10">
                                 <tr>
                                     <th class="w-36">HSN / SAC Code</th>
@@ -3493,19 +4134,36 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
 
         function renderSalesReport(container) {
             const client = getCurrentClient();
-            const totalTaxable = client.invoices.reduce((s, i) => s + i.taxable, 0);
-            const totalGST = client.invoices.reduce((s, i) => s + i.cgst + i.sgst + i.igst, 0);
+            const from = window.reportDateFrom || '';
+            const to = window.reportDateTo || '';
+            const filtered = LedgerFlowModules.filterByDateRange(client.invoices, from, to);
+            const totalTaxable = filtered.reduce((s, i) => s + i.taxable, 0);
+            const totalGST = filtered.reduce((s, i) => s + i.cgst + i.sgst + i.igst, 0);
             
             container.innerHTML = `
+                ${LedgerFlowModules.renderModuleGuide('reports', { checkedFeatures: ['Export to Excel / PDF', 'Date range filters'] })}
                 <div class="flex justify-between items-end mb-6">
                     <div>
-                        <h2 class="text-2xl font-semibold tracking-tight">Sales Report</h2>
-                        <p class="text-sm text-slate-400">Generate detailed GST sales register for returns & analysis</p>
+                        <h2 class="text-2xl font-semibold tracking-tight">Revenue Report</h2>
+                        <p class="text-sm text-slate-400">GST sales register with date range filters — export to Excel</p>
                     </div>
                     <button onclick="exportSalesReportToExcel()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl text-sm font-semibold flex items-center gap-x-2">
                         <i class="fa-solid fa-file-excel"></i>
-                        <span>Export Full Report to Excel</span>
+                        <span>Export to Excel</span>
                     </button>
+                </div>
+
+                <div class="flex flex-wrap gap-3 mb-6 items-end">
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">From date</label>
+                        <input type="date" id="report-from" value="${from}" class="form-input bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">To date</label>
+                        <input type="date" id="report-to" value="${to}" class="form-input bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm">
+                    </div>
+                    <button onclick="applyReportDateFilter()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-sm font-semibold">Apply</button>
+                    <button onclick="window.reportDateFrom='';window.reportDateTo='';showSection('sales-report')" class="px-4 py-2 text-slate-400 text-sm">Clear</button>
                 </div>
                 
                 <div class="grid grid-cols-3 gap-4 mb-6">
@@ -3519,12 +4177,12 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     </div>
                     <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4">
                         <div class="text-xs text-slate-400">Number of Invoices</div>
-                        <div class="text-3xl font-semibold mt-1">${client.invoices.length}</div>
+                        <div class="text-3xl font-semibold mt-1">${filtered.length}</div>
                     </div>
                 </div>
                 
                 <div class="bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden">
-                    <table class="w-full data-table">
+                    <table class="w-full data-table lf-table lf-table--zebra">
                         <thead>
                             <tr>
                                 <th>Invoice No</th>
@@ -3536,7 +4194,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                             </tr>
                         </thead>
                         <tbody>
-                            ${client.invoices.map(inv => `
+                            ${filtered.map(inv => `
                                 <tr>
                                     <td class="font-mono">${inv.number}</td>
                                     <td>${inv.date}</td>
@@ -3552,19 +4210,28 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             `;
         }
 
+        window.applyReportDateFilter = function applyReportDateFilter() {
+            window.reportDateFrom = document.getElementById('report-from')?.value || '';
+            window.reportDateTo = document.getElementById('report-to')?.value || '';
+            showSection('sales-report');
+        };
+
         function exportSalesReportToExcel() {
             const client = getCurrentClient();
+            const from = window.reportDateFrom || '';
+            const to = window.reportDateTo || '';
+            const invoices = LedgerFlowModules.filterByDateRange(client.invoices, from, to);
             const wb = XLSX.utils.book_new();
             
             const data = [
                 ["GST SALES REGISTER", "", "", "", "", ""],
                 ["Client:", client.name, "GSTIN:", client.gstin, "", ""],
-                ["Period:", "FY 2026-27", "", "", "", ""],
+                ["Period:", from && to ? `${from} to ${to}` : "All", "", "", "", ""],
                 ["", "", "", "", "", ""],
                 ["Invoice No", "Date", "Customer Name", "Taxable Value (₹)", "Total GST (₹)", "Invoice Total (₹)"]
             ];
             
-            client.invoices.forEach(inv => {
+            invoices.forEach(inv => {
                 data.push([
                     inv.number, inv.date, inv.partyName, inv.taxable, 
                     (inv.cgst + inv.sgst + inv.igst), inv.grandTotal
@@ -3662,7 +4329,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 </div>
 
                 <div class="bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden">
-                    <table class="w-full data-table">
+                    <table class="w-full data-table lf-table lf-table--zebra">
                         <thead>
                             <tr>
                                 <th>Date</th>
@@ -3766,7 +4433,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     <p class="text-slate-400 mb-6">Revenue and estimated profitability by customer/party</p>
                     
                     <div class="bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden">
-                        <table class="w-full data-table">
+                        <table class="w-full data-table lf-table lf-table--zebra">
                             <thead>
                                 <tr>
                                     <th>Party Name</th>
@@ -3821,7 +4488,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 </div>
                 
                 <div class="bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden">
-                    <table class="w-full data-table">
+                    <table class="w-full data-table lf-table lf-table--zebra">
                         <thead>
                             <tr>
                                 <th>Name</th>
@@ -3886,7 +4553,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 </div>
                 
                 <div class="bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden">
-                    <table class="w-full data-table">
+                    <table class="w-full data-table lf-table lf-table--zebra">
                         <thead>
                             <tr>
                                 <th>Item Name</th>
@@ -3936,6 +4603,99 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             }
         }
 
+        function renderAllClients(container) {
+            if (!isFirmUser()) {
+                container.innerHTML = '<div class="text-slate-400">Admin access required.</div>';
+                return;
+            }
+
+            const clients = Object.entries(appData.clients).map(([id, c]) => ({ id, ...c }));
+            const states = [...new Set(clients.map(c => c.stateCode).filter(Boolean))];
+
+            container.innerHTML = `
+                ${LedgerFlowModules.renderModuleGuide('clients', { checkedFeatures: ['Search', 'Filters', 'Avatar initials', 'Hover actions'] })}
+                ${LedgerFlowDesign.renderPageHeader({
+                    title: 'All Clients',
+                    subtitle: 'Search and filter — outstanding, last activity, and quick actions on hover',
+                    actionsHtml: `<button onclick="addNewClient()" class="lf-btn lf-btn--primary"><i class="fa-solid fa-user-plus mr-1"></i>Add Client</button>`
+                })}
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                    <input type="search" id="acl-search" placeholder="Search name, email, GSTIN…" oninput="filterAllClientsTable()"
+                           class="form-input md:col-span-2">
+                    <select id="acl-state" onchange="filterAllClientsTable()" class="form-input">
+                        <option value="">All states</option>
+                        ${states.map(s => `<option value="${s}">${s}</option>`).join('')}
+                    </select>
+                    <select id="acl-status" onchange="filterAllClientsTable()" class="form-input">
+                        <option value="">All statuses</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="pending">Pending Approval</option>
+                    </select>
+                </div>
+                <div class="lf-panel overflow-hidden">
+                    <table class="w-full data-table lf-table lf-table--zebra" id="all-clients-table">
+                        <thead><tr>
+                            <th>Client</th><th>GSTIN</th><th>State</th><th>Outstanding</th><th>Last Activity</th><th>Status</th><th></th>
+                        </tr></thead>
+                        <tbody>
+                            ${clients.map(c => {
+                                const meta = typeof LedgerFlowScreens !== 'undefined'
+                                    ? LedgerFlowScreens.getClientListMeta(c, appData)
+                                    : { status: 'active', statusLabel: 'Active', outstanding: 0, lastActivity: '—' };
+                                const badge = typeof LedgerFlowScreens !== 'undefined'
+                                    ? LedgerFlowScreens.renderClientStatusBadge(meta.status, meta.statusLabel)
+                                    : meta.statusLabel;
+                                return `
+                                    <tr class="acl-row lf-client-row" data-name="${escAttr((c.name || '').toLowerCase())}" data-gstin="${escAttr((c.gstin || '').toLowerCase())}" data-email="${escAttr((c.email || '').toLowerCase())}" data-state="${escAttr(c.stateCode || '')}" data-status="${meta.status}">
+                                        <td>
+                                            <div class="flex items-center gap-2.5">
+                                                ${typeof LedgerFlowScreens !== 'undefined' ? LedgerFlowScreens.renderAvatar(c.name) : ''}
+                                                <span class="font-medium">${escHtml(c.name)}</span>
+                                            </div>
+                                        </td>
+                                        <td class="font-mono text-xs">${escHtml(c.gstin || '—')}</td>
+                                        <td class="text-xs">${escHtml(c.stateCode || '—')}</td>
+                                        <td class="lf-col-amount text-right">₹${meta.outstanding.toLocaleString('en-IN')}</td>
+                                        <td class="text-xs text-slate-500">${escHtml(meta.lastActivity)}</td>
+                                        <td>${badge}</td>
+                                        <td class="text-right whitespace-nowrap">
+                                            <span class="lf-row-actions">
+                                                <button type="button" onclick="LedgerFlowPages.openClient('${c.id}', 'overview')" class="lf-row-action">Profile</button>
+                                                <button type="button" onclick="switchToClientFromOverview('${c.id}')" class="lf-row-action">Manage</button>
+                                                <button type="button" onclick="launchInvoiceMaker()" class="lf-row-action">Invoice</button>
+                                            </span>
+                                        </td>
+                                    </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        window.filterAllClientsTable = function filterAllClientsTable() {
+            const q = (document.getElementById('acl-search')?.value || '').toLowerCase();
+            const state = document.getElementById('acl-state')?.value || '';
+            const status = document.getElementById('acl-status')?.value || '';
+            document.querySelectorAll('#all-clients-table .acl-row').forEach(row => {
+                const matchQ = !q || row.dataset.name.includes(q) || row.dataset.gstin.includes(q) || row.dataset.email.includes(q);
+                const matchState = !state || row.dataset.state === state;
+                const matchStatus = !status || row.dataset.status === status;
+                row.classList.toggle('hidden', !(matchQ && matchState && matchStatus));
+            });
+        };
+
+        window.openClientDetail = function openClientDetail(clientId) {
+            if (typeof LedgerFlowPages !== 'undefined') {
+                LedgerFlowPages.openClient(clientId, 'overview');
+            } else {
+                currentClientId = clientId;
+                populateClientSwitcher();
+                showSection('client-management');
+            }
+        };
+
         function renderAdminClientManagement(container) {
             if (!isFirmUser()) {
                 container.innerHTML = '<div class="text-slate-400">Admin access required.</div>';
@@ -3963,11 +4723,27 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             const loginPassword = user?.password || '';
             const clientCount = Object.keys(appData.clients).length;
 
+            const clientTabs = [
+                { id: 'overview', label: 'Overview' },
+                { id: 'invoices', label: 'Invoices' },
+                { id: 'documents', label: 'Documents' },
+                { id: 'messages', label: 'Messages' }
+            ];
+            const activeTab = (typeof LedgerFlowPages !== 'undefined' && LedgerFlowPages.getRouteContext?.().clientTab) || 'overview';
+
             container.innerHTML = `
+                ${LedgerFlowModules.renderModuleGuide('clients', { compact: true, checkedFeatures: ['Add/Edit form', 'Client profile'] })}
                 <div class="max-w-4xl">
+                    <div class="flex flex-wrap gap-1 mb-5 p-1 bg-slate-900/80 border border-slate-700 rounded-2xl w-fit">
+                        ${clientTabs.map(t => `
+                            <button type="button" onclick="LedgerFlowPages.openClient('${client.id}', '${t.id}')"
+                                class="px-4 py-2 text-sm font-semibold rounded-xl transition-colors ${activeTab === t.id ? 'bg-teal-600/30 text-teal-300 border border-teal-600/50' : 'text-slate-400 hover:text-slate-200'}">
+                                ${t.label}
+                            </button>`).join('')}
+                    </div>
                     <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
                         <div>
-                            <h2 class="text-2xl font-semibold tracking-tight mb-1">Manage Client</h2>
+                            <h2 class="text-2xl font-semibold tracking-tight mb-1">Client Detail — Edit Form</h2>
                             <p class="text-slate-400 text-sm">Edit profile, CRM login credentials, and access for <strong class="text-white">${escHtml(client.name)}</strong></p>
                         </div>
                         <div class="flex items-center gap-2">
@@ -4211,8 +4987,13 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         function renderProfile(container) {
             const client = getCurrentClient();
             
+            const appearanceCard = typeof LedgerFlowTheme !== 'undefined'
+                ? LedgerFlowTheme.renderAppearanceCard()
+                : '';
+
             container.innerHTML = `
                 <div class="max-w-3xl">
+                    ${appearanceCard}
                     <h2 class="text-2xl font-semibold tracking-tight mb-1">My Profile & Invoice Settings</h2>
                     <p class="text-slate-400 mb-6">This information auto-populates in your GST Invoice Maker</p>
                     
@@ -4341,8 +5122,11 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
 
         window.addEventListener('message', e => {
             if (e.data?.type === 'ledgerflow-invoice-saved') {
-                showToast('Invoice saved to CRM!');
-                closeInvoiceMaker();
+                showToast(`Invoice ${e.data.invoiceNumber || ''} saved to CRM`);
+                if (!e.data.keepOpen) closeInvoiceMaker();
+            }
+            if (e.data?.type === 'ledgerflow-send-invoice') {
+                sendInvoiceEmail(e.data.invoiceId);
             }
         });
 
@@ -4919,17 +5703,38 @@ Sent via LedgerFlow CRM`;
             showToast(`Email opened for ${to}. Download PDF and attach before sending.`);
         }
 
+        window.recordInvoicePayment = function recordInvoicePayment(invId) {
+            const client = getCurrentClient();
+            const inv = client.invoices.find(i => i.id === invId);
+            if (!inv || inv.status === 'Paid') return;
+            const mode = prompt(`Record payment for ${inv.number}\nAmount: ₹${inv.grandTotal}\n\nPayment mode (UPI / Bank / Cash):`, 'Bank');
+            if (!mode) return;
+            inv.status = 'Paid';
+            inv.paidAt = new Date().toISOString().split('T')[0];
+            inv.paymentMode = mode;
+            saveAppData();
+            showToast(`Payment recorded for ${inv.number}`);
+            showSection('invoices');
+        };
+
         function viewInvoiceDetails(invId) {
             const client = getCurrentClient();
             const inv = client.invoices.find(i => i.id === invId);
             if (!inv) return;
-            
+
+            if (typeof LedgerFlowPages !== 'undefined') {
+                LedgerFlowPages.openInvoice(inv.number || inv.id);
+                showToast(`Invoice ${inv.number}`, 'info');
+                return;
+            }
+
             const tcsInfo = inv.tcs > 0 ? `\nTCS: ₹${inv.tcs} (@ ${inv.tcsRate}% - ${inv.tcsSection})` : '';
             const emailInfo = inv.emailSent ? `\nEmail sent: ${inv.emailSent}` : '';
+            const payInfo = inv.status === 'Paid' ? `\nPaid: ${inv.paidAt || 'Yes'}${inv.paymentMode ? ' via ' + inv.paymentMode : ''}` : '';
             const ewbInfo = inv.ewayBill?.ewbNo
                 ? `\nE-Way Bill: ${LedgerFlowEwayBill.formatEwbNo(inv.ewayBill.ewbNo)}${inv.ewayBill.validUpto ? ' (valid upto ' + new Date(inv.ewayBill.validUpto).toLocaleString('en-IN') + ')' : ''}`
                 : (inv.grandTotal >= 50000 ? '\nE-Way Bill: Not generated yet' : '');
-            alert(`Invoice ${inv.number}\n\nParty: ${inv.partyName}\nDate: ${inv.date}\n\nTaxable: ₹${inv.taxable}\nCGST: ₹${inv.cgst} | SGST: ₹${inv.sgst} | IGST: ₹${inv.igst}${tcsInfo}\nGrand Total: ₹${inv.grandTotal}\nStatus: ${inv.status}${ewbInfo}${emailInfo}`);
+            alert(`Invoice ${inv.number}\n\nParty: ${inv.partyName}\nDate: ${inv.date}\n\nTaxable: ₹${inv.taxable}\nCGST: ₹${inv.cgst} | SGST: ₹${inv.sgst} | IGST: ₹${inv.igst}${tcsInfo}\nGrand Total: ₹${inv.grandTotal}\nStatus: ${inv.status}${payInfo}${ewbInfo}${emailInfo}`);
         }
 
         async function generateEwayBillForInvoice(invId) {
@@ -4977,6 +5782,8 @@ Sent via LedgerFlow CRM`;
 
         // ==================== FIRM OVERVIEW ====================
         function showFirmOverview() {
+            showSection('all-clients');
+            return;
             const main = document.getElementById('main-content');
             main.innerHTML = `
                 <div class="mb-6">
@@ -5049,13 +5856,25 @@ Sent via LedgerFlow CRM`;
             if (!appData.pendingSignups) appData.pendingSignups = [];
             const defaults = {
                 firm: { email: 'adityavohra08@gmail.com', password: '2004Aditya@', name: 'ADITYA VOHRA', role: 'firm' },
-                c1: { email: 'info@sharmatraders.in', password: 'client123', name: 'Sharma Traders', role: 'client', clientId: 'c1' },
-                c2: { email: 'billing@technova.in', password: 'client123', name: 'TechNova Solutions', role: 'client', clientId: 'c2' },
-                c3: { email: 'accounts@freshmart.in', password: 'client123', name: 'FreshMart Retail', role: 'client', clientId: 'c3' }
+                team1: { email: 'staff@wealthbuilders.in', password: 'team123', name: 'Priya Sharma', role: 'team', assignedClientIds: ['c1', 'c2'], blocked: false },
+                c1: { email: 'info@sharmatraders.in', password: 'client123', name: 'Sharma Traders', role: 'client', clientId: 'c1', blocked: false },
+                c2: { email: 'billing@technova.in', password: 'client123', name: 'TechNova Solutions', role: 'client', clientId: 'c2', blocked: false },
+                c3: { email: 'accounts@freshmart.in', password: 'client123', name: 'FreshMart Retail', role: 'client', clientId: 'c3', blocked: false }
             };
             if (!appData.users) appData.users = {};
             Object.keys(defaults).forEach(k => {
-                if (!appData.users[k]) appData.users[k] = defaults[k];
+                const def = defaults[k];
+                if (!appData.users[k]) {
+                    appData.users[k] = { ...def };
+                } else {
+                    appData.users[k].email = def.email;
+                    appData.users[k].password = def.password;
+                    appData.users[k].name = def.name;
+                    appData.users[k].role = def.role;
+                    if (def.clientId) appData.users[k].clientId = def.clientId;
+                    if (def.assignedClientIds) appData.users[k].assignedClientIds = def.assignedClientIds;
+                    if (def.blocked === false) appData.users[k].blocked = false;
+                }
             });
             Object.values(appData.clients).forEach(c => {
                 const exists = Object.values(appData.users).some(u => u.clientId === c.id);
@@ -5063,6 +5882,9 @@ Sent via LedgerFlow CRM`;
                     appData.users[c.id] = { email: c.email, password: 'client123', name: c.name, role: 'client', clientId: c.id, blocked: false };
                 }
             });
+            if (!isBackendMode() && canUseLocalStorage) {
+                safeSetItem('ledgerflow_crm_data', JSON.stringify(appData));
+            }
         }
 
         async function initializeApp() {
@@ -5092,7 +5914,7 @@ Sent via LedgerFlow CRM`;
             if (await restoreSession()) {
                 populateClientSwitcher();
                 applyRoleBasedUI();
-                showSection('dashboard');
+                navigateAfterLogin();
             }
 
             if (typeof initGoogleAuth === 'function') await initGoogleAuth();

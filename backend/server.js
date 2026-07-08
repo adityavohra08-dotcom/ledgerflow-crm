@@ -67,7 +67,7 @@ const {
     TENANT_NAME,
     firmSettings: DEFAULT_FIRM_SETTINGS
 } = require('./firm-config');
-const API_VERSION = '3.0.0-ui-refresh';
+const API_VERSION = '3.12.1-capabilities-full';
 const authRateLimit = createAuthRateLimiter();
 const otpSendRateLimit = createOtpSendRateLimiter();
 const INLINE_USER_PASSWORDS = {
@@ -754,8 +754,10 @@ app.post('/api/public/resend', authRateLimit, (req, res) => {
 const frontendPath = path.join(__dirname, '..');
 app.use(express.static(frontendPath, {
     setHeaders(res, filePath) {
-        if (/\.(html|js)$/i.test(filePath)) {
+        if (/\.(html|js|css)$/i.test(filePath)) {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
         }
     }
 }));
@@ -763,6 +765,9 @@ app.use(express.static(frontendPath, {
 app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api/')) return next();
     const indexPath = path.join(frontendPath, 'index.html');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(indexPath, err => { if (err) next(); });
 });
 
