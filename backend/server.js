@@ -66,7 +66,7 @@ const {
     TENANT_NAME,
     firmSettings: DEFAULT_FIRM_SETTINGS
 } = require('./firm-config');
-const API_VERSION = '2.8.2-team-tools';
+const API_VERSION = '2.8.3-client-sidebar';
 const authRateLimit = createAuthRateLimiter();
 const otpSendRateLimit = createOtpSendRateLimiter();
 const INLINE_USER_PASSWORDS = {
@@ -721,7 +721,13 @@ app.post('/api/public/resend', authRateLimit, (req, res) => {
 });
 
 const frontendPath = path.join(__dirname, '..');
-app.use(express.static(frontendPath));
+app.use(express.static(frontendPath, {
+    setHeaders(res, filePath) {
+        if (/\.(html|js)$/i.test(filePath)) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+    }
+}));
 
 app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api/')) return next();
