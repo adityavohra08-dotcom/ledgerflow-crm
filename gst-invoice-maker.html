@@ -9,7 +9,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="invoice-pdf-template.js"></script>
+    <script src="invoice-pdf-template.js?v=3.14.0"></script>
+    <script>
+        (function () {
+            var p = new URLSearchParams(location.search).get('theme');
+            if (!p) try { p = localStorage.getItem('ledgerflow_theme') || 'light'; } catch (e) { p = 'light'; }
+            if (p === 'system') p = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-im-theme', p === 'dark' ? 'dark' : 'light');
+        })();
+    </script>
     <script src="ewaybill-integration.js?v=2.9.0"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
@@ -162,11 +170,48 @@
             color: #34d399;
             margin-bottom: 0.75rem;
         }
+
+        /* Maker shell — syncs with CRM profile theme */
+        :root { --im-accent: #0d9488; --im-accent-glow: rgba(13, 148, 136, 0.25); }
+        html[data-im-theme="dark"] {
+            --im-bg: #020617; --im-panel: #0f172a; --im-panel-deep: #020617;
+            --im-border: #334155; --im-text: #e2e8f0; --im-muted: #94a3b8;
+            --im-input: #020617; --im-accent: #2dd4bf; --im-accent-glow: rgba(45, 212, 191, 0.2);
+        }
+        html[data-im-theme="light"] {
+            --im-bg: #f1f5f9; --im-panel: #ffffff; --im-panel-deep: #f8fafc;
+            --im-border: #e2e8f0; --im-text: #0f172a; --im-muted: #64748b;
+            --im-input: #f8fafc; --im-accent: #0d9488; --im-accent-glow: rgba(13, 148, 136, 0.15);
+        }
+        body.im-shell {
+            background: var(--im-bg) !important;
+            color: var(--im-text) !important;
+            transition: background 0.25s, color 0.25s;
+        }
+        .im-nav, .im-footer { background: var(--im-panel) !important; border-color: var(--im-border) !important; }
+        .im-panel { background: var(--im-panel) !important; border-color: var(--im-border) !important; color: var(--im-text); }
+        .im-panel-deep { background: var(--im-panel-deep) !important; border-color: var(--im-border) !important; }
+        .im-muted { color: var(--im-muted) !important; }
+        .im-input {
+            background: var(--im-input) !important;
+            border-color: var(--im-border) !important;
+            color: var(--im-text) !important;
+        }
+        .im-input:focus { border-color: var(--im-accent) !important; box-shadow: 0 0 0 3px var(--im-accent-glow) !important; }
+        .im-btn-ghost { background: var(--im-panel-deep) !important; border: 1px solid var(--im-border) !important; color: var(--im-text) !important; }
+        .im-btn-ghost:hover { border-color: var(--im-accent) !important; }
+        .im-theme-pill {
+            font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+            background: var(--im-accent-glow); color: var(--im-accent); border: 1px solid var(--im-border);
+            text-transform: uppercase; letter-spacing: 0.06em;
+        }
+        .invoice-preview { max-width: 100%; margin: 0 auto; box-shadow: 0 20px 50px -12px rgba(0,0,0,0.2); }
+        html[data-im-theme="light"] .im-wix-banner { background: #fef3c7 !important; color: #92400e !important; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-200">
+<body class="im-shell bg-slate-950 text-slate-200">
     <!-- CRM Embed Toolbar (shown when opened from LedgerFlow CRM) -->
-    <div id="crm-toolbar" class="hidden bg-slate-900 border-b border-slate-700 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+    <div id="crm-toolbar" class="hidden im-panel border-b border-slate-700 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-3 text-sm min-w-0">
             <i class="fa-solid fa-link text-emerald-400"></i>
             <span class="truncate">LedgerFlow CRM · <strong id="crm-client-name">Client</strong></span>
@@ -189,14 +234,14 @@
     <div id="crm-invoice-success-host"></div>
 
     <!-- Wix Compatibility Banner -->
-    <div id="wix-banner" class="bg-yellow-500 text-yellow-900 text-center py-2 text-sm font-medium">
+    <div id="wix-banner" class="im-wix-banner bg-yellow-500 text-yellow-900 text-center py-2 text-sm font-medium">
         <i class="fa-solid fa-info-circle mr-2"></i>
         <strong>Click <strong>"Open Full Version"</strong> button for best experience (recommended). 
         Use <strong>"Print / Save as PDF"</strong> for quick invoices inside Wix.
     </div>
 
     <!-- Top Navigation -->
-    <nav class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
+    <nav class="im-nav border-b border-slate-800 sticky top-0 z-50">
         <div class="max-w-screen-2xl mx-auto">
             <div class="px-8 py-4 flex items-center justify-between">
                 <div class="flex items-center gap-x-3">
@@ -254,7 +299,7 @@
                         <span>Print / Save as PDF</span>
                     </button>
                     
-                    <button onclick="showWixPDFNote()" 
+                    <button onclick="downloadPDF()" 
                             class="flex items-center gap-x-2 px-5 py-2 text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 transition-all text-white rounded-xl shadow-sm">
                         <i class="fa-solid fa-file-pdf mr-2"></i>
                         <span>Download PDF</span>
@@ -269,10 +314,10 @@
             
             <!-- LEFT PANEL: FORM CONTROLS -->
             <div class="lg:col-span-5 xl:col-span-5">
-                <div class="bg-slate-900 rounded-3xl border border-slate-800 shadow-xl overflow-hidden">
+                <div class="im-panel rounded-3xl border border-slate-800 shadow-xl overflow-hidden">
                     
                     <!-- Header -->
-                    <div class="px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+                    <div class="px-6 py-4 im-panel-deep border-b border-slate-800 flex items-center justify-between">
                         <div class="flex items-center gap-x-3">
                             <i class="fa-solid fa-edit text-emerald-400"></i>
                             <h2 class="font-semibold text-lg tracking-tight">Invoice Details</h2>
@@ -740,15 +785,16 @@
                             <i class="fa-solid fa-eye text-emerald-400"></i>
                             <h2 class="font-semibold text-lg tracking-tight">Live Preview</h2>
                             <span class="text-xs px-2.5 py-px bg-emerald-900 text-emerald-400 rounded font-bold">A4</span>
+                            <span id="im-theme-pill" class="im-theme-pill">light</span>
                         </div>
-                        <div class="text-xs text-slate-400 flex items-center gap-x-1">
+                        <div class="text-xs im-muted flex items-center gap-x-1">
                             <i class="fa-solid fa-sync fa-spin-pulse text-emerald-500"></i>
                             <span>Auto-updates</span>
                         </div>
                     </div>
                     
                     <!-- The Invoice Preview -->
-                    <div id="invoice-preview" class="invoice-preview p-8 text-slate-900 rounded-3xl overflow-hidden">
+                    <div id="invoice-preview" class="invoice-preview rounded-3xl overflow-hidden">
                         <!-- Content injected by JavaScript -->
                         <div class="text-center py-12 text-slate-400">
                             <i class="fa-solid fa-file-invoice text-6xl mb-4 opacity-30"></i>
@@ -768,7 +814,7 @@
         </div>
     </div>
     
-    <footer class="border-t border-slate-800 bg-slate-900 py-5 text-center text-xs text-slate-500">
+    <footer class="im-footer border-t border-slate-800 py-5 text-center text-xs im-muted">
         <div class="max-w-screen-2xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-y-1">
             <div>
                 Professional GST Invoice Maker • Compliant with CGST Rules, 2017 (Rule 46)
@@ -776,7 +822,7 @@
             <div class="flex items-center gap-x-4">
                 <span>Free • No signup • Data stays in your browser</span>
                 <span class="hidden md:inline">•</span>
-                <span class="text-emerald-400">v2.1 • 2026</span>
+                <span class="text-emerald-400">v3.14 • themed PDF</span>
             </div>
         </div>
     </footer>
@@ -1326,19 +1372,44 @@
             return result.trim() + " Rupees Only";
         }
         
-        // Main function: Update the live preview
+        function getMakerTheme() {
+            if (typeof resolveInvoiceTheme === 'function') return resolveInvoiceTheme();
+            try {
+                const p = localStorage.getItem('ledgerflow_theme') || 'light';
+                if (p === 'system') return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                return p === 'dark' ? 'dark' : 'light';
+            } catch { return 'light'; }
+        }
+
+        function applyMakerTheme(theme) {
+            const t = theme || getMakerTheme();
+            document.documentElement.setAttribute('data-im-theme', t);
+            const pill = document.getElementById('im-theme-pill');
+            if (pill) pill.textContent = t + ' · profile';
+            document.querySelectorAll('.form-input').forEach(el => el.classList.add('im-input'));
+            document.querySelectorAll('.bg-slate-900.rounded-3xl, .bg-slate-950').forEach(el => {
+                if (!el.closest('#invoice-preview') && !el.closest('.gst-pdf-root')) {
+                    el.classList.add(el.classList.contains('bg-slate-950') ? 'im-panel-deep' : 'im-panel');
+                }
+            });
+        }
+
+        // Main function: Update the live preview (uses shared PDF template + profile theme)
         function updatePreview() {
             const preview = document.getElementById('invoice-preview');
             if (!preview) return;
-            
-            // Sync form values into invoiceData
             syncFormToState();
-            
             const totals = calculateTotals();
-            const isIntra = totals.isIntraState;
             updateEwayRequiredBadge(totals);
-            
-            // Build preview HTML
+            applyMakerTheme();
+
+            if (typeof buildGSTInvoiceHTML === 'function') {
+                const pdfData = invoiceStateToPDFData();
+                preview.innerHTML = buildGSTInvoiceHTML(pdfData);
+                preview.className = 'invoice-preview overflow-hidden rounded-3xl';
+                return;
+            }
+
             let html = `
                 <div class="max-w-[794px] mx-auto">
                     <!-- Header -->
@@ -2338,6 +2409,7 @@
             syncFormToState();
             const totals = calculateTotals();
             return {
+                theme: getMakerTheme(),
                 supplier: { ...invoiceData.supplier },
                 recipient: { ...invoiceData.recipient },
                 shipTo: { ...invoiceData.shipTo },
@@ -2376,8 +2448,10 @@
                 updatePreview();
                 const preview = document.getElementById('invoice-preview');
                 if (preview && typeof html2canvas !== 'undefined') {
+                    const theme = getMakerTheme();
+                    const bg = theme === 'dark' ? '#0f172a' : '#ffffff';
                     const canvas = await html2canvas(preview, {
-                        scale: 2.2, useCORS: true, backgroundColor: '#ffffff', logging: false
+                        scale: 2.2, useCORS: true, backgroundColor: bg, logging: false
                     });
                     const { jsPDF } = window.jspdf;
                     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -2661,6 +2735,13 @@
         // Initialize everything
         function initializeApp() {
             initializeTailwind();
+            applyMakerTheme();
+            window.addEventListener('message', (e) => {
+                if (e.data?.type === 'ledgerflow-theme-change') {
+                    document.documentElement.setAttribute('data-im-theme', e.data.theme === 'dark' ? 'dark' : 'light');
+                    updatePreview();
+                }
+            });
             if (isCRMMode) loadCRMClientProfile();
             
             // Populate states

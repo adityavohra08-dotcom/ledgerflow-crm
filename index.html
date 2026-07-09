@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>LedgerFlow CRM • Client Portal | Accounting Firm</title>
-    <meta name="app-version" content="3.13.5-layout-fix">
+    <meta name="app-version" content="3.14.0-invoice-theme">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <script>
@@ -29,7 +29,7 @@
     <script src="hsn-database.js"></script>
     <script src="services-catalog.js"></script>
     <script src="portal-extensions.js?v=3.12.2"></script>
-    <script src="invoice-pdf-template.js"></script>
+    <script src="invoice-pdf-template.js?v=3.14.0"></script>
     <script src="ewaybill-integration.js?v=2.9.0"></script>
     <script src="ledgerflow-backend.js"></script>
     <script src="google-auth-ui.js"></script>
@@ -45,7 +45,7 @@
     <script src="product-capabilities.js?v=3.12.1"></script>
     <script src="capability-modules.js?v=3.12.1"></script>
     <script src="whatsapp-integration.js?v=3.13.0"></script>
-    <script src="theme.js?v=3.12.1"></script>
+    <script src="theme.js?v=3.14.0"></script>
     <script src="page-hierarchy.js?v=3.12.1"></script>
     <script src="ui-elements.js?v=3.13.1"></script>
     <script src="client-mobile.js?v=3.13.5"></script>
@@ -5179,9 +5179,12 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         function launchInvoiceMaker() {
             const modal = document.getElementById('invoice-maker-modal');
             const frame = document.getElementById('invoice-maker-frame');
+            const theme = typeof LedgerFlowTheme !== 'undefined'
+                ? LedgerFlowTheme.resolvePreference()
+                : (localStorage.getItem('ledgerflow_theme') || 'light');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
-            frame.src = `gst-invoice-maker.html?crm=1&clientId=${currentClientId}&t=${Date.now()}`;
+            frame.src = `gst-invoice-maker.html?crm=1&clientId=${currentClientId}&theme=${encodeURIComponent(theme)}&t=${Date.now()}`;
         }
 
         function closeInvoiceMaker() {

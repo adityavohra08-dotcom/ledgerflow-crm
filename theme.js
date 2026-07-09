@@ -52,6 +52,12 @@
                 : `Appearance: ${label} mode`, 'info');
         }
         window.dispatchEvent(new CustomEvent('lf-theme-change', { detail: result }));
+        const iframe = document.getElementById('invoice-maker-frame');
+        if (iframe?.contentWindow) {
+            try {
+                iframe.contentWindow.postMessage({ type: 'ledgerflow-theme-change', theme: result.resolved }, '*');
+            } catch { /* cross-origin */ }
+        }
         return result;
     }
 
