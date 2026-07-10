@@ -33,7 +33,9 @@
     <script src="itr-computation-pdf.js?v=3.15.1"></script>
     <script src="income-computation-tool.js?v=1.0.0"></script>
     <script src="bank-reconciliation.js?v=2.0.0"></script>
-    <script src="gstr-return-export.js?v=1.0.1"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="gstr-return-export.js?v=1.1.0"></script>
+    <script src="gstr-returns-hub.js?v=1.0.0"></script>
     <script src="ewaybill-integration.js?v=2.9.0"></script>
     <script src="ledgerflow-backend.js"></script>
     <script src="google-auth-ui.js?v=3.14.4"></script>
@@ -482,8 +484,11 @@
                         <button type="button" onclick="showSection('itr-json-pdf')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-itr-json-pdf">
                             <span class="lf-nav-tree-line"></span><span>ITR JSON to PDF</span>
                         </button>
+                        <button type="button" onclick="showSection('gst-returns')" data-team-visible class="nav-item lf-nav-child w-full text-left" id="nav-gst-returns">
+                            <span class="lf-nav-tree-line"></span><span>GST Returns Hub</span>
+                        </button>
                         <button type="button" onclick="showSection('gstr-export')" data-team-visible class="nav-item lf-nav-child w-full text-left" id="nav-gstr-export">
-                            <span class="lf-nav-tree-line"></span><span>GSTR Return Export</span>
+                            <span class="lf-nav-tree-line"></span><span>GSTR JSON / CSV Export</span>
                         </button>
                     </div>
                 </div>
@@ -2134,6 +2139,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             'nav-emi-calculator',
             'nav-income-computation',
             'nav-itr-json-pdf',
+            'nav-gst-returns',
             'nav-gstr-export',
             'nav-sales-report',
             'nav-party-pl',
@@ -2782,6 +2788,11 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 case 'itr-json-pdf':
                     if (!isFirmUser()) { showToast('ITR tool is available in Admin portal only', 'error'); renderDashboard(main); break; }
                     renderItrJsonToPdf(main);
+                    break;
+                case 'gst-returns':
+                    if (!isFirmUser() && !isTeamUser()) { showToast('GST Returns Hub is available in Admin / Team portal only', 'error'); renderDashboard(main); break; }
+                    if (typeof renderGstrReturnsHub === 'function') renderGstrReturnsHub(main);
+                    else { main.innerHTML = '<p class="text-red-400">GST Returns Hub failed to load. Hard-refresh (Ctrl+F5).</p>'; }
                     break;
                 case 'gstr-export':
                     if (!isFirmUser() && !isTeamUser()) { showToast('GSTR export is available in Admin / Team portal only', 'error'); renderDashboard(main); break; }
@@ -3898,8 +3909,11 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     </div>
                 </div>
                 <div class="mb-6 flex flex-wrap gap-3">
-                    <button type="button" onclick="showSection('gstr-export')" class="lf-btn lf-btn--primary text-sm" data-team-visible>
-                        <i class="fa-solid fa-file-export mr-1"></i> GSTR-1 / 3B / 9 JSON &amp; CSV Export
+                    <button type="button" onclick="showSection('gst-returns')" class="lf-btn lf-btn--primary text-sm" data-team-visible>
+                        <i class="fa-solid fa-table-columns mr-1"></i> GST Returns Hub
+                    </button>
+                    <button type="button" onclick="showSection('gstr-export')" class="lf-btn lf-btn--secondary text-sm" data-team-visible>
+                        <i class="fa-solid fa-file-export mr-1"></i> JSON / CSV Export
                     </button>
                 </div>
             `;
@@ -5099,6 +5113,14 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         window.addEventListener('message', e => {
             if (e.data?.type === 'ledgerflow-invoice-saved') {
                 showToast(`Invoice ${e.data.invoiceNumber || ''} saved to CRM`);
+                const client = getCurrentClient();
+                if (client && typeof GstrReturnsHub !== 'undefined') {
+                    const inv = (client.invoices || []).find(i => i.id === e.data.invoiceId) || {
+                        number: e.data.invoiceNumber,
+                        date: e.data.invoiceDate || new Date().toISOString().split('T')[0]
+                    };
+                    GstrReturnsHub.onInvoiceSaved(client, inv);
+                }
                 if (!e.data.keepOpen) closeInvoiceMaker();
             }
             if (e.data?.type === 'ledgerflow-send-invoice') {

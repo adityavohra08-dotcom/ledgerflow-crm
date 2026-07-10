@@ -3427,3 +3427,110 @@ a[class*="bg-emerald-600"]:hover {
     border: 1px solid #334155;
 }
 .gstr-alert--error { background: #450a0a; border-color: #7f1d1d; color: #fca5a5; }
+
+/* GST Returns Hub */
+.grh-tool { max-width: 100%; }
+.grh-tabs { display: flex; gap: 0.35rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+.grh-tab {
+    padding: 0.45rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #94a3b8;
+    cursor: pointer;
+}
+.grh-tab--active { background: #0f766e; color: #fff; border-color: #0d9488; }
+.grh-panel {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 0.75rem;
+    padding: 1rem;
+}
+.grh-panel-title { font-weight: 600; font-size: 0.85rem; margin-bottom: 0.65rem; color: #cbd5e1; }
+.grh-deadline-bar { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.grh-deadline {
+    flex: 1;
+    min-width: 140px;
+    background: #020617;
+    border: 1px solid #1e293b;
+    border-radius: 0.5rem;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.7rem;
+    color: #94a3b8;
+}
+.grh-deadline strong { display: block; font-size: 0.95rem; color: #e2e8f0; margin: 0.1rem 0; }
+.grh-due { font-size: 0.65rem; font-weight: 700; padding: 0.1rem 0.35rem; border-radius: 0.2rem; }
+.grh-due--over { background: #450a0a; color: #fca5a5; }
+.grh-due--urgent { background: #7f1d1d; color: #fecaca; }
+.grh-due--soon { background: #422006; color: #fcd34d; }
+.grh-status {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.2rem 0.45rem;
+    border-radius: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+.grh-status--none { background: #1e293b; color: #64748b; }
+.grh-status--draft { background: #1e3a5f; color: #93c5fd; }
+.grh-status--ready { background: #052e16; color: #4ade80; }
+.grh-status--filed { background: #1e3a2f; color: #6ee7b7; }
+.grh-status--ack { background: #134e4a; color: #5eead4; }
+.grh-table-wrap { overflow-x: auto; }
+.grh-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.grh-table th, .grh-table td { padding: 0.55rem 0.5rem; text-align: left; border-bottom: 1px solid #1e293b; }
+.grh-table th { color: #64748b; font-weight: 600; font-size: 0.7rem; text-transform: uppercase; }
+.grh-row:hover { background: #020617; }
+.grh-mini-btn {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    background: #334155;
+    color: #e2e8f0;
+    border: none;
+    cursor: pointer;
+}
+.grh-mini-btn:hover { background: #475569; }
+.grh-row-actions { white-space: nowrap; }
+.grh-attention { background: #1c1917; border: 1px solid #44403c; border-radius: 0.5rem; padding: 0.75rem; }
+.grh-attention-list { display: flex; flex-direction: column; gap: 0.35rem; }
+.grh-attention-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid #292524;
+}
+.grh-attention-item:last-child { border-bottom: none; }
+.grh-tri-view { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 0.75rem; }
+@media (max-width: 900px) { .grh-tri-view { grid-template-columns: 1fr; } }
+.grh-tri-col { background: #020617; border: 1px solid #1e293b; border-radius: 0.5rem; padding: 0.65rem; }
+.grh-tri-col--mid { border-color: #0f766e; }
+.grh-tri-list { display: flex; flex-direction: column; gap: 0.35rem; }
+.grh-tri-list--scroll { max-height: 320px; overflow-y: auto; }
+.grh-tri-item { padding: 0.4rem 0.5rem; background: #0f172a; border-radius: 0.35rem; font-size: 0.8rem; }
+.grh-tri-item--ok { border-left: 3px solid #22c55e; }
+.grh-tri-item--warn { border-left: 3px solid #f59e0b; }
+.grh-match-tag { font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.3rem; border-radius: 0.2rem; }
+.grh-match-tag--Matched { background: #052e16; color: #4ade80; }
+.grh-match-tag--Mismatch { background: #422006; color: #fcd34d; }
+.grh-match-tag--Missingin2B { background: #450a0a; color: #fca5a5; }
+.grh-match-tag--MissinginBooks { background: #1e3a5f; color: #93c5fd; }
+.grh-bulk-log {
+    font-family: ui-monospace, monospace;
+    font-size: 0.72rem;
+    background: #020617;
+    border: 1px solid #1e293b;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    white-space: pre-wrap;
+    color: #a5f3fc;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.grh-alert { padding: 1rem; color: #94a3b8; background: #1e293b; border-radius: 0.5rem; }

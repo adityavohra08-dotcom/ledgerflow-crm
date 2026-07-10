@@ -1,0 +1,35 @@
+{
+  "gstin": "07AABCT1234D1Z5",
+  "fp": "062026",
+  "version": "GST2.0",
+  "b2b": [
+    {
+      "ctin": "09AABCA1234B1Z8",
+      "inv": [
+        {
+          "inum": "ABC/2026/118",
+          "idt": "10-06-2026",
+          "val": 76700,
+          "pos": "09",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [{ "num": 1, "itm_det": { "txval": 65000, "rt": 18, "iamt": 0, "camt": 5850, "samt": 5850 } }]
+        }
+      ]
+    },
+    {
+      "ctin": "27AABCG5678C1Z2",
+      "inv": [
+        {
+          "inum": "GT-8842",
+          "idt": "18-06-2026",
+          "val": 49560,
+          "pos": "27",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [{ "num": 1, "itm_det": { "txval": 42000, "rt": 18, "iamt": 7560, "camt": 0, "samt": 0 } }]
+        }
+      ]
+    }
+  ]
+}

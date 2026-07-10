@@ -4,7 +4,7 @@
 (function (global) {
     'use strict';
 
-    const VERSION = '1.0.0';
+    const VERSION = '1.1.0';
     const RETURN_TYPES = ['GSTR-1', 'GSTR-3B', 'GSTR-9'];
 
     function esc(s) {
@@ -657,23 +657,105 @@
         return `${slug}_${gst}_${per}`;
     }
 
-    function upsertFilingRecord(client, returnType, periodLabel) {
+    function upsertFilingRecord(client, returnType, periodLabel, status) {
         if (!client.gstrFilings) client.gstrFilings = [];
-        const existing = client.gstrFilings.find(f =>
-            f.return === returnType && f.period === periodLabel && f.status !== 'Filed'
-        );
+        const st = status || 'Ready';
+        const existing = client.gstrFilings.find(f => f.return === returnType && f.period === periodLabel);
         if (existing) {
-            existing.status = 'Ready';
-            return;
+            if (existing.status !== 'Filed' && existing.status !== 'Acknowledged') existing.status = st;
+            existing.updatedAt = new Date().toISOString();
+            return existing;
         }
-        client.gstrFilings.push({
+        const row = {
             id: 'gf_' + Date.now(),
             return: returnType,
             period: periodLabel,
-            status: 'Ready',
+            status: st,
             filedOn: '',
-            arn: ''
+            arn: '',
+            updatedAt: new Date().toISOString()
+        };
+        client.gstrFilings.push(row);
+        return row;
+    }
+
+    function markPeriodStale(client, isoDate, reason) {
+        const mk = monthKey(isoDate);
+        if (!mk) return;
+        if (!client.gstrStale) client.gstrStale = {};
+        if (!client.gstrStale[mk]) client.gstrStale[mk] = { gstr1: true, gstr3b: true, reason: reason || 'Books updated', at: new Date().toISOString() };
+        else {
+            client.gstrStale[mk].gstr1 = true;
+            client.gstrStale[mk].gstr3b = true;
+            client.gstrStale[mk].reason = reason || client.gstrStale[mk].reason;
+            client.gstrStale[mk].at = new Date().toISOString();
+        }
+        const label = monthLabel(mk);
+        client.gstrFilings?.forEach(f => {
+            if ((f.return === 'GSTR-1' || f.return === 'GSTR-3B') && f.period === label && f.status !== 'Filed' && f.status !== 'Acknowledged') {
+                f.status = 'Draft';
+            }
         });
+    }
+
+    function clearPeriodStale(client, monthStr, returnType) {
+        if (!client.gstrStale?.[monthStr]) return;
+        if (returnType === 'GSTR-1') client.gstrStale[monthStr].gstr1 = false;
+        if (returnType === 'GSTR-3B') client.gstrStale[monthStr].gstr3b = false;
+        if (!client.gstrStale[monthStr].gstr1 && !client.gstrStale[monthStr].gstr3b) delete client.gstrStale[monthStr];
+    }
+
+    function validateReturnJson(returnType, data) {
+        const errors = [];
+        const warnings = [];
+        if (!data || typeof data !== 'object') {
+            return { valid: false, errors: ['Payload is empty'], warnings };
+        }
+        const gstin = cleanGstin(data.gstin);
+        if (!isValidGstin(gstin)) errors.push('Invalid or missing gstin');
+        if (returnType === 'GSTR-1') {
+            if (!data.fp || String(data.fp).length < 5) errors.push('Missing fp (MMYYYY filing period)');
+            if (!Array.isArray(data.b2b)) warnings.push('b2b array missing — will file as empty B2B');
+            (data.b2b || []).forEach((g, i) => {
+                if (!isValidGstin(g.ctin)) warnings.push(`B2B[${i}] customer GSTIN invalid: ${g.ctin || '—'}`);
+                (g.inv || []).forEach((inv, j) => {
+                    if (!inv.inum) errors.push(`B2B[${i}].inv[${j}] missing inum`);
+                    if (!inv.idt) errors.push(`B2B[${i}].inv[${j}] missing idt (DD-MM-YYYY)`);
+                    if (!inv.itms?.length) warnings.push(`B2B[${i}].inv[${j}] has no line items`);
+                });
+            });
+        }
+        if (returnType === 'GSTR-3B') {
+            if (!data.ret_period) errors.push('Missing ret_period');
+            const os = data.sup_details?.osup_det;
+            if (!os) errors.push('Missing sup_details.osup_det (Table 3.1)');
+            else if (os.txval == null) warnings.push('Table 3.1 taxable value is null');
+            if (!data.itc_elg?.itc_net) warnings.push('Missing itc_elg.itc_net (Table 4)');
+        }
+        if (returnType === 'GSTR-9') {
+            if (!data.fy && !data.fp) errors.push('Missing financial year (fy)');
+            if (!data.table4?.outward_supplies) warnings.push('Missing table4 outward summary');
+        }
+        return { valid: errors.length === 0, errors, warnings };
+    }
+
+    function buildValidatedReturn(returnType, client, period, opts = {}) {
+        const data = buildReturn(returnType, client, period);
+        const validation = validateReturnJson(returnType, data);
+        if (!validation.valid && !opts.force) {
+            throw new Error('JSON validation failed: ' + validation.errors.join('; '));
+        }
+        const periodLabel = returnType === 'GSTR-9' ? period.fy : monthLabel(period.month);
+        const fileName = fileBase(client, returnType, periodLabel) + '.json';
+        return { data, validation, fileName, periodLabel };
+    }
+
+    function downloadValidatedJson(returnType, client, period, opts = {}) {
+        const built = buildValidatedReturn(returnType, client, period, opts);
+        downloadText(JSON.stringify(built.data, null, 2), built.fileName, 'application/json');
+        upsertFilingRecord(client, returnType, built.periodLabel, 'Ready');
+        if (returnType !== 'GSTR-9') clearPeriodStale(client, period.month, returnType);
+        return built;
     }
 
     function ensureMeta(client) {
@@ -763,10 +845,13 @@
                 ${preview ? `
                 <div class="gstr-stats mt-4">${renderSummaryCards(meta.returnType, preview)}</div>
                 <div class="gstr-actions mt-4">
+                    <button type="button" id="gstr-validate" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-shield-halved mr-1"></i> Validate JSON</button>
                     <button type="button" id="gstr-dl-json" class="lf-btn lf-btn--primary text-sm"><i class="fa-solid fa-file-code mr-1"></i> Download JSON</button>
                     <button type="button" id="gstr-dl-csv" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-file-csv mr-1"></i> Download CSV</button>
-                    <button type="button" id="gstr-mark-ready" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-check mr-1"></i> Mark Ready in Tracker</button>
+                    <button type="button" id="gstr-mark-ready" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-check mr-1"></i> Mark Ready</button>
+                    <button type="button" onclick="showSection('gst-returns')" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-table-columns mr-1"></i> Returns Hub</button>
                 </div>
+                <div id="gstr-validation-msg" class="mt-3 hidden"></div>
                 <div class="gstr-preview-wrap mt-4">
                     <div class="gstr-preview-title"><i class="fa-solid fa-code mr-1"></i> JSON Preview</div>
                     <pre class="gstr-preview-json">${esc(JSON.stringify(preview, null, 2))}</pre>
@@ -810,13 +895,10 @@
         container.querySelector('#gstr-dl-json')?.addEventListener('click', () => {
             const meta = readForm(container, client);
             try {
-                const data = buildReturn(meta.returnType, client, { month: meta.month, fy: meta.fy });
-                const periodLabel = meta.returnType === 'GSTR-9' ? meta.fy : monthLabel(meta.month);
-                const name = fileBase(client, meta.returnType, periodLabel) + '.json';
-                downloadText(JSON.stringify(data, null, 2), name, 'application/json');
-                upsertFilingRecord(client, meta.returnType, periodLabel);
+                const { fileName, validation } = downloadValidatedJson(meta.returnType, client, { month: meta.month, fy: meta.fy });
                 global.saveAppData?.();
-                global.showToast?.(`Downloaded ${name}`);
+                const warn = validation.warnings.length ? ` (${validation.warnings.length} warning(s))` : '';
+                global.showToast?.(`Downloaded ${fileName}${warn}`);
             } catch (e) {
                 global.showToast?.(e.message, 'error');
             }
@@ -837,6 +919,24 @@
             }
         });
 
+        container.querySelector('#gstr-validate')?.addEventListener('click', () => {
+            const meta = readForm(container, client);
+            const el = container.querySelector('#gstr-validation-msg');
+            try {
+                const built = buildValidatedReturn(meta.returnType, client, { month: meta.month, fy: meta.fy });
+                const w = built.validation.warnings;
+                el.className = 'mt-3 gstr-alert' + (w.length ? '' : ' text-emerald-400');
+                el.classList.remove('hidden');
+                el.innerHTML = w.length
+                    ? `<strong>Valid with ${w.length} warning(s):</strong><ul class="list-disc ml-4 mt-1">${w.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
+                    : '<strong>✓ JSON passes portal validation checks</strong>';
+            } catch (e) {
+                el.className = 'mt-3 gstr-alert gstr-alert--error';
+                el.classList.remove('hidden');
+                el.textContent = e.message;
+            }
+        });
+
         container.querySelector('#gstr-mark-ready')?.addEventListener('click', () => {
             const meta = readForm(container, client);
             const periodLabel = meta.returnType === 'GSTR-9' ? meta.fy : monthLabel(meta.month);
@@ -852,7 +952,24 @@
         toCsv,
         buildGstr1,
         buildGstr3b,
-        buildGstr9
+        buildGstr9,
+        validateReturnJson,
+        buildValidatedReturn,
+        downloadValidatedJson,
+        upsertFilingRecord,
+        markPeriodStale,
+        clearPeriodStale,
+        monthLabel,
+        monthKey,
+        fpFromMonth,
+        fileBase,
+        downloadText,
+        cleanGstin,
+        isValidGstin,
+        filterInvoices,
+        filterPurchases,
+        defaultMonth,
+        defaultFy
     };
     global.renderGstrReturnExport = renderGstrReturnExport;
 })(typeof window !== 'undefined' ? window : global);

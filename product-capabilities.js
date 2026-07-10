@@ -63,8 +63,8 @@
                 { name: 'HSN/SAC code support', status: 'live', route: "showSection('hsn-search')", note: 'HSN database + stock master' },
                 { name: 'e-Invoicing (IRN generation)', status: 'partial', route: "showSection('cap-e-invoicing')", note: 'NIC IRP connect flow' },
                 { name: 'e-Way Bill generation', status: 'partial', route: "showSection('cap-eway-bill')", note: 'NIC e-Way connect + maker' },
-                { name: 'Direct filing of GSTR-1, GSTR-3B, GSTR-9', status: 'live', route: "showSection('gstr-export')", note: 'JSON & CSV export from books + filing tracker' },
-                { name: 'GSTR-2B reconciliation', status: 'partial', route: "showSection('cap-gstr2b')", note: '2B vs books matching' },
+                { name: 'Direct filing of GSTR-1, GSTR-3B, GSTR-9', status: 'live', route: "showSection('gst-returns')", note: 'Returns hub, 2B recon, bulk ZIP + JSON export' },
+                { name: 'GSTR-2B reconciliation', status: 'live', route: "showSection('gst-returns')", note: 'Import 2B JSON, tri-view match vs books' },
                 { name: 'Multi-GSTIN support', status: 'partial', route: "showSection('cap-multi-gstin')", note: 'GSTIN registry per client' },
                 { name: 'GST-compliant invoices with full tax breakup', status: 'live', route: 'launchInvoiceMaker()', note: 'CGST Rule 46 PDF' }
             ]

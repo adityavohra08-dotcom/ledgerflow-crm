@@ -251,8 +251,16 @@
             roles: ['firm'],
             keywords: ['itr', 'json', 'pdf', 'income tax', 'computation']
         },
+        'gst-returns': {
+            label: 'GST Returns Hub',
+            path: '/gst/returns',
+            module: 'GST & Compliance',
+            parent: 'gst-calculator',
+            roles: ['firm', 'team'],
+            keywords: ['gstr', 'returns', 'hub', '2b', 'reconciliation', 'bulk', 'filing', 'status']
+        },
         'gstr-export': {
-            label: 'GSTR Return Export',
+            label: 'GSTR JSON / CSV Export',
             path: '/gst/gstr-export',
             module: 'GST & Compliance',
             parent: 'gst-calculator',
@@ -465,6 +473,7 @@
     registerRoute('/gst/emi', 'emi-calculator');
     registerRoute('/gst/income-computation', 'income-computation');
     registerRoute('/gst/itr-json-pdf', 'itr-json-pdf');
+    registerRoute('/gst/returns', 'gst-returns');
     registerRoute('/gst/gstr-export', 'gstr-export');
     registerRoute('/messages', 'requests');
     registerRoute('/messages/whatsapp', 'whatsapp');
