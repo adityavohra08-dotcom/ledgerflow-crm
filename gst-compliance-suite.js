@@ -613,7 +613,7 @@
             try {
                 const built = G.buildValidatedReturn('GSTR-1A', client, { month });
                 const payload = built.portalData || built.data;
-                G.downloadText(JSON.stringify(payload, null, 2), built.fileName, 'application/json');
+                G.downloadText(G.portalJsonString?.(payload) || JSON.stringify(payload), built.fileName, 'application/json');
                 logAudit('GSTR-1A generated', client.name, G.monthLabel(month));
                 global.saveAppData?.();
                 global.showToast?.(`GSTR-1A JSON downloaded (${built.validation.warnings.length} warnings)`);

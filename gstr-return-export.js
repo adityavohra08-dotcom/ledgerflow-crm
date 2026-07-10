@@ -4,8 +4,14 @@
 (function (global) {
     'use strict';
 
-    const VERSION = '1.2.2';
+    const VERSION = '1.2.3';
     const PORTAL_GSTR1_VERSION = 'GST3.2.4';
+    const DOC_ISSUE_TYPES = {
+        1: 'Invoices for outward supply',
+        4: 'Debit Note',
+        5: 'Credit Note',
+        9: 'Delivery Challan for job work'
+    };
     const RETURN_TYPES = ['GSTR-1', 'GSTR-1A', 'GSTR-3B', 'GSTR-9'];
     const DOC_TYPES = { INV: 'Tax Invoice', CN: 'Credit Note', DN: 'Debit Note', BOS: 'Bill of Supply', DC: 'Delivery Challan' };
     const VALID_GSTR_RATES = [0, 0.25, 3, 5, 6, 12, 18, 28, 40];
@@ -174,10 +180,20 @@
         return Math.round(rate * 100) + 1;
     }
 
-    function hsnUserDesc(hsn) {
-        const digits = String(hsn || '').replace(/\D/g, '');
-        const n = Number(digits);
-        return Number.isFinite(n) && n > 0 ? n : String(hsn || '9983');
+    function portalHsnRow(row, idx) {
+        return {
+            num: idx,
+            hsn_sc: String(row.hsn_sc || ''),
+            desc: String(row.desc || '').slice(0, 200),
+            uqc: row.uqc || 'NOS',
+            qty: round2(row.qty),
+            rt: normalizePortalRate(row.rt),
+            txval: round2(row.txval),
+            iamt: round2(row.iamt),
+            camt: round2(row.camt),
+            samt: round2(row.samt),
+            csamt: round2(row.csamt)
+        };
     }
 
     function sanitizeInum(s) {
@@ -406,7 +422,6 @@
             const key = `${hsn}|${rt}|${interState ? 'I' : 'L'}`;
             const row = map.get(key) || {
                 hsn_sc: hsn,
-                user_desc: hsnUserDesc(hsn),
                 desc: defaultHsn.desc,
                 uqc: 'NOS',
                 qty: 0,
@@ -425,7 +440,7 @@
             row.samt = round2(row.samt + tax.samt);
             map.set(key, row);
         });
-        return [...map.values()].map((r, i) => ({ ...r, num: i + 1 }));
+        return [...map.values()].map((r, i) => portalHsnRow(r, i + 1));
     }
 
     function buildHsnSummary(invs, stock) {
@@ -444,6 +459,39 @@
             hsn_b2b: buildHsnRows(b2bInvs, client.stock),
             hsn_b2c: buildHsnRows(b2cInvs, client.stock)
         };
+    }
+
+    function sortDocsByNumber(invs) {
+        return [...invs].sort((a, b) => sanitizeInum(a.number || a.id).localeCompare(sanitizeInum(b.number || b.id), undefined, { numeric: true }));
+    }
+
+    function docIssueSeries(docs, docNum, docTyp) {
+        if (!docs.length) return null;
+        const sorted = sortDocsByNumber(docs);
+        return {
+            doc_num: docNum,
+            doc_typ: docTyp,
+            docs: [{
+                num: 1,
+                from: sanitizeInum(sorted[0].number || sorted[0].id || '1'),
+                to: sanitizeInum(sorted[sorted.length - 1].number || sorted[sorted.length - 1].id || String(sorted.length)),
+                totnum: sorted.length,
+                cancel: 0,
+                net_issue: sorted.length
+            }]
+        };
+    }
+
+    function buildDocIssue(client, month, allInvs) {
+        const outward = allInvs.filter(i => docTypeOf(i) === 'INV' || (!isCdnDoc(i) && docTypeOf(i) !== 'BOS' && docTypeOf(i) !== 'DC'));
+        const creditNotes = collectCdnEntries(client, month).filter(e => e.docType === 'CN');
+        const debitNotes = collectCdnEntries(client, month).filter(e => e.docType === 'DN');
+        const doc_det = [
+            docIssueSeries(outward, 1, DOC_ISSUE_TYPES[1]),
+            docIssueSeries(debitNotes, 4, DOC_ISSUE_TYPES[4]),
+            docIssueSeries(creditNotes, 5, DOC_ISSUE_TYPES[5])
+        ].filter(Boolean);
+        return doc_det.length ? { doc_det } : undefined;
     }
 
     function buildNilSection(bosInvs, client) {
@@ -545,19 +593,7 @@
             cdnur,
             nil: buildNilSection(bosInvs, client),
             hsn: buildPortalHsn(client, invs),
-            doc_issue: {
-                doc_det: [{
-                    doc_num: 1,
-                    docs: allInvs.length ? [{
-                        num: 1,
-                        from: sanitizeInum(allInvs[0].number || '1'),
-                        to: sanitizeInum(allInvs[allInvs.length - 1].number || String(allInvs.length)),
-                        totnum: allInvs.length,
-                        cancel: 0,
-                        net_issue: allInvs.length
-                    }] : []
-                }]
-            },
+            doc_issue: buildDocIssue(client, month, allInvs),
             summary: {
                 outwardTaxable: round2(totals.taxable),
                 outwardCgst: round2(totals.cgst),
@@ -977,11 +1013,46 @@
         if (!client.gstrStale[monthStr].gstr1 && !client.gstrStale[monthStr].gstr3b) delete client.gstrStale[monthStr];
     }
 
+    function sanitizeCdnur(rows) {
+        const flat = [];
+        (rows || []).forEach(row => {
+            if (row.nt?.length) {
+                row.nt.forEach(note => {
+                    flat.push({
+                        typ: row.typ || 'B2CS',
+                        pos: note.pos || row.pos,
+                        ntty: note.ntty,
+                        nt_num: sanitizeInum(note.nt_num),
+                        nt_dt: note.nt_dt,
+                        val: round2(note.val),
+                        itms: note.itms,
+                        ...(note.inum ? { inum: sanitizeInum(note.inum) } : {}),
+                        ...(note.idt ? { idt: note.idt } : {})
+                    });
+                });
+                return;
+            }
+            flat.push({
+                typ: row.typ,
+                pos: row.pos,
+                ntty: row.ntty,
+                nt_num: sanitizeInum(row.nt_num),
+                nt_dt: row.nt_dt,
+                val: round2(row.val),
+                itms: row.itms,
+                ...(row.inum ? { inum: sanitizeInum(row.inum) } : {}),
+                ...(row.idt ? { idt: row.idt } : {})
+            });
+        });
+        return flat;
+    }
+
     function sanitizeDocIssue(docIssue) {
         if (!docIssue?.doc_det?.length) return null;
         return {
             doc_det: docIssue.doc_det.map(det => ({
                 doc_num: det.doc_num || 1,
+                doc_typ: det.doc_typ || DOC_ISSUE_TYPES[det.doc_num] || DOC_ISSUE_TYPES[1],
                 docs: (det.docs || []).map(d => ({
                     num: d.num || 1,
                     from: sanitizeInum(d.from),
@@ -990,8 +1061,12 @@
                     cancel: num(d.cancel),
                     net_issue: num(d.net_issue)
                 }))
-            }))
+            })).filter(det => det.docs.length)
         };
+    }
+
+    function portalJsonString(data) {
+        return JSON.stringify(data);
     }
 
     function hsnRowCount(hsn) {
@@ -1003,11 +1078,12 @@
     function portalHsnPayload(hsn) {
         if (!hsn) return null;
         const out = {};
-        const b2b = hsn.hsn_b2b || [];
-        const b2c = hsn.hsn_b2c || [];
+        const mapRows = rows => (rows || []).map((r, i) => portalHsnRow(r, i + 1));
+        const b2b = mapRows(hsn.hsn_b2b);
+        const b2c = mapRows(hsn.hsn_b2c);
         if (b2b.length) out.hsn_b2b = b2b;
         if (b2c.length) out.hsn_b2c = b2c;
-        if (!b2b.length && !b2c.length && hsn.data?.length) out.hsn_b2b = hsn.data;
+        if (!b2b.length && !b2c.length && hsn.data?.length) out.hsn_b2b = mapRows(hsn.data);
         return Object.keys(out).length ? out : null;
     }
 
@@ -1030,7 +1106,8 @@
         if (data.b2cl?.length) portal.b2cl = data.b2cl;
         if (data.b2cs?.length) portal.b2cs = data.b2cs;
         if (data.cdnr?.length) portal.cdnr = data.cdnr;
-        if (data.cdnur?.length) portal.cdnur = data.cdnur;
+        const cdnur = sanitizeCdnur(data.cdnur);
+        if (cdnur.length) portal.cdnur = cdnur;
         if (data.nil?.inv?.some(r => num(r.nil_amt) || num(r.expt_amt) || num(r.ngsup_amt))) portal.nil = data.nil;
         const hsn = portalHsnPayload(data.hsn);
         if (hsn) portal.hsn = hsn;
@@ -1053,10 +1130,18 @@
         const gstin = cleanGstin(data.gstin);
         if (!isValidGstin(gstin)) errors.push('Invalid or missing gstin');
         if (returnType === 'GSTR-1' || returnType === 'GSTR-1A') {
-            if (data.meta || data.summary) errors.push('Portal JSON must not contain meta/summary — re-download from LedgerFlow');
+            if (data.meta || data.summary) errors.push('Portal JSON must not contain meta/summary — hard-refresh (Ctrl+F5) and re-download');
+            if (data.hsn?.data) errors.push('Portal JSON uses deprecated hsn.data — hard-refresh (Ctrl+F5) and re-download');
             if (!data.fp || String(data.fp).length < 5) errors.push('Missing fp (MMYYYY filing period)');
-            if (!data.version || !String(data.version).startsWith('GST')) warnings.push(`version should be ${PORTAL_GSTR1_VERSION} for current offline tool`);
+            if (data.version !== PORTAL_GSTR1_VERSION) errors.push(`version must be ${PORTAL_GSTR1_VERSION} (got ${data.version || '—'})`);
+            if (!data.hash) warnings.push('Missing hash field — offline tool includes hash');
             if (!hasGstr1SupplyData(data)) errors.push('No outward supply data — portal will reject empty GSTR-1');
+            (data.doc_issue?.doc_det || []).forEach((det, i) => {
+                if (!det.doc_typ) errors.push(`doc_issue.doc_det[${i}] missing doc_typ (required in offline tool v3.2.4)`);
+            });
+            (data.cdnur || []).forEach((row, i) => {
+                if (row.nt) errors.push(`CDNUR[${i}] uses invalid nt[] wrapper — must be flat note fields`);
+            });
             (data.cdnr || []).forEach((g, i) => {
                 if (!isValidGstin(g.ctin)) warnings.push(`CDNR[${i}] customer GSTIN invalid`);
                 (g.nt || []).forEach((nt, j) => {
@@ -1083,7 +1168,7 @@
             const hsnRows = [...(data.hsn?.hsn_b2b || []), ...(data.hsn?.hsn_b2c || []), ...(data.hsn?.data || [])];
             hsnRows.forEach((h, i) => {
                 if (!h.num) warnings.push(`HSN[${i}] missing num sequence`);
-                if (h.user_desc == null) warnings.push(`HSN[${i}] missing user_desc`);
+                if (h.user_desc != null) errors.push(`HSN[${i}] must not contain user_desc in ${PORTAL_GSTR1_VERSION} schema`);
             });
             (data.b2b || []).forEach((g, i) => {
                 (g.inv || []).forEach((inv, j) => {
@@ -1123,7 +1208,7 @@
     function downloadValidatedJson(returnType, client, period, opts = {}) {
         const built = buildValidatedReturn(returnType, client, period, opts);
         const payload = built.portalData || built.data;
-        downloadText(JSON.stringify(payload, null, 2), built.fileName, 'application/json');
+        downloadText(portalJsonString(payload), built.fileName, 'application/json');
         upsertFilingRecord(client, returnType, built.periodLabel, 'Ready');
         if (returnType !== 'GSTR-9') clearPeriodStale(client, period.month, returnType);
         return built;
@@ -1224,7 +1309,7 @@
                     <button type="button" onclick="showSection('gst-returns')" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-table-columns mr-1"></i> Returns Hub</button>
                 </div>
                 <div id="gstr-validation-msg" class="mt-3 hidden"></div>
-                <div class="gstr-alert mt-4 text-xs"><i class="fa-solid fa-circle-info mr-1"></i> Downloaded GSTR-1 JSON matches GST offline-tool schema (no LedgerFlow meta/summary fields).</div>
+                <div class="gstr-alert mt-4 text-xs"><i class="fa-solid fa-circle-info mr-1"></i> Downloaded GSTR-1 JSON matches GST offline tool ${PORTAL_GSTR1_VERSION} (compact JSON, hsn_b2b/hsn_b2c, doc_typ). Hard-refresh (Ctrl+F5) if portal rejects an older file.</div>
                 <div class="gstr-preview-wrap mt-4">
                     <div class="gstr-preview-title"><i class="fa-solid fa-code mr-1"></i> Portal JSON Preview</div>
                     <pre class="gstr-preview-json">${esc(JSON.stringify(toPortalJson(meta.returnType, preview), null, 2))}</pre>
@@ -1335,6 +1420,9 @@
         validateReturnJson,
         toPortalGstr1,
         toPortalJson,
+        portalJsonString,
+        buildDocIssue,
+        sanitizeCdnur,
         buildValidatedReturn,
         downloadValidatedJson,
         upsertFilingRecord,

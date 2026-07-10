@@ -499,7 +499,7 @@
             types.forEach(rt => {
                 try {
                     const { portalData, data, validation, fileName, periodLabel } = G().buildValidatedReturn(rt, client, { month: monthStr, fy: G().defaultFy?.(client) });
-                    zip.file(fileName, JSON.stringify(portalData || data, null, 2));
+                    zip.file(fileName, G().portalJsonString?.(portalData || data) || JSON.stringify(portalData || data));
                     G().upsertFilingRecord(client, rt, periodLabel, 'Ready');
                     G().clearPeriodStale(client, monthStr, rt);
                     log.push(`✓ ${client.name} — ${fileName}`);
