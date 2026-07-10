@@ -34,8 +34,8 @@
     <script src="income-computation-tool.js?v=1.0.0"></script>
     <script src="bank-reconciliation.js?v=2.0.0"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="gstr-return-export.js?v=1.1.0"></script>
-    <script src="gstr-returns-hub.js?v=1.0.0"></script>
+    <script src="gstr-return-export.js?v=1.1.1"></script>
+    <script src="gstr-returns-hub.js?v=1.0.1"></script>
     <script src="ewaybill-integration.js?v=2.9.0"></script>
     <script src="ledgerflow-backend.js"></script>
     <script src="google-auth-ui.js?v=3.14.4"></script>
@@ -2744,6 +2744,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             showSection(currentSection);
             showToast(`Switched to ${getCurrentClient().name}`);
         }
+        window.switchClient = switchClient;
 
         // ==================== SECTION RENDERERS ====================
         window.__showSectionCore = function __showSectionCore(section) {
@@ -2791,8 +2792,12 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     break;
                 case 'gst-returns':
                     if (!isFirmUser() && !isTeamUser()) { showToast('GST Returns Hub is available in Admin / Team portal only', 'error'); renderDashboard(main); break; }
-                    if (typeof renderGstrReturnsHub === 'function') renderGstrReturnsHub(main);
-                    else { main.innerHTML = '<p class="text-red-400">GST Returns Hub failed to load. Hard-refresh (Ctrl+F5).</p>'; }
+                    try {
+                        if (typeof renderGstrReturnsHub === 'function') renderGstrReturnsHub(main);
+                        else { main.innerHTML = '<p class="text-red-400 p-4">GST Returns Hub failed to load. Hard-refresh (Ctrl+F5).</p>'; }
+                    } catch (err) {
+                        main.innerHTML = `<p class="text-red-400 p-4">GST Returns Hub error: ${err.message}. Press Ctrl+F5.</p>`;
+                    }
                     break;
                 case 'gstr-export':
                     if (!isFirmUser() && !isTeamUser()) { showToast('GSTR export is available in Admin / Team portal only', 'error'); renderDashboard(main); break; }
@@ -5937,6 +5942,19 @@ Sent via LedgerFlow CRM`;
                      !document.getElementById('otp-step-verify')?.classList.contains('hidden')) handleVerifyOtp();
             else if (!document.getElementById('login-otp-section')?.classList.contains('hidden')) handleSendOtp();
             else handleLogin();
+        });
+
+        window.addEventListener('error', e => {
+            console.error('[LedgerFlow]', e.error || e.message);
+            if (typeof showToast === 'function') {
+                showToast('App error — try Ctrl+F5 refresh. ' + (e.message || ''), 'error');
+            }
+        });
+        window.addEventListener('unhandledrejection', e => {
+            console.error('[LedgerFlow] unhandled', e.reason);
+            if (typeof showToast === 'function') {
+                showToast('Request failed — check connection and refresh.', 'error');
+            }
         });
 
         // Boot

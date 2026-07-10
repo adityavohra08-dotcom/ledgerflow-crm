@@ -7,6 +7,18 @@
     const G = () => global.GstrReturnExport;
     const TABS = ['overview', 'recon', 'bulk'];
 
+    function getAppData() {
+        return global.LedgerFlow?.getAppData?.() || global.appData || null;
+    }
+
+    function ensureExportReady() {
+        const exp = G();
+        if (!exp?.buildReturn) {
+            throw new Error('GSTR export module not loaded. Press Ctrl+F5 to hard-refresh.');
+        }
+        return exp;
+    }
+
     function esc(s) {
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
@@ -428,16 +440,18 @@
     }
 
     function renderGstrReturnsHub(container) {
-        if (!global.isFirmUser?.() && !global.isTeamUser?.()) {
-            container.innerHTML = '<p class="text-slate-400">GST Returns Hub is available in Admin / Team portal only.</p>';
-            return;
-        }
-        const appData = global.appData;
-        if (!appData?.clients) {
-            container.innerHTML = '<p class="text-slate-400">No client data loaded.</p>';
-            return;
-        }
-        ensureHubMeta(appData);
+        try {
+            if (!global.isFirmUser?.() && !global.isTeamUser?.()) {
+                container.innerHTML = '<p class="text-slate-400">GST Returns Hub is available in Admin / Team portal only.</p>';
+                return;
+            }
+            ensureExportReady();
+            const appData = getAppData();
+            if (!appData?.clients || !Object.keys(appData.clients).length) {
+                container.innerHTML = '<div class="grh-alert">No client data loaded. Log in as Admin and wait for sync to finish, then refresh.</div>';
+                return;
+            }
+            ensureHubMeta(appData);
         const hub = appData.firmGstrHub;
         if (!hub.selectedClients.length) {
             hub.selectedClients = clientList(appData).map(c => c.id);
@@ -464,7 +478,11 @@
                 </div>
             </div>`;
 
-        bindHubEvents(container, appData, hub);
+            bindHubEvents(container, appData, hub);
+        } catch (err) {
+            container.innerHTML = `<div class="grh-alert gstr-alert--error"><strong>GST Returns Hub error</strong><p class="mt-2">${esc(err.message)}</p><button type="button" class="lf-btn lf-btn--secondary text-sm mt-3" onclick="location.reload()">Reload page</button></div>`;
+            console.error('[GSTR Hub]', err);
+        }
     }
 
     async function bulkDownloadZip(appData, hub) {
@@ -539,6 +557,7 @@
             btn.addEventListener('click', () => {
                 const id = btn.dataset.openClient;
                 if (typeof global.switchClient === 'function') global.switchClient(id);
+                else if (global.LedgerFlow?.switchClient) global.LedgerFlow.switchClient(id);
                 hub.tab = 'recon';
                 global.saveAppData?.();
                 refreshHub();
