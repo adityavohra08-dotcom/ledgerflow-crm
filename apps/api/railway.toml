@@ -1,5 +1,5 @@
 [build]
-buildCommand = "npm install && npm run db:generate -w @ledgerflow/db"
+buildCommand = "npm install && npm run db:generate"
 
 [deploy]
 startCommand = "cd packages/db && npx prisma db push --accept-data-loss && npx tsx seed/indian-coa.ts && cd ../../apps/api && npx tsx src/main.ts"

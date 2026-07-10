@@ -1,8 +1,8 @@
 [build]
-buildCommand = "npm install && npm run web:build -w @ledgerflow/web"
+buildCommand = "npm install && npm run web:build"
 
 [deploy]
-startCommand = "npm run web:start -w @ledgerflow/web"
+startCommand = "npm run web:start"
 healthcheckPath = "/"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
