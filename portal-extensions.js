@@ -1343,7 +1343,7 @@
                 const sgst = parseFloat(row.sgst) || 0;
                 const igst = parseFloat(row.igst) || 0;
                 const grandTotal = parseFloat(row.grand_total || row.total) || (taxable + cgst + sgst + igst);
-                client.invoices.push({
+                const inv = {
                     id: 'inv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
                     number,
                     date: row.date || new Date().toISOString().split('T')[0],
@@ -1354,7 +1354,9 @@
                     status: row.status || 'Pending',
                     items: parseInt(row.items, 10) || 1,
                     imported: true
-                });
+                };
+                client.invoices.push(inv);
+                global.GstrReturnsHub?.onInvoiceSaved?.(client, inv);
                 added++;
             });
             saveAppData();

@@ -478,7 +478,7 @@
                     const partyName = row.party_name || row.customer;
                     if (!number || !partyName) return;
                     const docType = String(row.doc_type || 'INV').toUpperCase();
-                    client.invoices.push({
+                    const inv = {
                         id: uid('inv'),
                         number, partyName,
                         date: row.date || new Date().toISOString().slice(0, 10),
@@ -491,7 +491,9 @@
                         reverseCharge: ['y', 'yes', 'true', '1'].includes(String(row.reverse_charge || '').toLowerCase()),
                         status: row.status || 'Pending',
                         imported: true
-                    });
+                    };
+                    client.invoices.push(inv);
+                    global.GstrReturnsHub?.onInvoiceSaved?.(client, inv);
                     n++;
                 });
                 logAudit('Invoice import', client.name, `${n} rows`);

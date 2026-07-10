@@ -1,0 +1,256 @@
+// LedgerFlow CRM — PostgreSQL schema (migration target from JSON store)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  PARTNER
+  MANAGER
+  STAFF
+  CLIENT
+}
+
+enum ReturnType {
+  GSTR_1
+  GSTR_1A
+  GSTR_3B
+  GSTR_9
+  GSTR_9C
+  IFF
+}
+
+enum FilingStatus {
+  NOT_STARTED
+  DRAFT
+  READY
+  FILED
+  ACKNOWLEDGED
+}
+
+enum ReconMatchBucket {
+  EXACT_MATCH
+  FUZZY_MATCH
+  PARTIAL_MATCH
+  MISSING_IN_BOOKS
+  MISSING_IN_PORTAL
+  REJECTED_IMS
+  PENDING_IMS
+}
+
+enum ImsAction {
+  NONE
+  ACCEPT
+  REJECT
+  PENDING
+}
+
+model Tenant {
+  id           String     @id @default(cuid())
+  slug         String     @unique
+  name         String
+  logoUrl      String?
+  primaryColor String?    @default("#0d9488")
+  customDomain String?
+  createdAt    DateTime   @default(now())
+  users        User[]
+  clients      Client[]
+  auditLogs    AuditLog[]
+}
+
+model User {
+  id                String   @id @default(cuid())
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  email             String
+  passwordHash      String?
+  name              String
+  role              UserRole
+  assignedClientIds String[] @default([])
+  lastLoginAt       DateTime?
+  createdAt         DateTime @default(now())
+  @@unique([tenantId, email])
+}
+
+model Client {
+  id            String         @id @default(cuid())
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  pan           String?
+  legalName     String
+  tradeName     String?
+  stateCode     String         @db.Char(2)
+  isActive      Boolean        @default(true)
+  gstins        ClientGstin[]
+  invoices      Invoice[]
+  purchases     Purchase[]
+  creditNotes   CreditNote[]
+  gstrFilings   GstrFiling[]
+  gstr2bImports Gstr2bImport[]
+  reconRuns     ReconRun[]
+  createdAt     DateTime       @default(now())
+  @@index([tenantId])
+}
+
+model ClientGstin {
+  id        String  @id @default(cuid())
+  clientId  String
+  client    Client  @relation(fields: [clientId], references: [id])
+  gstin     String  @db.Char(15)
+  isPrimary Boolean @default(false)
+  @@unique([gstin])
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  clientId      String
+  client        Client        @relation(fields: [clientId], references: [id])
+  number        String
+  date          DateTime      @db.Date
+  partyName     String
+  partyGstin    String?       @db.Char(15)
+  docType       String        @default("INV")
+  taxable       Decimal       @db.Decimal(18, 2)
+  cgst          Decimal       @db.Decimal(18, 2) @default(0)
+  sgst          Decimal       @db.Decimal(18, 2) @default(0)
+  igst          Decimal       @db.Decimal(18, 2) @default(0)
+  grandTotal    Decimal       @db.Decimal(18, 2)
+  reverseCharge Boolean       @default(false)
+  status        String        @default("Active")
+  lines         InvoiceLine[]
+  @@index([clientId, date])
+}
+
+model InvoiceLine {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+  hsnSac      String
+  description String?
+  qty         Decimal @db.Decimal(18, 3)
+  rate        Decimal @db.Decimal(5, 2)
+  taxable     Decimal @db.Decimal(18, 2)
+}
+
+model Purchase {
+  id            String   @id @default(cuid())
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id])
+  supplier      String?
+  supplierGstin String   @db.Char(15)
+  invoiceNo     String
+  date          DateTime @db.Date
+  taxable       Decimal  @db.Decimal(18, 2)
+  cgst          Decimal  @db.Decimal(18, 2) @default(0)
+  sgst          Decimal  @db.Decimal(18, 2) @default(0)
+  igst          Decimal  @db.Decimal(18, 2) @default(0)
+  itcEligible   Boolean  @default(true)
+  @@index([clientId, date])
+}
+
+model CreditNote {
+  id             String   @id @default(cuid())
+  clientId       String
+  client         Client   @relation(fields: [clientId], references: [id])
+  number         String
+  date           DateTime @db.Date
+  againstInvoice String?
+  partyName      String
+  taxable        Decimal  @db.Decimal(18, 2)
+  cgst           Decimal  @db.Decimal(18, 2) @default(0)
+  sgst           Decimal  @db.Decimal(18, 2) @default(0)
+  igst           Decimal  @db.Decimal(18, 2) @default(0)
+  grandTotal     Decimal  @db.Decimal(18, 2)
+}
+
+model GstrFiling {
+  id         String       @id @default(cuid())
+  clientId   String
+  client     Client       @relation(fields: [clientId], references: [id])
+  returnType ReturnType
+  period     String
+  status     FilingStatus @default(NOT_STARTED)
+  arn        String?
+  filedOn    DateTime?
+  jsonPath   String?
+  validation Json?
+  @@unique([clientId, returnType, period])
+}
+
+model Gstr2bImport {
+  id         String   @id @default(cuid())
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id])
+  period     String
+  source     String
+  rawJson    Json
+  importedAt DateTime @default(now())
+  @@unique([clientId, period])
+}
+
+model ReconRun {
+  id        String      @id @default(cuid())
+  clientId  String
+  client    Client      @relation(fields: [clientId], references: [id])
+  period    String
+  config    Json
+  stats     Json
+  createdAt DateTime    @default(now())
+  lines     ReconLine[]
+}
+
+model ReconLine {
+  id              String           @id @default(cuid())
+  reconRunId      String
+  reconRun        ReconRun         @relation(fields: [reconRunId], references: [id])
+  bucket          ReconMatchBucket
+  confidence      Float?
+  booksPurchaseId String?
+  booksGstin      String?
+  booksInvNo      String?
+  booksDate       DateTime?        @db.Date
+  booksTaxable    Decimal?         @db.Decimal(18, 2)
+  booksItc        Decimal?         @db.Decimal(18, 2)
+  g2bSection      String?
+  g2bGstin        String?
+  g2bInvNo        String?
+  g2bDate         DateTime?        @db.Date
+  g2bTaxable      Decimal?         @db.Decimal(18, 2)
+  g2bItc          Decimal?         @db.Decimal(18, 2)
+  imsStatus       ImsAction        @default(NONE)
+  variance        Decimal?         @db.Decimal(18, 2)
+  matchReason     String?
+  @@index([reconRunId, bucket])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  userId    String?
+  clientId  String?
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
+  reason    String?
+  createdAt DateTime @default(now())
+  @@index([tenantId, createdAt])
+}
+
+model ReconToleranceConfig {
+  id             String  @id @default(cuid())
+  tenantId       String  @unique
+  dateDays       Int     @default(3)
+  valuePct       Float   @default(0.5)
+  taxAbs         Decimal @db.Decimal(18, 2) @default(1)
+  invNoNormalize Boolean @default(true)
+  fuzzyEnabled   Boolean @default(true)
+}

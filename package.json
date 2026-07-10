@@ -5,7 +5,9 @@
   "description": "LedgerFlow CRM — full-stack deployment",
   "scripts": {
     "build": "cd backend && npm install",
-    "start": "cd backend && node seed.js && node server.js"
+    "start": "cd backend && node seed.js && node server.js",
+    "web:dev": "cd apps/web && npm run dev",
+    "validate:gstr1": "node scripts/validate-gstr1-file.js"
   },
   "engines": {
     "node": ">=18"

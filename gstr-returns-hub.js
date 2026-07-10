@@ -1,11 +1,26 @@
 /**
- * LedgerFlow — GST Returns Hub (status matrix, GSTR-2B recon, bulk export)
+ * LedgerFlow — GST Returns Hub v2 (status matrix, 2B recon engine, bulk export, hard-lock)
  */
 (function (global) {
     'use strict';
 
+    const HUB_VERSION = '2.0.0';
     const G = () => global.GstrReturnExport;
+    const R = () => global.GstReconEngine;
     const TABS = ['overview', 'recon', 'bulk'];
+    const BUCKET_LABELS = {
+        EXACT_MATCH: 'Exact',
+        FUZZY_MATCH: 'Fuzzy',
+        PARTIAL_MATCH: 'Partial',
+        MISSING_IN_BOOKS: 'Missing in Books',
+        MISSING_IN_PORTAL: 'Missing in Portal',
+        REJECTED_IMS: 'IMS Rejected',
+        PENDING_IMS: 'IMS Pending',
+        Matched: 'Matched',
+        Mismatch: 'Mismatch',
+        'Missing in 2B': 'Missing in Portal',
+        'Missing in Books': 'Missing in Books'
+    };
 
     function getAppData() {
         return global.LedgerFlow?.getAppData?.() || global.appData || null;
@@ -88,15 +103,26 @@
         return { code: 'Not Started', cls: 'grh-status--none' };
     }
 
+    function isMatchedRow(r) {
+        return r.bucket === 'EXACT_MATCH' || r.bucket === 'FUZZY_MATCH' || r.match === 'Matched';
+    }
+
     function reconStats(client) {
+        if (client.gstr2bReconStats) {
+            const s = client.gstr2bReconStats;
+            return {
+                matched: s.matched, total: s.total, pct: s.pct,
+                booksItc: s.booksItc, g2Itc: s.g2Itc, variance: s.variance,
+                mismatches: (client.gstr2bRecon || []).filter(r => !isMatchedRow(r))
+            };
+        }
         const rows = client.gstr2bRecon || [];
-        const matched = rows.filter(r => r.match === 'Matched').length;
+        const matched = rows.filter(isMatchedRow).length;
         const total = rows.length;
         const pct = total ? Math.round((matched / total) * 100) : 0;
         const booksItc = rows.reduce((s, r) => s + num(r.booksItc), 0);
         const g2Itc = rows.reduce((s, r) => s + num(r.gstr2bItc), 0);
-        const variance = Math.abs(booksItc - g2Itc);
-        return { matched, total, pct, booksItc, g2Itc, variance, mismatches: rows.filter(r => r.match !== 'Matched') };
+        return { matched, total, pct, booksItc, g2Itc, variance: Math.abs(booksItc - g2Itc), mismatches: rows.filter(r => !isMatchedRow(r)) };
     }
 
     function parseGstr2bJson(raw) {
@@ -141,69 +167,20 @@
     }
 
     function run2bReconciliation(client, monthStr) {
-        const purchases = G().filterPurchases(client, { month: monthStr });
+        const purchases = G().filterPurchases(client, { month: monthStr }).map((p, i) => ({
+            ...p, id: p.id || 'pur_' + i + '_' + normInvNo(p.invoiceNo)
+        }));
         const entries = client.gstr2bImport?.entries || [];
-        const used2b = new Set();
-        const rows = [];
-
-        purchases.forEach(p => {
-            const pGstin = G().cleanGstin(p.gstin);
-            const pInv = normInvNo(p.invoiceNo);
-            const booksItc = num(p.cgst) + num(p.sgst) + num(p.igst);
-            let best = null;
-            let bestScore = 0;
-
-            entries.forEach((e, idx) => {
-                if (used2b.has(idx)) return;
-                let score = 0;
-                if (pGstin && e.supplierGstin && pGstin === e.supplierGstin) score += 40;
-                if (pInv && normInvNo(e.invoiceNo) === pInv) score += 45;
-                const itcDiff = Math.abs(booksItc - e.itc);
-                if (itcDiff <= 1) score += 25;
-                else if (itcDiff <= 100) score += 10;
-                if (score > bestScore) { bestScore = score; best = { e, idx }; }
-            });
-
-            if (best && bestScore >= 70) {
-                used2b.add(best.idx);
-                const itcDiff = Math.abs(booksItc - best.e.itc);
-                rows.push({
-                    id: uid('g2'),
-                    supplier: p.supplier || best.e.supplierGstin,
-                    invoice: p.invoiceNo || best.e.invoiceNo,
-                    booksItc: round2(booksItc),
-                    gstr2bItc: round2(best.e.itc),
-                    match: itcDiff <= 1 ? 'Matched' : 'Mismatch',
-                    score: bestScore
-                });
-            } else {
-                rows.push({
-                    id: uid('g2'),
-                    supplier: p.supplier,
-                    invoice: p.invoiceNo,
-                    booksItc: round2(booksItc),
-                    gstr2bItc: 0,
-                    match: 'Missing in 2B',
-                    score: 0
-                });
-            }
-        });
-
-        entries.forEach((e, idx) => {
-            if (used2b.has(idx)) return;
-            rows.push({
-                id: uid('g2'),
-                supplier: e.supplierGstin,
-                invoice: e.invoiceNo,
-                booksItc: 0,
-                gstr2bItc: round2(e.itc),
-                match: 'Missing in Books',
-                score: 0
-            });
-        });
-
-        client.gstr2bRecon = rows;
-        return rows;
+        const tol = client.gstr2bTolerance || (R()?.DEFAULT_TOLERANCE);
+        if (R()?.runReconciliation) {
+            const result = R().runReconciliation(purchases, entries, { tolerance: tol });
+            client.gstr2bRecon = result.lines;
+            client.gstr2bReconStats = result.stats;
+            return result.lines;
+        }
+        client.gstr2bRecon = [];
+        client.gstr2bReconStats = { matched: 0, total: 0, pct: 0, booksItc: 0, g2Itc: 0, variance: 0 };
+        return [];
     }
 
     function round2(n) {
@@ -336,6 +313,13 @@
             </div>`;
     }
 
+    function bucketTag(r) {
+        const key = r.bucket || r.match || 'Unknown';
+        const label = BUCKET_LABELS[key] || key;
+        const cls = key.replace(/_/g, '').replace(/\s/g, '');
+        return `<span class="grh-match-tag grh-match-tag--${esc(cls)}">${esc(label)}</span>`;
+    }
+
     function renderRecon(container, appData, hub) {
         const client = global.getCurrentClient?.();
         if (!client) {
@@ -348,66 +332,74 @@
         const stats = reconStats(client);
         const rows = client.gstr2bRecon || [];
         const imported = client.gstr2bImport;
+        const activeBucket = hub.reconBucket || 'ALL';
+        const filtered = activeBucket === 'ALL' ? rows : rows.filter(r => (r.bucket || r.match) === activeBucket);
+        const buckets = ['ALL', ...(R()?.BUCKETS || [])];
+        const hardlock = global.Gstr3bHardlock?.hardLockReport?.(client, monthStr, G());
 
         return `
             <div class="grh-panel">
                 <div class="flex flex-wrap gap-3 items-end mb-4">
                     <div>
-                        <div class="text-xs text-slate-500 uppercase font-semibold">Client</div>
+                        <div class="text-xs text-slate-500 uppercase font-semibold">Client · Recon v${HUB_VERSION}</div>
                         <div class="font-medium">${esc(client.name)} <span class="text-xs font-mono text-slate-400">${esc(client.gstin)}</span></div>
                     </div>
-                    <label class="gstr-field">
-                        <span>Period</span>
-                        <input type="month" id="grh-recon-month" class="gstr-input" value="${esc(monthStr)}">
-                    </label>
+                    <label class="gstr-field"><span>Period</span>
+                        <input type="month" id="grh-recon-month" class="gstr-input" value="${esc(monthStr)}"></label>
                     <input type="file" id="grh-2b-file" accept=".json,application/json" class="hidden">
-                    <button type="button" id="grh-2b-import" class="lf-btn lf-btn--primary text-sm"><i class="fa-solid fa-upload mr-1"></i> Import GSTR-2B JSON</button>
-                    <button type="button" id="grh-2b-sample" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-flask mr-1"></i> Load Sample</button>
+                    <button type="button" id="grh-2b-import" class="lf-btn lf-btn--primary text-sm"><i class="fa-solid fa-upload mr-1"></i> Import 2B</button>
+                    <button type="button" id="grh-2b-sample" class="lf-btn lf-btn--secondary text-sm">Sample</button>
                     <button type="button" id="grh-2b-run" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-code-compare mr-1"></i> Run Match</button>
+                    <button type="button" id="grh-section-csv" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-file-csv mr-1"></i> Section CSVs</button>
                 </div>
-                ${imported ? `<p class="text-xs text-slate-500 mb-3">2B imported ${esc(imported.importedAt?.slice(0, 16)?.replace('T', ' '))} · ${imported.entries?.length || 0} invoices · fp ${esc(imported.fp)}</p>` : ''}
+                ${imported ? `<p class="text-xs text-slate-500 mb-3">2B imported ${esc(imported.importedAt?.slice(0, 16)?.replace('T', ' '))} · ${imported.entries?.length || 0} lines · fp ${esc(imported.fp)}</p>` : ''}
+                ${hardlock?.warnings?.length ? `<div class="grh-attention mb-3">${hardlock.warnings.map(w => `<div class="grh-attention-item grh-attention--${w.severity === 'high' ? 'high' : 'med'}">${esc(w.msg)}</div>`).join('')}</div>` : ''}
                 <div class="gstr-stats mb-4">
                     <div class="gstr-stat"><span>Matched</span><strong class="text-emerald-400">${stats.matched}/${stats.total}</strong></div>
                     <div class="gstr-stat"><span>Books ITC</span><strong>${fmtINR(stats.booksItc)}</strong></div>
                     <div class="gstr-stat"><span>2B ITC</span><strong>${fmtINR(stats.g2Itc)}</strong></div>
                     <div class="gstr-stat"><span>Variance</span><strong class="${stats.variance > 500 ? 'text-amber-400' : ''}">${fmtINR(stats.variance)}</strong></div>
                 </div>
+                <div class="grh-bucket-bar mb-3">
+                    ${buckets.map(b => {
+                        const cnt = b === 'ALL' ? rows.length : rows.filter(r => r.bucket === b).length;
+                        return `<button type="button" class="grh-bucket-btn${activeBucket === b ? ' grh-bucket-btn--active' : ''}" data-bucket="${esc(b)}">${esc(BUCKET_LABELS[b] || b)} <span class="text-xs opacity-70">(${cnt})</span></button>`;
+                    }).join('')}
+                </div>
                 <div class="grh-tri-view">
-                    <div class="grh-tri-col">
-                        <div class="grh-panel-title">Books (Purchases)</div>
-                        <div class="grh-tri-list">
-                            ${G().filterPurchases(client, { month: monthStr }).map(p => `
-                                <div class="grh-tri-item">
-                                    <div class="text-sm font-medium">${esc(p.supplier)}</div>
-                                    <div class="text-xs text-slate-500">${esc(p.invoiceNo)} · ${esc(p.date)}</div>
-                                    <div class="text-xs text-teal-400">ITC ${fmtINR(num(p.cgst) + num(p.sgst) + num(p.igst))}</div>
-                                </div>`).join('') || '<p class="text-sm text-slate-500">No purchases this period</p>'}
-                        </div>
-                    </div>
-                    <div class="grh-tri-col grh-tri-col--mid">
-                        <div class="grh-panel-title">Match results</div>
-                        <div class="grh-tri-list grh-tri-list--scroll">
-                            ${rows.length ? rows.map(r => `
-                                <div class="grh-tri-item grh-tri-item--${r.match === 'Matched' ? 'ok' : 'warn'}">
-                                    <div class="flex justify-between">
+                    <div class="grh-tri-col grh-tri-col--wide">
+                        <div class="grh-panel-title">Match results (${filtered.length})</div>
+                        <div class="grh-tri-list grh-tri-list--scroll grh-tri-list--tall">
+                            ${filtered.length ? filtered.map(r => `
+                                <div class="grh-tri-item grh-tri-item--${isMatchedRow(r) ? 'ok' : 'warn'}" data-line-id="${esc(r.id)}">
+                                    <div class="flex justify-between gap-2 flex-wrap">
                                         <span class="text-sm font-medium">${esc(r.supplier)}</span>
-                                        <span class="grh-match-tag grh-match-tag--${esc(r.match).replace(/\s/g, '')}">${esc(r.match)}</span>
+                                        ${bucketTag(r)}
                                     </div>
-                                    <div class="text-xs text-slate-500">${esc(r.invoice)}</div>
-                                    <div class="text-xs">Books ${fmtINR(r.booksItc)} · 2B ${fmtINR(r.gstr2bItc)}</div>
+                                    <div class="text-xs text-slate-500">${esc(r.invoice)} · ${esc(r.matchReason || '')}</div>
+                                    <div class="text-xs">Books ${fmtINR(r.booksItc)} · 2B ${fmtINR(r.gstr2bItc)} · Δ ${fmtINR(r.variance)}</div>
+                                    <div class="flex gap-1 mt-1 flex-wrap">
+                                        ${r.g2b ? `<button type="button" class="grh-mini-btn" data-ims="${esc(r.id)}" data-action="ACCEPT">Accept</button>
+                                        <button type="button" class="grh-mini-btn" data-ims="${esc(r.id)}" data-action="REJECT">Reject</button>` : ''}
+                                        ${!isMatchedRow(r) ? `<button type="button" class="grh-mini-btn" data-email-vendor="${esc(r.id)}">Email vendor</button>` : ''}
+                                    </div>
                                 </div>`).join('') : '<p class="text-sm text-slate-500 py-4">Import GSTR-2B JSON and click Run Match</p>'}
                         </div>
                     </div>
                     <div class="grh-tri-col">
-                        <div class="grh-panel-title">GSTR-2B import</div>
-                        <div class="grh-tri-list">
-                            ${(imported?.entries || []).slice(0, 12).map(e => `
-                                <div class="grh-tri-item">
-                                    <div class="text-sm font-mono">${esc(e.supplierGstin)}</div>
-                                    <div class="text-xs text-slate-500">${esc(e.invoiceNo)}</div>
-                                    <div class="text-xs text-teal-400">ITC ${fmtINR(e.itc)}</div>
-                                </div>`).join('') || '<p class="text-sm text-slate-500">No 2B data imported</p>'}
-                            ${(imported?.entries?.length || 0) > 12 ? `<p class="text-xs text-slate-500">+${imported.entries.length - 12} more</p>` : ''}
+                        <div class="grh-panel-title">Books vs 2B</div>
+                        <div class="grh-tri-list grh-tri-list--scroll">
+                            ${G().filterPurchases(client, { month: monthStr }).slice(0, 8).map(p => `
+                                <div class="grh-tri-item"><div class="text-sm">${esc(p.supplier)}</div>
+                                <div class="text-xs text-slate-500">${esc(p.invoiceNo)}</div>
+                                <div class="text-xs text-teal-400">ITC ${fmtINR(num(p.cgst) + num(p.sgst) + num(p.igst))}</div></div>`).join('') || '<p class="text-sm text-slate-500">No purchases</p>'}
+                        </div>
+                        <div class="grh-panel-title mt-3">GSTR-2B</div>
+                        <div class="grh-tri-list grh-tri-list--scroll">
+                            ${(imported?.entries || []).slice(0, 8).map(e => `
+                                <div class="grh-tri-item"><div class="text-xs font-mono">${esc(e.supplierGstin)}</div>
+                                <div class="text-xs">${esc(e.invoiceNo)}</div>
+                                <div class="text-xs text-teal-400">ITC ${fmtINR(e.itc)}</div></div>`).join('') || '<p class="text-sm text-slate-500">No 2B data</p>'}
                         </div>
                     </div>
                 </div>
@@ -462,7 +454,7 @@
                 <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
                     <div>
                         <h2 class="text-2xl font-semibold tracking-tight">GST Returns Hub</h2>
-                        <p class="text-slate-400 text-sm mt-1">Filing status, GSTR-2B reconciliation &amp; bulk JSON export across clients</p>
+                        <p class="text-slate-400 text-sm mt-1">2B recon engine · hard-lock awareness · bulk JSON/ZIP · <span class="text-emerald-400 font-mono">v${HUB_VERSION}</span></p>
                     </div>
                     <div class="gstr-toolbar" style="padding:0.5rem 0.75rem;border:none;background:transparent">
                         <label class="gstr-field"><span>Period</span>
@@ -510,6 +502,14 @@
                 }
             });
         });
+
+        zip.file('validation-report.json', JSON.stringify({
+            generatedAt: new Date().toISOString(),
+            period: monthStr,
+            clients: hub.selectedClients.length,
+            files: count,
+            log
+        }, null, 2));
 
         if (!count) throw new Error('No files generated — check validation errors');
         const blob = await zip.generateAsync({ type: 'blob' });
@@ -617,6 +617,50 @@
             }
         });
 
+        container.querySelectorAll('.grh-bucket-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                hub.reconBucket = btn.dataset.bucket || 'ALL';
+                global.saveAppData?.();
+                refreshHub();
+            });
+        });
+
+        container.querySelectorAll('[data-ims]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const client = global.getCurrentClient?.();
+                if (!client || !R()?.applyImsAction) return;
+                R().applyImsAction(client, btn.dataset.ims, btn.dataset.action);
+                global.saveAppData?.();
+                global.showToast?.('IMS action: ' + btn.dataset.action);
+                refreshHub();
+            });
+        });
+
+        container.querySelectorAll('[data-email-vendor]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const client = global.getCurrentClient?.();
+                if (!client) return;
+                const row = (client.gstr2bRecon || []).find(r => r.id === btn.dataset.emailVendor);
+                if (!row || !R()?.vendorMismatchEmail) return;
+                const firm = appData.firmSettings?.name || 'CA Firm';
+                const body = R().vendorMismatchEmail(row, firm, G().monthLabel(hub.period));
+                navigator.clipboard?.writeText(body);
+                global.showToast?.('Vendor email copied to clipboard');
+            });
+        });
+
+        container.querySelector('#grh-section-csv')?.addEventListener('click', async () => {
+            const client = global.getCurrentClient?.();
+            if (!client || !global.GstSectionCsv) { global.showToast?.('Section CSV module not loaded', 'error'); return; }
+            try {
+                const m = container.querySelector('#grh-recon-month')?.value || hub.period;
+                await global.GstSectionCsv.downloadSectionCsvZip(client, m, G());
+                global.showToast?.('GSTR-1 section CSVs downloaded');
+            } catch (e) {
+                global.showToast?.(e.message, 'error');
+            }
+        });
+
         container.querySelector('#grh-2b-run')?.addEventListener('click', () => {
             const client = global.getCurrentClient?.();
             if (!client) return;
@@ -674,12 +718,14 @@
     }
 
     global.GstrReturnsHub = {
+        VERSION: HUB_VERSION,
         parseGstr2bJson,
         run2bReconciliation,
         returnStatus,
         reconStats,
         onInvoiceSaved,
-        attentionItems
+        attentionItems,
+        bulkDownloadZip
     };
     global.renderGstrReturnsHub = renderGstrReturnsHub;
 })(typeof window !== 'undefined' ? window : global);

@@ -4,7 +4,7 @@
 (function (global) {
     'use strict';
 
-    const VERSION = '1.2.5';
+    const VERSION = '1.3.1';
     const PORTAL_GSTR1_VERSION = 'GST3.2.4';
     const DOC_ISSUE_TYPES = {
         1: 'Invoices for outward supply',
@@ -12,7 +12,8 @@
         5: 'Credit Note',
         9: 'Delivery Challan for job work'
     };
-    const RETURN_TYPES = ['GSTR-1', 'GSTR-1A', 'GSTR-3B', 'GSTR-9'];
+    const RETURN_TYPES = ['GSTR-1', 'GSTR-1 IFF', 'GSTR-1A', 'GSTR-3B', 'GSTR-9', 'GSTR-9C'];
+    const IFF_B2B_THRESHOLD = 250000;
     const DOC_TYPES = { INV: 'Tax Invoice', CN: 'Credit Note', DN: 'Debit Note', BOS: 'Bill of Supply', DC: 'Delivery Challan' };
     const VALID_GSTR_RATES = [0, 0.25, 3, 5, 6, 12, 18, 28, 40];
     const NIL_SPLY_TYPES = ['INTRB2B', 'INTRAB2B', 'INTRB2C', 'INTRAB2C'];
@@ -876,11 +877,117 @@
         };
     }
 
+    function iffMonthOfQuarter(monthStr) {
+        if (!monthStr || monthStr.length < 7) return 0;
+        const m = Number(monthStr.split('-')[1]);
+        const qStart = Math.floor((m - 1) / 3) * 3 + 1;
+        return m - qStart + 1;
+    }
+
+    function buildGstr1Iff(client, month) {
+        const qPos = iffMonthOfQuarter(month);
+        if (qPos > 2) {
+            throw new Error('GSTR-1 IFF applies only to month 1 or 2 of a quarter (QRMP). Use GSTR-1 for month 3.');
+        }
+        const full = buildGstr1(client, month);
+        const b2b = (full.b2b || []).map(g => ({
+            ...g,
+            inv: (g.inv || []).filter(inv => num(inv.val) >= IFF_B2B_THRESHOLD)
+        })).filter(g => g.inv.length);
+        const portal = toPortalGstr1({ ...full, b2b, b2cl: [], b2cs: [], cdnr: [], cdnur: [], nil: { inv: [] } });
+        return {
+            ...full,
+            meta: {
+                ...full.meta,
+                returnType: 'GSTR-1 IFF',
+                iffMonth: qPos,
+                qrmpNote: `IFF for Q-month ${qPos} — B2B invoices ≥ ₹${IFF_B2B_THRESHOLD.toLocaleString('en-IN')}`
+            },
+            b2b,
+            b2cl: [],
+            b2cs: [],
+            cdnr: [],
+            cdnur: [],
+            nil: { inv: [] },
+            hsn: portal.hsn || full.hsn,
+            iff_summary: {
+                b2bCount: b2b.reduce((s, g) => s + g.inv.length, 0),
+                threshold: IFF_B2B_THRESHOLD,
+                quarterMonth: qPos
+            }
+        };
+    }
+
+    function buildGstr9c(client, fy) {
+        const annual = buildGstr9(client, fy);
+        const range = fyRange(fy);
+        const booksTurnover = num(annual.summary?.annualOutwardTaxable);
+        const booksTax = num(annual.summary?.annualOutwardTax);
+        const booksItc = num(annual.summary?.annualItc);
+        const filed3b = (client.gstrFilings || []).filter(f =>
+            f.returnType === 'GSTR-3B' && f.period && range && f.period.includes(String(range.start).slice(0, 4))
+        );
+        const recon = client.gstr2bRecon || [];
+        const itcMatched = recon.filter(r =>
+            ['EXACT_MATCH', 'FUZZY_MATCH', 'Matched'].includes(r.bucket || r.match)
+        ).reduce((s, r) => s + num(r.booksItc || r.gstr2bItc), 0);
+
+        return {
+            meta: {
+                returnType: 'GSTR-9C',
+                version: VERSION,
+                generatedAt: new Date().toISOString(),
+                source: 'LedgerFlow CRM',
+                financialYear: annual.fy,
+                certificationRequired: booksTurnover >= 50000000
+            },
+            gstin: annual.gstin,
+            fy: annual.fy,
+            version: 'GST3.2.2',
+            reconciliation: {
+                turnover: {
+                    books: round2(booksTurnover),
+                    gstr9_table4: round2(annual.table4?.outward_supplies?.taxable_value || booksTurnover),
+                    variance: round2(booksTurnover - num(annual.table4?.outward_supplies?.taxable_value))
+                },
+                tax_paid: {
+                    books: round2(booksTax),
+                    gstr9_table6: round2(annual.table6?.total_tax_paid || booksTax),
+                    variance: round2(booksTax - num(annual.table6?.total_tax_paid))
+                },
+                itc: {
+                    books: round2(booksItc),
+                    gstr2b_matched: round2(itcMatched),
+                    variance: round2(booksItc - itcMatched)
+                },
+                gstr3b_periods_filed: filed3b.length
+            },
+            part_a: {
+                reconciliation_statement: true,
+                auditor_certification: booksTurnover >= 50000000,
+                derived_from: 'GSTR-9 annual + books + 2B recon'
+            },
+            part_b: annual.table4,
+            part_c: {
+                reasons: [],
+                uncategorized_diff: round2(booksTurnover - num(annual.table4?.outward_supplies?.taxable_value))
+            },
+            summary: {
+                ...annual.summary,
+                reconciliationStatus: Math.abs(booksTurnover - num(annual.table4?.outward_supplies?.taxable_value)) < 1
+                    ? 'aligned'
+                    : 'review_required'
+            }
+        };
+    }
+
     function buildReturn(returnType, client, period) {
         if (returnType === 'GSTR-1') return buildGstr1(client, period.month);
+        if (returnType === 'GSTR-1 IFF') return buildGstr1Iff(client, period.month);
         if (returnType === 'GSTR-1A') return buildGstr1A(client, period.month);
         if (returnType === 'GSTR-3B') return buildGstr3b(client, period.month);
         if (returnType === 'GSTR-9') return buildGstr9(client, period.fy);
+        if (returnType === 'GSTR-9C') return buildGstr9c(client, period.fy);
         throw new Error('Unknown return type');
     }
 
@@ -1040,8 +1147,8 @@
     }
 
     function portalFileName(client, returnType, periodLabel) {
-        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A') {
-            return portalOfflineFileName(client, returnType);
+        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A' || returnType === 'GSTR-1 IFF') {
+            return portalOfflineFileName(client, returnType === 'GSTR-1 IFF' ? 'GSTR-1' : returnType);
         }
         return fileBase(client, returnType, periodLabel) + '.json';
     }
@@ -1281,7 +1388,7 @@
     }
 
     function toPortalJson(returnType, data) {
-        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A') return toPortalGstr1(data);
+        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A' || returnType === 'GSTR-1 IFF') return toPortalGstr1(data);
         return data;
     }
 
@@ -1293,7 +1400,7 @@
         }
         const gstin = cleanGstin(data.gstin);
         if (!isValidGstin(gstin)) errors.push('Invalid or missing gstin');
-        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A') {
+        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A' || returnType === 'GSTR-1 IFF') {
             if (data.meta || data.summary) errors.push('Portal JSON must not contain meta/summary — hard-refresh (Ctrl+F5) and re-download');
             if (data.hsn?.data) errors.push('Portal JSON uses deprecated hsn.data — hard-refresh (Ctrl+F5) and re-download');
             if (!data.fp || String(data.fp).length < 5) errors.push('Missing fp (MMYYYY filing period)');
@@ -1381,6 +1488,19 @@
             if (!data.fy && !data.fp) errors.push('Missing financial year (fy)');
             if (!data.table4?.outward_supplies) warnings.push('Missing table4 outward summary');
         }
+        if (returnType === 'GSTR-1 IFF') {
+            if (!data.b2b?.length) warnings.push('No B2B invoices ≥ ₹2.5L for IFF — verify QRMP month');
+            if (data.iff_summary?.quarterMonth > 2) errors.push('IFF not applicable for 3rd month of quarter');
+        }
+        if (returnType === 'GSTR-9C') {
+            if (!data.fy) errors.push('Missing financial year (fy)');
+            if (!data.reconciliation) errors.push('Missing reconciliation block');
+            if (data.meta?.certificationRequired && !data.part_a?.auditor_certification) {
+                warnings.push('Turnover ≥ ₹5 Cr — auditor certification required on portal');
+            }
+            const tv = num(data.reconciliation?.turnover?.variance);
+            if (Math.abs(tv) > 1000) warnings.push(`Turnover variance ₹${tv.toLocaleString('en-IN')} — review Part C reasons`);
+        }
         return { valid: errors.length === 0, errors, warnings };
     }
 
@@ -1401,7 +1521,7 @@
         const data = buildReturn(returnType, client, period);
         const portalData = toPortalJson(returnType, data);
         const validation = validateReturnJson(returnType, portalData);
-        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A') {
+        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A' || returnType === 'GSTR-1 IFF') {
             collectCdnBookWarnings(data).forEach(w => {
                 if (!validation.warnings.includes(w)) validation.warnings.push(w);
             });
@@ -1409,7 +1529,7 @@
         if (!validation.valid && !opts.force) {
             throw new Error('JSON validation failed: ' + validation.errors.join('; '));
         }
-        const periodLabel = returnType === 'GSTR-9' ? period.fy : monthLabel(period.month);
+        const periodLabel = (returnType === 'GSTR-9' || returnType === 'GSTR-9C') ? period.fy : monthLabel(period.month);
         const fileName = portalFileName(client, returnType, periodLabel);
         return { data, portalData, validation, fileName, periodLabel };
     }
@@ -1419,7 +1539,7 @@
         const payload = built.portalData || built.data;
         downloadText(portalJsonString(payload), built.fileName, 'application/json');
         upsertFilingRecord(client, returnType, built.periodLabel, 'Ready');
-        if (returnType !== 'GSTR-9') clearPeriodStale(client, period.month, returnType);
+        if (returnType !== 'GSTR-9' && returnType !== 'GSTR-9C') clearPeriodStale(client, period.month, returnType);
         return built;
     }
 
@@ -1435,13 +1555,22 @@
 
     function renderSummaryCards(returnType, data) {
         const s = data.summary || {};
-        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A') {
+        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A' || returnType === 'GSTR-1 IFF') {
+            const iff = data.iff_summary;
             return `
                 <div class="gstr-stat"><span>Outward taxable</span><strong>${fmtINR(s.outwardTaxable)}</strong></div>
-                <div class="gstr-stat"><span>B2B invoices</span><strong>${s.b2bCount || 0}</strong></div>
+                <div class="gstr-stat"><span>B2B invoices</span><strong>${iff ? iff.b2bCount : (s.b2bCount || 0)}</strong></div>
                 <div class="gstr-stat"><span>CN/DN notes</span><strong>${s.cdnCount || 0}</strong></div>
                 <div class="gstr-stat"><span>RCM invoices</span><strong>${s.rcmCount || 0}</strong></div>
                 <div class="gstr-stat"><span>Total tax</span><strong>${fmtINR((s.outwardCgst || 0) + (s.outwardSgst || 0) + (s.outwardIgst || 0))}</strong></div>`;
+        }
+        if (returnType === 'GSTR-9C') {
+            const r = data.reconciliation || {};
+            return `
+                <div class="gstr-stat"><span>FY</span><strong>${esc(data.fy || '—')}</strong></div>
+                <div class="gstr-stat"><span>Books turnover</span><strong>${fmtINR(r.turnover?.books)}</strong></div>
+                <div class="gstr-stat"><span>ITC variance</span><strong>${fmtINR(r.itc?.variance)}</strong></div>
+                <div class="gstr-stat"><span>Status</span><strong>${esc(data.summary?.reconciliationStatus || '—')}</strong></div>`;
         }
         if (returnType === 'GSTR-3B') {
             return `
@@ -1476,7 +1605,7 @@
             previewErr = e.message;
         }
 
-        const periodField = meta.returnType === 'GSTR-9'
+        const periodField = (meta.returnType === 'GSTR-9' || meta.returnType === 'GSTR-9C')
             ? `<label class="gstr-field"><span>Financial Year</span>
                 <input type="text" id="gstr-fy" class="gstr-input" value="${esc(meta.fy)}" placeholder="2025-26"></label>`
             : `<label class="gstr-field"><span>Tax Period (month)</span>
@@ -1514,6 +1643,8 @@
                     <button type="button" id="gstr-validate" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-shield-halved mr-1"></i> Validate JSON</button>
                     <button type="button" id="gstr-dl-json" class="lf-btn lf-btn--primary text-sm"><i class="fa-solid fa-file-code mr-1"></i> Download JSON</button>
                     <button type="button" id="gstr-dl-csv" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-file-csv mr-1"></i> Download CSV</button>
+                    <button type="button" id="gstr-dl-sections" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-folder-tree mr-1"></i> Offline CSV ZIP</button>
+                    <button type="button" id="gstr-hardlock" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-lock mr-1"></i> 3B Hard-lock</button>
                     <button type="button" id="gstr-mark-ready" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-check mr-1"></i> Mark Ready</button>
                     <button type="button" onclick="showSection('gst-returns')" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-table-columns mr-1"></i> Returns Hub</button>
                 </div>
@@ -1532,7 +1663,7 @@
     function readForm(container, client) {
         const meta = client.gstrExportMeta;
         meta.returnType = container.querySelector('#gstr-type')?.value || 'GSTR-1';
-        if (meta.returnType === 'GSTR-9') {
+        if (meta.returnType === 'GSTR-9' || meta.returnType === 'GSTR-9C') {
             meta.fy = container.querySelector('#gstr-fy')?.value?.trim() || defaultFy(client);
         } else {
             meta.month = container.querySelector('#gstr-month')?.value || defaultMonth(client);
@@ -1575,7 +1706,7 @@
             const meta = readForm(container, client);
             try {
                 const data = buildReturn(meta.returnType, client, { month: meta.month, fy: meta.fy });
-                const periodLabel = meta.returnType === 'GSTR-9' ? meta.fy : monthLabel(meta.month);
+                const periodLabel = (meta.returnType === 'GSTR-9' || meta.returnType === 'GSTR-9C') ? meta.fy : monthLabel(meta.month);
                 const name = fileBase(client, meta.returnType, periodLabel) + '.csv';
                 downloadText(toCsv(meta.returnType, data), name, 'text/csv');
                 upsertFilingRecord(client, meta.returnType, periodLabel);
@@ -1604,9 +1735,35 @@
             }
         });
 
+        container.querySelector('#gstr-dl-sections')?.addEventListener('click', async () => {
+            const meta = readForm(container, client);
+            try {
+                if (!global.GstSectionCsv) throw new Error('Section CSV module not loaded — hard-refresh');
+                await global.GstSectionCsv.downloadSectionCsvZip(client, meta.month, global.GstrReturnExport);
+                global.showToast?.('Offline tool section CSVs downloaded');
+            } catch (e) {
+                global.showToast?.(e.message, 'error');
+            }
+        });
+
+        container.querySelector('#gstr-hardlock')?.addEventListener('click', () => {
+            const meta = readForm(container, client);
+            const el = container.querySelector('#gstr-validation-msg');
+            if (!global.Gstr3bHardlock) {
+                global.showToast?.('Hard-lock module not loaded', 'error');
+                return;
+            }
+            const report = global.Gstr3bHardlock.hardLockReport(client, meta.month, global.GstrReturnExport);
+            el.className = 'mt-3 gstr-alert' + (report.warnings.length ? ' gstr-alert--error' : ' text-emerald-400');
+            el.classList.remove('hidden');
+            el.innerHTML = report.warnings.length
+                ? '<strong>GSTR-3B hard-lock risks:</strong><ul class="list-disc ml-4 mt-1">' + report.warnings.map(w => '<li>' + esc(w.msg) + '</li>').join('') + '</ul>'
+                : '<strong>✓ Table 3.1/3.2 aligned with GSTR-1 books</strong>';
+        });
+
         container.querySelector('#gstr-mark-ready')?.addEventListener('click', () => {
             const meta = readForm(container, client);
-            const periodLabel = meta.returnType === 'GSTR-9' ? meta.fy : monthLabel(meta.month);
+            const periodLabel = (meta.returnType === 'GSTR-9' || meta.returnType === 'GSTR-9C') ? meta.fy : monthLabel(meta.month);
             upsertFilingRecord(client, meta.returnType, periodLabel);
             global.saveAppData?.();
             global.showToast?.(`${meta.returnType} ${periodLabel} marked Ready`);
@@ -1620,9 +1777,11 @@
         buildReturn,
         toCsv,
         buildGstr1,
+        buildGstr1Iff,
         buildGstr1A,
         buildGstr3b,
         buildGstr9,
+        buildGstr9c,
         buildCdnrCdnur,
         collectCdnEntries,
         docTypeOf,
