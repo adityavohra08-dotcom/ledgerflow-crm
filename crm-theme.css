@@ -3609,6 +3609,12 @@ a[class*="bg-emerald-600"]:hover {
 .gcs-wiz-step { font-size: 0.65rem; padding: 0.2rem 0.45rem; border-radius: 0.25rem; background: #1e293b; color: #64748b; }
 .gcs-wiz-step--done { background: #134e4a; color: #5eead4; }
 .gcs-pdf-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #1e293b; }
+.gcs-amend-diff { background: #020617; border: 1px solid #334155; border-radius: 0.65rem; padding: 1rem; }
+.gcs-amend-diff .gcs-subtitle { margin-top: 0.5rem; }
+.gcs-amend-diff .data-table td.amt { text-align: right; font-variant-numeric: tabular-nums; }
+.gcs-filing-card { background: #020617; border: 1px solid #1e293b; border-radius: 0.65rem; padding: 1rem; }
+.gcs-meter-bar { height: 0.5rem; background: #1e293b; border-radius: 9999px; overflow: hidden; }
+.gcs-meter-fill { height: 100%; background: linear-gradient(90deg, #0d9488, #2dd4bf); }
 .lf-portal-card--indigo { border-color: #4338ca; }
 .lf-portal-card--indigo .lf-portal-card-icon { color: #818cf8; }
 .lf-portal-gst-status { display: flex; flex-wrap: wrap; gap: 0.25rem; font-size: 0.7rem; }

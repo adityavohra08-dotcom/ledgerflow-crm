@@ -1,4 +1,4 @@
-const CACHE = 'ledgerflow-v4';
+const CACHE = 'ledgerflow-v5';
 const PRECACHE = ['/', '/index.html', '/crm-theme.css'];
 
 self.addEventListener('install', e => {

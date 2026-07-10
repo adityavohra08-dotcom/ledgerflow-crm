@@ -4,7 +4,7 @@
 (function (global) {
     'use strict';
 
-    const VERSION = '1.3.1';
+    const VERSION = '1.4.0';
     const PORTAL_GSTR1_VERSION = 'GST3.2.4';
     const DOC_ISSUE_TYPES = {
         1: 'Invoices for outward supply',
@@ -1501,7 +1501,12 @@
             const tv = num(data.reconciliation?.turnover?.variance);
             if (Math.abs(tv) > 1000) warnings.push(`Turnover variance ₹${tv.toLocaleString('en-IN')} — review Part C reasons`);
         }
-        return { valid: errors.length === 0, errors, warnings };
+        const base = { valid: errors.length === 0, errors, warnings };
+        if (global.GstValidationRules?.mergeInto) {
+            const ext = global.GstValidationRules.runAll(returnType, data);
+            return global.GstValidationRules.mergeInto(base, ext);
+        }
+        return base;
     }
 
     function collectCdnBookWarnings(data) {
@@ -1535,9 +1540,13 @@
     }
 
     function downloadValidatedJson(returnType, client, period, opts = {}) {
+        if (global.GstMetering?.canUse && !global.GstMetering.canUse('gstr_export')) {
+            throw new Error('Monthly export limit reached — upgrade plan or wait for next billing period');
+        }
         const built = buildValidatedReturn(returnType, client, period, opts);
         const payload = built.portalData || built.data;
         downloadText(portalJsonString(payload), built.fileName, 'application/json');
+        global.GstMetering?.track?.('gstr_export', client.id, { returnType, fileName: built.fileName });
         upsertFilingRecord(client, returnType, built.periodLabel, 'Ready');
         if (returnType !== 'GSTR-9' && returnType !== 'GSTR-9C') clearPeriodStale(client, period.month, returnType);
         return built;

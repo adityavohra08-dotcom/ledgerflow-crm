@@ -40,7 +40,34 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 const DEFAULT_TENANT_ID = process.env.DEFAULT_TENANT_ID || 'udyog-suvidha';
+const TENANT_HOST_SUFFIXES = (process.env.TENANT_HOST_SUFFIXES || 'ledgerflow.app,ledgerflow.in')
+    .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+
+function sanitizeTenantId(raw) {
+    const id = String(raw || '').trim().replace(/[^a-zA-Z0-9\-_]/g, '').slice(0, 64);
+    return id || DEFAULT_TENANT_ID;
+}
+
+function tenantFromHost(hostHeader) {
+    const host = String(hostHeader || '').split(':')[0].toLowerCase();
+    if (!host || host === 'localhost' || host === '127.0.0.1') return '';
+    for (const suffix of TENANT_HOST_SUFFIXES) {
+        if (!host.endsWith('.' + suffix)) continue;
+        const sub = host.slice(0, -(suffix.length + 1));
+        if (!sub || sub === 'www' || sub.includes('.')) continue;
+        return sub;
+    }
+    return '';
+}
+
+function resolveTenantId(req) {
+    const fromBody = req.body?.tenantId;
+    const fromQuery = req.query?.tenantId;
+    const fromHeader = req.headers['x-tenant-id'];
+    const fromHost = tenantFromHost(req.headers.host);
+    return sanitizeTenantId(fromBody || fromQuery || fromHeader || fromHost || DEFAULT_TENANT_ID);
+}
 
 const corsOrigins = CORS_ORIGIN === '*' ? true : CORS_ORIGIN.split(',').map(s => s.trim());
 
@@ -357,7 +384,7 @@ app.get('/api/auth/otp-config', (_req, res) => {
 
 app.post('/api/auth/otp/send', otpSendRateLimit, authRateLimit, async (req, res) => {
     const phone = (req.body.phone || '').trim();
-    const tenantId = DEFAULT_TENANT_ID;
+    const tenantId = resolveTenantId(req);
 
     if (!phone) {
         return res.status(400).json({ error: 'Mobile number required' });
@@ -404,7 +431,7 @@ app.post('/api/auth/otp/send', otpSendRateLimit, authRateLimit, async (req, res)
 app.post('/api/auth/otp/verify', authRateLimit, (req, res) => {
     const phone = (req.body.phone || '').trim();
     const code = (req.body.otp || req.body.code || '').trim();
-    const tenantId = DEFAULT_TENANT_ID;
+    const tenantId = resolveTenantId(req);
 
     if (!phone || !code) {
         return res.status(400).json({ error: 'Mobile number and OTP required' });
@@ -574,7 +601,7 @@ app.post('/api/auth/google', authRateLimit, async (req, res) => {
 
     const credential = req.body.credential || '';
     const mode = req.body.mode === 'signup' ? 'signup' : 'login';
-    const tenantId = DEFAULT_TENANT_ID;
+    const tenantId = resolveTenantId(req);
 
     if (!credential) {
         return res.status(400).json({ error: 'Google credential required' });
@@ -609,7 +636,7 @@ app.post('/api/auth/google-demo', authRateLimit, (req, res) => {
     const email = (req.body.email || '').trim().toLowerCase();
     const displayName = (req.body.name || '').trim() || email.split('@')[0];
     const mode = req.body.mode === 'signup' ? 'signup' : 'login';
-    const tenantId = DEFAULT_TENANT_ID;
+    const tenantId = resolveTenantId(req);
 
     if (!email) {
         return res.status(400).json({ error: 'Email required for demo Google auth' });
@@ -629,7 +656,7 @@ app.post('/api/auth/google-demo', authRateLimit, (req, res) => {
 app.post('/api/auth/login', authRateLimit, (req, res) => {
     const email = (req.body.email || '').trim().toLowerCase();
     const password = req.body.password || '';
-    const tenantId = req.body.tenantId || DEFAULT_TENANT_ID;
+    const tenantId = resolveTenantId(req);
 
     if (!email || !password) {
         return res.status(400).json({ error: 'Email and password required' });
@@ -714,7 +741,7 @@ app.put('/api/data', authMiddleware, (req, res) => {
 });
 
 app.post('/api/public/signup', authRateLimit, (req, res) => {
-    const tenantId = DEFAULT_TENANT_ID;
+    const tenantId = resolveTenantId(req);
     const appData = ensureTenantData(tenantId);
     const name = (req.body.businessName || '').trim();
     const email = (req.body.email || '').trim().toLowerCase();
@@ -769,7 +796,7 @@ app.post('/api/public/signup', authRateLimit, (req, res) => {
 });
 
 app.post('/api/public/verify', authRateLimit, (req, res) => {
-    const tenantId = DEFAULT_TENANT_ID;
+    const tenantId = resolveTenantId(req);
     const appData = ensureTenantData(tenantId);
     const code = (req.body.code || '').trim();
     const signupId = req.body.signupId;
@@ -797,7 +824,7 @@ app.post('/api/public/verify', authRateLimit, (req, res) => {
 });
 
 app.get('/api/public/verify-token', (req, res) => {
-    const tenantId = DEFAULT_TENANT_ID;
+    const tenantId = resolveTenantId(req);
     const appData = ensureTenantData(tenantId);
     const token = req.query.token;
     const signup = appData.pendingSignups.find(s => s.verificationToken === token);
@@ -817,7 +844,7 @@ app.get('/api/public/verify-token', (req, res) => {
 });
 
 app.post('/api/public/resend', authRateLimit, (req, res) => {
-    const tenantId = DEFAULT_TENANT_ID;
+    const tenantId = resolveTenantId(req);
     const appData = ensureTenantData(tenantId);
     const signup = appData.pendingSignups.find(s => s.id === req.body.signupId);
     if (!signup) {

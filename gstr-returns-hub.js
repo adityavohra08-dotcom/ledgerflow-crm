@@ -4,7 +4,7 @@
 (function (global) {
     'use strict';
 
-    const HUB_VERSION = '2.0.0';
+    const HUB_VERSION = '2.1.0';
     const G = () => global.GstrReturnExport;
     const R = () => global.GstReconEngine;
     const TABS = ['overview', 'recon', 'bulk'];
@@ -424,9 +424,14 @@
                     <button type="button" id="grh-bulk-none" class="lf-btn lf-btn--secondary text-sm">Clear</button>
                 </div>
                 <p class="text-sm mb-2"><strong>${selected}</strong> of ${clients.length} clients selected</p>
+                <label class="flex items-center gap-2 text-sm text-slate-400 mb-3">
+                    <input type="checkbox" id="grh-bulk-pdf" class="rounded"${hub.bulkIncludePdf ? ' checked' : ''}>
+                    Include GSTR-1 &amp; 3B summary PDFs in ZIP
+                </label>
                 <button type="button" id="grh-bulk-zip" class="lf-btn lf-btn--primary text-sm"${selected ? '' : ' disabled'}>
                     <i class="fa-solid fa-file-zipper mr-1"></i> Download ZIP (${selected} clients)
                 </button>
+                <button type="button" id="grh-offline-sync" class="lf-btn lf-btn--secondary text-sm ml-2"><i class="fa-solid fa-cloud-arrow-up mr-1"></i> Queue offline sync</button>
                 <div id="grh-bulk-log" class="grh-bulk-log mt-4 hidden"></div>
             </div>`;
     }
@@ -479,16 +484,21 @@
 
     async function bulkDownloadZip(appData, hub) {
         if (typeof JSZip === 'undefined') throw new Error('JSZip not loaded');
+        if (global.GstMetering?.canUse && !global.GstMetering.canUse('bulk_export')) {
+            throw new Error('Monthly usage limit reached — upgrade plan or wait for next period');
+        }
         const zip = new JSZip();
         const monthStr = hub.period;
         const types = hub.bulkReturns.length ? hub.bulkReturns : ['GSTR-1', 'GSTR-3B'];
+        const includePdf = !!hub.bulkIncludePdf;
         const log = [];
         let count = 0;
+        const pdfFn = global.GstrSummaryPdf?.generateSummaryPdfBlob;
 
-        hub.selectedClients.forEach(cid => {
+        for (const cid of hub.selectedClients) {
             const client = appData.clients[cid];
-            if (!client) return;
-            types.forEach(rt => {
+            if (!client) continue;
+            for (const rt of types) {
                 try {
                     const { portalData, data, validation, fileName, periodLabel } = G().buildValidatedReturn(rt, client, { month: monthStr, fy: G().defaultFy?.(client) });
                     zip.file(fileName, G().portalJsonString?.(portalData || data) || JSON.stringify(portalData || data));
@@ -496,18 +506,39 @@
                     G().clearPeriodStale(client, monthStr, rt);
                     log.push(`✓ ${client.name} — ${fileName}`);
                     count++;
+                    global.GstMetering?.track?.('bulk_export', cid, { returnType: rt });
                     if (validation.warnings.length) log.push(`  ⚠ ${validation.warnings.length} warning(s)`);
+                    if (validation.ruleCount) log.push(`  📋 ${validation.ruleCount} validation checks`);
+                    if (global.LedgerFlowOffline?.queueReturn) {
+                        await global.LedgerFlowOffline.queueReturn(cid, rt, monthStr, portalData || data);
+                    }
                 } catch (e) {
                     log.push(`✗ ${client.name} — ${rt}: ${e.message}`);
                 }
-            });
-        });
+            }
+            if (includePdf && pdfFn) {
+                for (const rt of ['GSTR-1', 'GSTR-3B']) {
+                    try {
+                        const { fileName, blob } = await pdfFn(client, rt, { month: monthStr });
+                        zip.file(`pdfs/${fileName}`, blob);
+                        log.push(`  📄 PDF ${fileName}`);
+                        count++;
+                    } catch (e) {
+                        log.push(`  ✗ PDF ${client.name} ${rt}: ${e.message}`);
+                    }
+                }
+            }
+        }
 
+        const extRules = global.GstValidationRules?.VERSION || 'n/a';
         zip.file('validation-report.json', JSON.stringify({
             generatedAt: new Date().toISOString(),
             period: monthStr,
             clients: hub.selectedClients.length,
             files: count,
+            includePdf,
+            validationEngine: extRules,
+            hubVersion: HUB_VERSION,
             log
         }, null, 2));
 
@@ -519,6 +550,7 @@
         a.click();
         URL.revokeObjectURL(a.href);
         global.saveAppData?.();
+        global.GstComplianceSuite?.logAudit?.('Bulk ZIP', monthStr, `${count} files, ${hub.selectedClients.length} clients`);
         return log;
     }
 
@@ -690,6 +722,7 @@
             const sel = container.querySelector('#grh-bulk-types');
             hub.bulkReturns = sel ? [...sel.selectedOptions].map(o => o.value) : ['GSTR-1', 'GSTR-3B'];
             hub.period = container.querySelector('#grh-bulk-month')?.value || hub.period;
+            hub.bulkIncludePdf = !!container.querySelector('#grh-bulk-pdf')?.checked;
             const logEl = container.querySelector('#grh-bulk-log');
             try {
                 global.showToast?.('Generating ZIP…');
@@ -702,6 +735,17 @@
             } catch (e) {
                 global.showToast?.(e.message, 'error');
             }
+        });
+
+        container.querySelector('#grh-offline-sync')?.addEventListener('click', async () => {
+            if (!global.LedgerFlowOffline?.flushSyncQueue) {
+                global.showToast?.('Offline queue not loaded', 'error');
+                return;
+            }
+            const results = await global.LedgerFlowOffline.flushSyncQueue(async item => {
+                global.GstComplianceSuite?.logAudit?.('Offline sync', item.action, JSON.stringify(item.payload || {}).slice(0, 80));
+            });
+            global.showToast?.(`Synced ${results.filter(r => r.ok).length}/${results.length} queued items`);
         });
     }
 

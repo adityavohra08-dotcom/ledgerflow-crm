@@ -5,8 +5,13 @@
 (function (global) {
     'use strict';
 
-    const VERSION = '1.0.0';
-    const TABS = ['docs', 'import', 'audit', 'notices', 'demo'];
+    const VERSION = '2.0.0';
+    const TABS = ['docs', 'import', 'integrations', 'audit', 'notices', 'filing', 'metering', 'demo'];
+    const TAB_LABELS = {
+        docs: 'Doc Types', import: 'Import', integrations: 'Tally/Zoho',
+        audit: 'Audit Trail', notices: 'Notices & 1A', filing: 'GSP Filing',
+        metering: 'Usage', demo: 'Demo Mode'
+    };
 
     function esc(s) {
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -60,7 +65,9 @@
             user: currentUserLabel(),
             action,
             entity,
-            details: details || ''
+            details: details || '',
+            ua: (typeof navigator !== 'undefined' ? navigator.userAgent : '').slice(0, 80),
+            reason: details || ''
         });
         if (appData.auditLog.length > 500) appData.auditLog.length = 500;
         global.saveAppData?.();
@@ -150,6 +157,46 @@
                         <button type="button" class="lf-btn lf-btn--secondary text-xs" onclick="document.getElementById('gcs-import-cdn').click()">Upload CSV/Excel</button>
                         <button type="button" class="lf-btn lf-btn--ghost text-xs mt-1" onclick="GstComplianceSuite.downloadSample('cdn')">Sample</button>
                     </div>
+                    <div class="gcs-import-card">
+                        <i class="fa-solid fa-file-code text-violet-400 text-xl mb-2"></i>
+                        <div class="font-semibold text-sm">Tally XML</div>
+                        <p class="text-xs text-slate-500 mb-3">Export vouchers from Tally → Import XML</p>
+                        <input type="file" id="gcs-import-tally" accept=".xml" class="hidden" onchange="GstComplianceSuite.importTally(this)">
+                        <button type="button" class="lf-btn lf-btn--secondary text-xs" onclick="document.getElementById('gcs-import-tally').click()">Upload Tally XML</button>
+                    </div>
+                    <div class="gcs-import-card">
+                        <i class="fa-solid fa-cloud text-cyan-400 text-xl mb-2"></i>
+                        <div class="font-semibold text-sm">Zoho Books GST</div>
+                        <p class="text-xs text-slate-500 mb-3">Zoho GST export CSV / Excel</p>
+                        <input type="file" id="gcs-import-zoho" accept=".csv,.xlsx,.xls" class="hidden" onchange="GstComplianceSuite.importZoho(this)">
+                        <button type="button" class="lf-btn lf-btn--secondary text-xs" onclick="document.getElementById('gcs-import-zoho').click()">Upload Zoho CSV</button>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    function renderIntegrationsPanel() {
+        return `
+            <div class="gcs-panel">
+                <p class="text-sm text-slate-400 mb-4">Accounting software bridges — import vouchers into client books for GSTR generation.</p>
+                <div class="gcs-import-grid">
+                    <div class="gcs-import-card">
+                        <div class="font-semibold text-sm mb-2">Tally Prime / ERP 9</div>
+                        <p class="text-xs text-slate-500 mb-3">Day Book → Export → XML (vouchers). Maps sales &amp; purchase vouchers to invoices/purchases.</p>
+                        <input type="file" id="gcs-int-tally" accept=".xml" class="hidden" onchange="GstComplianceSuite.importTally(this)">
+                        <button type="button" class="lf-btn lf-btn--primary text-xs" onclick="document.getElementById('gcs-int-tally').click()">Import Tally XML</button>
+                    </div>
+                    <div class="gcs-import-card">
+                        <div class="font-semibold text-sm mb-2">Zoho Books</div>
+                        <p class="text-xs text-slate-500 mb-3">Reports → GST → Export transactions. Supports invoice &amp; bill rows.</p>
+                        <input type="file" id="gcs-int-zoho" accept=".csv,.xlsx,.xls" class="hidden" onchange="GstComplianceSuite.importZoho(this)">
+                        <button type="button" class="lf-btn lf-btn--primary text-xs" onclick="document.getElementById('gcs-int-zoho').click()">Import Zoho Export</button>
+                    </div>
+                    <div class="gcs-import-card">
+                        <div class="font-semibold text-sm mb-2">Busy / Marg</div>
+                        <p class="text-xs text-slate-500 mb-3">Coming soon — use CSV import with purchase/sales columns for now.</p>
+                        <button type="button" class="lf-btn lf-btn--ghost text-xs" disabled>Planned Q3</button>
+                    </div>
                 </div>
             </div>`;
     }
@@ -196,7 +243,9 @@
                 <div class="mt-4">
                     <button type="button" class="lf-btn lf-btn--secondary text-sm" onclick="GstComplianceSuite.openAddNotice()"><i class="fa-solid fa-plus mr-1"></i> Add Template</button>
                     ${client ? `<button type="button" class="lf-btn lf-btn--primary text-sm ml-2" onclick="GstComplianceSuite.generateGstr1A()"><i class="fa-solid fa-pen-to-square mr-1"></i> Generate GSTR-1A JSON</button>` : ''}
+                    ${client ? `<button type="button" class="lf-btn lf-btn--secondary text-sm ml-2" onclick="GstComplianceSuite.runAmendmentDiff()"><i class="fa-solid fa-code-compare mr-1"></i> Amendment Diff</button>` : ''}
                 </div>
+                <div id="gcs-amend-diff" class="mt-4"></div>
                 <div id="gcs-notice-output" class="mt-4 hidden"></div>
             </div>`;
     }
@@ -238,13 +287,16 @@
                     <p class="text-slate-400 text-sm mt-1">Document types, bulk import, audit trail, notice templates &amp; GSTR-1A amendments</p>
                 </div>
                 <div class="gcs-tabs">
-                    ${TABS.map(t => `<button type="button" class="gcs-tab${t === tab ? ' gcs-tab--active' : ''}" data-tab="${t}">${{ docs: 'Doc Types', import: 'Import', audit: 'Audit Trail', notices: 'Notices & 1A', demo: 'Demo Mode' }[t]}</button>`).join('')}
+                    ${TABS.map(t => `<button type="button" class="gcs-tab${t === tab ? ' gcs-tab--active' : ''}" data-tab="${t}">${TAB_LABELS[t] || t}</button>`).join('')}
                 </div>
                 <div id="gcs-tab-body">
                     ${tab === 'docs' ? renderDocTypesPanel(client) : ''}
                     ${tab === 'import' ? renderImportPanel() : ''}
+                    ${tab === 'integrations' ? renderIntegrationsPanel() : ''}
                     ${tab === 'audit' ? renderAuditPanel(appData) : ''}
                     ${tab === 'notices' ? renderNoticesPanel(appData) : ''}
+                    ${tab === 'filing' ? '<div id="gcs-filing-mount"></div>' : ''}
+                    ${tab === 'metering' ? (global.GstMetering?.renderMeteringPanel?.(appData) || '') : ''}
                     ${tab === 'demo' ? renderDemoPanel(appData) : ''}
                 </div>
             </div>`;
@@ -256,6 +308,12 @@
                 renderComplianceSuite(container);
             });
         });
+        if (tab === 'filing' && client) {
+            const mount = container.querySelector('#gcs-filing-mount');
+            if (mount && global.GstrFilingGsp?.renderFilingActions) {
+                global.GstrFilingGsp.renderFilingActions(mount, client);
+            }
+        }
     }
 
     function parseImportRows(file, callback) {
@@ -617,11 +675,51 @@
                 const payload = built.portalData || built.data;
                 G.downloadText(G.portalJsonString?.(payload) || JSON.stringify(payload), built.fileName, 'application/json');
                 logAudit('GSTR-1A generated', client.name, G.monthLabel(month));
+                global.GstMetering?.track?.('gstr1a_export', client.id);
                 global.saveAppData?.();
                 global.showToast?.(`GSTR-1A JSON downloaded (${built.validation.warnings.length} warnings)`);
             } catch (e) {
                 global.showToast?.(e.message, 'error');
             }
+        },
+
+        runAmendmentDiff() {
+            const client = global.getCurrentClient?.();
+            const D = global.GstrAmendmentDiff;
+            const G = global.GstrReturnExport;
+            if (!client || !D || !G) return;
+            const month = client.gstrExportMeta?.month || G.defaultMonth(client);
+            try {
+                const { diff, message } = D.runAmendmentDiff(client, month);
+                const el = document.getElementById('gcs-amend-diff');
+                if (!el) return;
+                if (message) {
+                    el.innerHTML = `<div class="gcs-panel text-sm text-amber-400">${esc(message)}</div>`;
+                    global.showToast?.(message);
+                } else {
+                    el.innerHTML = D.renderDiffHtml(diff, client, G.monthLabel(month));
+                    logAudit('Amendment diff', client.name, `${diff.summary.changed} changed`);
+                }
+                global.saveAppData?.();
+            } catch (e) {
+                global.showToast?.(e.message, 'error');
+            }
+        },
+
+        importTally(input) {
+            const client = global.getCurrentClient?.();
+            if (!client || !global.TallyImport) { global.showToast?.('Select client & load Tally module', 'error'); return; }
+            global.TallyImport.importFile(input, client)
+                .then(r => { global.saveAppData?.(); global.showToast?.(`Tally: ${r.invoices} invoices, ${r.purchases} purchases`); })
+                .catch(e => global.showToast?.(e.message, 'error'));
+        },
+
+        importZoho(input) {
+            const client = global.getCurrentClient?.();
+            if (!client || !global.ZohoImport) { global.showToast?.('Select client & load Zoho module', 'error'); return; }
+            global.ZohoImport.importFile(input, client)
+                .then(r => { global.saveAppData?.(); global.showToast?.(`Zoho: ${r.invoices} invoices, ${r.purchases} purchases`); })
+                .catch(e => global.showToast?.(e.message, 'error'));
         },
 
         toggleDemoMode() {

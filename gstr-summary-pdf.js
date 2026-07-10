@@ -85,6 +85,35 @@ th{background:#f8fafc;font-size:10px;text-transform:uppercase;letter-spacing:.04
         return Promise.resolve(fileName);
     }
 
+    async function generateSummaryPdfBlob(client, returnType, period) {
+        const G = global.GstrReturnExport;
+        if (!G) throw new Error('GSTR export module not loaded');
+        const data = G.buildReturn(returnType, client, period);
+        const html = buildSummaryHtml(client, returnType, data);
+        const periodLabel = returnType === 'GSTR-9' ? period.fy : G.monthLabel(period.month);
+        const safeName = (client.gstin || client.name || 'client').replace(/\s+/g, '_');
+        const fileName = `${safeName}_${returnType}_${periodLabel}_summary.pdf`.replace(/[^\w.\-]/g, '_');
+
+        if (typeof html2canvas !== 'undefined' && global.jspdf?.jsPDF) {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'position:fixed;left:-9999px;width:794px;background:#fff';
+            wrap.innerHTML = html;
+            document.body.appendChild(wrap);
+            const canvas = await html2canvas(wrap, { scale: 2, useCORS: true });
+            const { jsPDF } = global.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const img = canvas.toDataURL('image/png');
+            const pw = pdf.internal.pageSize.getWidth();
+            const ph = (canvas.height * pw) / canvas.width;
+            pdf.addImage(img, 'PNG', 0, 0, pw, ph);
+            wrap.remove();
+            global.GstMetering?.track?.('pdf_export', client.id, { returnType });
+            return { fileName, blob: pdf.output('blob') };
+        }
+        const blob = new Blob([html], { type: 'text/html' });
+        return { fileName: fileName.replace('.pdf', '.html'), blob };
+    }
+
     function renderPdfActions(container, client) {
         if (!client) return;
         const G = global.GstrReturnExport;
@@ -103,5 +132,5 @@ th{background:#f8fafc;font-size:10px;text-transform:uppercase;letter-spacing:.04
         });
     }
 
-    global.GstrSummaryPdf = { buildSummaryHtml, downloadSummaryPdf, renderPdfActions };
+    global.GstrSummaryPdf = { buildSummaryHtml, downloadSummaryPdf, generateSummaryPdfBlob, renderPdfActions };
 })(typeof window !== 'undefined' ? window : global);
