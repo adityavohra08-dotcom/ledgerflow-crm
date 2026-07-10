@@ -25,6 +25,7 @@
                 { name: 'Automated payment reminders', status: 'partial', route: "showSection('cap-payment-reminders')", note: 'Email/SMS/WhatsApp reminder schedules' },
                 { name: 'WhatsApp client messaging', status: 'partial', route: "showSection('whatsapp')", note: 'Templates, click-to-chat, Business API' },
                 { name: 'Customer Portal (invoices, payments, documents)', status: 'live', route: "showSection('dashboard')", note: 'Role-based My Portal' },
+                { name: 'Client portal login credentials (GST, ITR, TAN, MCA)', status: 'live', route: "showSection('portal-logins')", note: 'Secure vault — client shares govt portal logins' },
                 { name: 'Multi-currency & multi-language support', status: 'partial', route: "showSection('cap-multi-currency')", note: 'Currency & language settings' }
             ]
         },
@@ -49,7 +50,7 @@
             features: [
                 { name: 'Auto bank & credit card feeds', status: 'partial', route: "showSection('cap-bank-feeds')", note: 'Bank connect flow' },
                 { name: 'Automatic import & categorization (Bank Rules + AI)', status: 'partial', route: "showSection('cap-bank-rules')", note: 'Rule-based categorization' },
-                { name: 'Fast bank reconciliation', status: 'partial', route: "showSection('bank-recon')", note: 'CSV import + match UI' },
+                { name: 'Fast bank reconciliation', status: 'live', route: "showSection('bank-recon')", note: 'Smart match, suggestions, filters & export' },
                 { name: 'Multiple bank accounts support', status: 'partial', route: "showSection('cap-bank-accounts')", note: 'Multi-account register' }
             ]
         },
@@ -62,7 +63,7 @@
                 { name: 'HSN/SAC code support', status: 'live', route: "showSection('hsn-search')", note: 'HSN database + stock master' },
                 { name: 'e-Invoicing (IRN generation)', status: 'partial', route: "showSection('cap-e-invoicing')", note: 'NIC IRP connect flow' },
                 { name: 'e-Way Bill generation', status: 'partial', route: "showSection('cap-eway-bill')", note: 'NIC e-Way connect + maker' },
-                { name: 'Direct filing of GSTR-1, GSTR-3B, GSTR-9', status: 'partial', route: "showSection('cap-gstr-filing')", note: 'Return filing tracker' },
+                { name: 'Direct filing of GSTR-1, GSTR-3B, GSTR-9', status: 'live', route: "showSection('gstr-export')", note: 'JSON & CSV export from books + filing tracker' },
                 { name: 'GSTR-2B reconciliation', status: 'partial', route: "showSection('cap-gstr2b')", note: '2B vs books matching' },
                 { name: 'Multi-GSTIN support', status: 'partial', route: "showSection('cap-multi-gstin')", note: 'GSTIN registry per client' },
                 { name: 'GST-compliant invoices with full tax breakup', status: 'live', route: 'launchInvoiceMaker()', note: 'CGST Rule 46 PDF' }

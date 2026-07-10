@@ -28,11 +28,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="hsn-database.js"></script>
     <script src="services-catalog.js"></script>
-    <script src="portal-extensions.js?v=3.12.2"></script>
+    <script src="portal-extensions.js?v=3.14.3"></script>
     <script src="invoice-pdf-template.js?v=3.14.0"></script>
+    <script src="itr-computation-pdf.js?v=3.15.1"></script>
+    <script src="income-computation-tool.js?v=1.0.0"></script>
+    <script src="bank-reconciliation.js?v=2.0.0"></script>
+    <script src="gstr-return-export.js?v=1.0.1"></script>
     <script src="ewaybill-integration.js?v=2.9.0"></script>
     <script src="ledgerflow-backend.js"></script>
-    <script src="google-auth-ui.js"></script>
+    <script src="google-auth-ui.js?v=3.14.4"></script>
     <script src="otp-auth-ui.js"></script>
     <script src="team-portal.js?v=2.8.3"></script>
     <script src="module-spec.js?v=3.12.1"></script>
@@ -40,16 +44,16 @@
     <script src="color-palette.js?v=3.12.1"></script>
     <script src="typography.js?v=3.12.1"></script>
     <script src="layout.js?v=3.12.1"></script>
-    <script src="key-screens.js?v=3.13.1"></script>
+    <script src="key-screens.js?v=3.14.3"></script>
     <script src="components.js?v=3.12.1"></script>
-    <script src="product-capabilities.js?v=3.12.1"></script>
+    <script src="product-capabilities.js?v=3.14.2"></script>
     <script src="capability-modules.js?v=3.12.1"></script>
     <script src="whatsapp-integration.js?v=3.13.0"></script>
     <script src="theme.js?v=3.14.0"></script>
-    <script src="page-hierarchy.js?v=3.12.1"></script>
+    <script src="page-hierarchy.js?v=3.14.5"></script>
     <script src="ui-elements.js?v=3.13.1"></script>
     <script src="client-mobile.js?v=3.13.5"></script>
-    <link rel="stylesheet" href="crm-theme.css?v=3.13.5">
+    <link rel="stylesheet" href="crm-theme.css?v=3.14.5">
     <style>
         /* Critical shell layout — sidebar fixed left, main fills remainder (desktop) */
         @media (min-width: 1024px) {
@@ -133,6 +137,10 @@
                             class="lf-tab text-xs">
                         <i class="fa-solid fa-mobile-screen mr-1"></i> Mobile OTP
                     </button>
+                    <button type="button" id="tab-auth-google" onclick="setClientAuthMethod('google')"
+                            class="lf-tab text-xs">
+                        <i class="fa-brands fa-google mr-1"></i> Google
+                    </button>
                 </div>
 
                 <div id="login-email-section" class="space-y-4">
@@ -177,6 +185,15 @@
                     </div>
                 </div>
 
+                <div id="login-google-section" class="hidden space-y-3">
+                    <p class="text-xs text-slate-400 text-center">Sign in with your Google account linked to this client portal.</p>
+                    <div id="google-signin-login" class="flex justify-center min-h-[44px]"></div>
+                    <button type="button" id="google-demo-signin-btn" class="lf-google-btn hidden w-full" onclick="openGoogleDemoPicker('login')">
+                        <span class="lf-google-btn-icon" aria-hidden="true">G</span> Sign in with Google
+                    </button>
+                    <p class="text-xs text-slate-500 text-center">New business? <button type="button" onclick="showSignupPanel()" class="text-emerald-400 hover:text-emerald-300 font-semibold">Sign up with Google</button></p>
+                </div>
+
                 <button id="login-submit-btn" onclick="handleLogin()" class="lf-btn-primary w-full py-3.5 rounded-2xl font-semibold">
                     <i class="fa-solid fa-right-to-bracket mr-2"></i> Client Sign In
                 </button>
@@ -186,7 +203,10 @@
                         <span class="text-xs text-slate-500 uppercase tracking-wider">or</span>
                         <div class="flex-1 h-px bg-slate-700"></div>
                     </div>
-                    <div id="google-signin-login" class="flex justify-center min-h-[44px]"></div>
+                    <div id="google-signin-email-fallback" class="flex justify-center min-h-[44px]"></div>
+                    <button type="button" id="google-demo-email-btn" class="lf-google-btn hidden w-full" onclick="openGoogleDemoPicker('login')">
+                        <span class="lf-google-btn-icon" aria-hidden="true">G</span> Sign in with Google
+                    </button>
                 </div>
                 <div id="login-error" class="hidden text-red-400 text-sm text-center"></div>
                 <div id="client-signup-link" class="text-center text-sm text-slate-400">
@@ -239,11 +259,14 @@
                 <div id="google-auth-signup-block" class="hidden">
                     <div class="flex items-center gap-3 my-3">
                         <div class="flex-1 h-px bg-slate-700"></div>
-                        <span class="text-xs text-slate-500 uppercase tracking-wider">or</span>
+                        <span class="text-xs text-slate-500 uppercase tracking-wider">or sign up with Google</span>
                         <div class="flex-1 h-px bg-slate-700"></div>
                     </div>
-                    <p class="text-xs text-slate-500 text-center mb-2">Enter business name above, then sign up with Google (email pre-verified)</p>
+                    <p class="text-xs text-slate-500 text-center mb-2">Enter business name above, then continue with Google (email pre-verified)</p>
                     <div id="google-signup-only-btn" class="flex justify-center min-h-[44px]"></div>
+                    <button type="button" id="google-demo-signup-btn" class="lf-google-btn hidden w-full mt-2" onclick="openGoogleDemoPicker('signup')">
+                        <span class="lf-google-btn-icon" aria-hidden="true">G</span> Sign up with Google
+                    </button>
                 </div>
                 <div id="signup-error" class="hidden text-red-400 text-sm text-center"></div>
                 <button type="button" onclick="showLoginPanel()" class="w-full text-sm text-slate-400 hover:text-white">← Back to Sign In</button>
@@ -279,6 +302,7 @@
             </div>
 
             <p class="text-center text-[10px] text-slate-600 mt-4" id="login-version-tag">v3.13.5-layout-fix</p>
+            <p class="text-center text-xs mt-2"><a href="website/index.html" class="text-teal-400 hover:text-teal-300 font-semibold"><i class="fa-solid fa-globe mr-1"></i>Browse our services website</a></p>
 
             <div id="auth-demo-section" class="mt-6 pt-6 border-t border-slate-700">
                 <div class="text-xs text-slate-500 text-center mb-3" id="demo-creds-title">Demo Client Logins (click to fill)</div>
@@ -449,11 +473,30 @@
                         <button type="button" onclick="showSection('hsn-search')" data-team-visible class="nav-item lf-nav-child w-full text-left" id="nav-hsn-search">
                             <span class="lf-nav-tree-line"></span><span>Invoice Compliance</span>
                         </button>
-                        <button type="button" onclick="showSection('bank-recon')" data-team-visible class="nav-item lf-nav-child w-full text-left" id="nav-bank-recon">
-                            <span class="lf-nav-tree-line"></span><span>GST Returns Tracker</span>
-                        </button>
                         <button type="button" onclick="showSection('emi-calculator')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-emi-calculator">
                             <span class="lf-nav-tree-line"></span><span>EMI Calculator</span>
+                        </button>
+                        <button type="button" onclick="showSection('income-computation')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-income-computation">
+                            <span class="lf-nav-tree-line"></span><span>Income Computation</span>
+                        </button>
+                        <button type="button" onclick="showSection('itr-json-pdf')" data-firm-only class="nav-item lf-nav-child w-full text-left" id="nav-itr-json-pdf">
+                            <span class="lf-nav-tree-line"></span><span>ITR JSON to PDF</span>
+                        </button>
+                        <button type="button" onclick="showSection('gstr-export')" data-team-visible class="nav-item lf-nav-child w-full text-left" id="nav-gstr-export">
+                            <span class="lf-nav-tree-line"></span><span>GSTR Return Export</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lf-nav-group lf-nav-group-open" data-nav-group="banking" data-team-visible>
+                    <button type="button" class="lf-nav-group-toggle" onclick="toggleNavGroup('banking')" aria-expanded="true">
+                        <i class="fa-solid fa-building-columns w-5"></i>
+                        <span>Banking</span>
+                        <i class="fa-solid fa-chevron-down lf-nav-chevron ml-auto text-[10px]"></i>
+                    </button>
+                    <div class="lf-nav-group-items" data-nav-group-items="banking">
+                        <button type="button" onclick="showSection('bank-recon')" class="nav-item lf-nav-child w-full text-left" id="nav-bank-recon">
+                            <span class="lf-nav-tree-line"></span><span>Bank Statement Reconciliation</span>
                         </button>
                     </div>
                 </div>
@@ -612,6 +655,16 @@
                         </button>
                     </div>
                 </div>
+
+                <button type="button" onclick="showSection('buy-services')" class="nav-item lf-nav-single flex items-center gap-x-3 px-3 py-2.5 text-sm font-medium rounded-xl cursor-pointer w-full text-left" id="client-nav-buy-services">
+                    <i class="fa-solid fa-store w-5 text-center"></i>
+                    <span>Service Catalog</span>
+                </button>
+
+                <button type="button" onclick="showSection('portal-logins')" class="nav-item lf-nav-single flex items-center gap-x-3 px-3 py-2.5 text-sm font-medium rounded-xl cursor-pointer w-full text-left" id="client-nav-portal-logins">
+                    <i class="fa-solid fa-key w-5 text-center"></i>
+                    <span>Portal Login Credentials</span>
+                </button>
 
                 <button type="button" onclick="showSection('whatsapp')" class="nav-item lf-nav-single flex items-center gap-x-3 px-3 py-2.5 text-sm font-medium rounded-xl cursor-pointer w-full text-left" id="client-nav-whatsapp">
                     <i class="fa-brands fa-whatsapp w-5 text-center text-[#25D366]"></i>
@@ -1617,10 +1670,13 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     { id: 'req1', type: 'ITC Claim Assistance', subject: 'Help with transitional ITC refund claim', status: 'In Progress', date: '2026-06-28', priority: 'High' }
                 ],
                 bankTxns: [
-                    { id: 'bt1', date: '2026-06-20', description: 'Payment from Metro Retail', amount: 147500, type: 'credit', reconciled: true, source: 'book' },
-                    { id: 'bt2', date: '2026-06-25', description: 'Vendor payment - ABC Suppliers', amount: 76700, type: 'debit', reconciled: false, source: 'book' }
+                    { id: 'bt1', date: '2026-06-05', description: 'Payment from Metro Retail', amount: 147500, type: 'credit', reconciled: false, matchedStmtId: null, source: 'book' },
+                    { id: 'bt2', date: '2026-06-15', description: 'Vendor payment - ABC Suppliers', amount: 76700, type: 'debit', reconciled: false, matchedStmtId: null, source: 'book' },
+                    { id: 'bt3', date: '2026-06-18', description: 'Receipt from Sunrise Distributors', amount: 103250, type: 'credit', reconciled: false, matchedStmtId: null, source: 'book' },
+                    { id: 'bt4', date: '2026-06-10', description: 'Office Supplies', amount: 2450, type: 'debit', reconciled: false, matchedStmtId: null, source: 'book' }
                 ],
                 bankStatement: [],
+                bankReconMeta: { lastImport: null, period: '', bankName: '' },
                 portalLogins: {
                     gst: { username: '07AABCT1234D1Z5', gstin: '07AABCT1234D1Z5', password: 'demo_gst_pass', notes: 'Registered mobile: 98765 43210', updatedAt: '2026-06-15' },
                     incometax: { username: 'AABCT1234D', pan: 'AABCT1234D', password: 'demo_itr_pass', notes: 'Aadhaar linked', updatedAt: '2026-06-10' },
@@ -1926,6 +1982,11 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             if (isFirmUser() || isTeamUser() || isClientUser()) {
                 items.push({ icon: 'fa-cloud-upload-alt', label: 'Upload Document', action: "showDocumentsFiltered('upload');toggleQuickActionMenu(false)" });
             }
+            if (isClientUser()) {
+                items.push({ icon: 'fa-store', label: 'Service Catalog', action: "showSection('buy-services');toggleQuickActionMenu(false)" });
+                items.push({ icon: 'fa-key', label: 'Portal Login Credentials', action: "showSection('portal-logins');toggleQuickActionMenu(false)" });
+                items.push({ icon: 'fa-download', label: 'Download CA Documents', action: "showDocumentsFiltered('ca');toggleQuickActionMenu(false)" });
+            }
             if (isFirmUser()) {
                 items.push({ icon: 'fa-user-plus', label: 'Add Client', action: 'addNewClient();toggleQuickActionMenu(false)' });
             }
@@ -2071,6 +2132,9 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             'nav-hsn-search',
             'nav-bank-recon',
             'nav-emi-calculator',
+            'nav-income-computation',
+            'nav-itr-json-pdf',
+            'nav-gstr-export',
             'nav-sales-report',
             'nav-party-pl',
             'nav-invoices-recurring',
@@ -2223,7 +2287,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             const purchLabel = document.getElementById('nav-purchases-label');
             if (purchLabel) purchLabel.textContent = isClient ? 'Upload Purchases' : 'Upload Documents';
             const portalLabel = document.getElementById('nav-portal-logins-label');
-            if (portalLabel) portalLabel.textContent = isClient ? 'Share Portal Logins' : 'Portal Logins';
+            if (portalLabel) portalLabel.textContent = isClient ? 'Portal Login Credentials' : 'Portal Login Credentials';
 
             if (!isClient) {
                 document.querySelectorAll('[data-firm-only]').forEach(el => {
@@ -2711,6 +2775,19 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 case 'admin-invoices': renderAdminInvoices(main); break;
                 case 'service-orders': renderServiceOrders(main); break;
                 case 'emi-calculator': renderEMICalculator(main); break;
+                case 'income-computation':
+                    if (!isFirmUser()) { showToast('Income Computation is available in Admin portal only', 'error'); renderDashboard(main); break; }
+                    renderIncomeComputation(main);
+                    break;
+                case 'itr-json-pdf':
+                    if (!isFirmUser()) { showToast('ITR tool is available in Admin portal only', 'error'); renderDashboard(main); break; }
+                    renderItrJsonToPdf(main);
+                    break;
+                case 'gstr-export':
+                    if (!isFirmUser() && !isTeamUser()) { showToast('GSTR export is available in Admin / Team portal only', 'error'); renderDashboard(main); break; }
+                    if (typeof renderGstrReturnExport === 'function') renderGstrReturnExport(main);
+                    else { main.innerHTML = '<p class="text-red-400">GSTR export module failed to load. Hard-refresh (Ctrl+F5).</p>'; }
+                    break;
                 case 'sales-purchase-report': renderSalesPurchaseReport(main); break;
                 case 'firm-profile': renderFirmProfile(main); break;
                 case 'all-clients': renderAllClients(main); break;
@@ -2774,6 +2851,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 };
             }
             if (!client.bankStatement) client.bankStatement = [];
+            if (!client.bankReconMeta) client.bankReconMeta = { lastImport: null, period: '', bankName: '' };
         }
 
         function maskSecret(value, show) {
@@ -2796,7 +2874,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
 
             container.innerHTML = `
                 <div class="mb-6">
-                    <h2 class="text-2xl font-semibold tracking-tight">${isClient ? 'Share Government Portal Logins' : 'Client Portal Login Credentials'}</h2>
+                    <h2 class="text-2xl font-semibold tracking-tight">${isClient ? 'Portal Login Credentials' : 'Client Portal Login Credentials'}</h2>
                     <p class="text-slate-400 text-sm">${isClient
                         ? 'Submit and view GST, Income Tax, TAN, MCA and other portal credentials — passwords are visible for your reference'
                         : `View and edit portal credentials for ${client.name} — passwords visible to admin and client`}</p>
@@ -3451,7 +3529,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
         }
 
         function renderDocTable(docs, options = {}) {
-            const { allowDelete = true, readOnly = false } = options;
+            const { allowDelete = true, readOnly = false, clientDownload = false } = options;
             if (!docs.length) return `<tr><td colspan="6" class="text-center py-8 text-slate-400">No documents in this section yet.</td></tr>`;
             return docs.map(doc => `
                 <tr>
@@ -3464,9 +3542,11 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     <td>${doc.date}</td>
                     <td class="text-xs text-slate-400">${doc.size}</td>
                     <td class="text-right whitespace-nowrap">
-                        <button onclick="downloadDocument('${doc.id}')" title="Download" class="text-emerald-400 hover:text-emerald-300 px-2"><i class="fa-solid fa-download"></i></button>
-                        <button onclick="requestDocESign('${doc.id}')" title="Request e-Signature" class="text-violet-400 hover:text-violet-300 px-2"><i class="fa-solid fa-signature"></i></button>
-                        ${!readOnly && allowDelete ? `<button onclick="deleteDocument('${doc.id}')" title="Delete" class="text-red-400 hover:text-red-300 px-2"><i class="fa-solid fa-trash"></i></button>` : ''}
+                        ${clientDownload
+                            ? `<button type="button" onclick="downloadDocument('${doc.id}')" class="lf-btn lf-btn--primary lf-btn--sm"><i class="fa-solid fa-download mr-1"></i>Download</button>`
+                            : `<button type="button" onclick="downloadDocument('${doc.id}')" title="Download" class="text-emerald-400 hover:text-emerald-300 px-2"><i class="fa-solid fa-download"></i></button>
+                               <button type="button" onclick="requestDocESign('${doc.id}')" title="Request e-Signature" class="text-violet-400 hover:text-violet-300 px-2"><i class="fa-solid fa-signature"></i></button>`}
+                        ${!readOnly && allowDelete ? `<button type="button" onclick="deleteDocument('${doc.id}')" title="Delete" class="text-red-400 hover:text-red-300 px-2"><i class="fa-solid fa-trash"></i></button>` : ''}
                     </td>
                 </tr>
             `).join('');
@@ -3494,11 +3574,17 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             const [docTitle, docSubtitle] = docTitles[docFilter] || docTitles.all;
 
             const allDocs = [...adminDocs, ...clientDocs];
+            const folderDocs = isClient
+                ? (docFilter === 'mine' ? clientDocs : docFilter === 'ca' ? adminDocs : allDocs)
+                : allDocs;
             const dropzone = typeof LedgerFlowScreens !== 'undefined' && showUpload
                 ? LedgerFlowScreens.renderDocDropzone()
                 : '';
             const folders = typeof LedgerFlowScreens !== 'undefined'
-                ? `<div class="lf-doc-folders">${LedgerFlowScreens.renderDocFolders(allDocs)}</div>`
+                ? `<div class="lf-doc-folders">${LedgerFlowScreens.renderDocFolders(folderDocs, {
+                    allowDownload: isClient && (docFilter === 'ca' || docFilter === 'all'),
+                    showEmpty: false
+                })}</div>`
                 : '';
 
             container.innerHTML = `
@@ -3534,18 +3620,21 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
 
                 ${showCaDocs ? `
                 <div class="bg-slate-900 border border-blue-800/50 rounded-3xl overflow-hidden mb-6">
-                    <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between bg-blue-950/20">
+                    <div class="px-6 py-4 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3 bg-blue-950/20">
                         <div class="font-semibold flex items-center gap-2">
                             <i class="fa-solid fa-building text-blue-400"></i>
                             Shared by CA (${adminDocs.length})
                         </div>
-                        <span class="text-xs text-blue-400 px-2 py-1 bg-blue-900/40 rounded-lg">From your accounting firm</span>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-xs text-blue-400 px-2 py-1 bg-blue-900/40 rounded-lg">From your accounting firm</span>
+                            ${isClient && adminDocs.length ? `<button type="button" onclick="downloadAllCaDocuments()" class="lf-btn lf-btn--secondary lf-btn--sm"><i class="fa-solid fa-download mr-1"></i>Download All</button>` : ''}
+                        </div>
                     </div>
                     <table class="w-full data-table lf-table lf-table--zebra">
                         <thead><tr>
-                            <th>Document</th><th>Type</th><th>Uploaded By</th><th>Date</th><th>Size</th><th></th>
+                            <th>Document</th><th>Type</th><th>Uploaded By</th><th>Date</th><th>Size</th><th>${isClient ? 'Download' : ''}</th>
                         </tr></thead>
-                        <tbody>${renderDocTable(adminDocs, { readOnly: true, allowDelete: isFirm })}</tbody>
+                        <tbody>${renderDocTable(adminDocs, { readOnly: true, allowDelete: isFirm, clientDownload: isClient })}</tbody>
                     </table>
                 </div>` : ''}
 
@@ -3559,7 +3648,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                         <thead><tr>
                             <th>Document</th><th>Type</th><th>Uploaded By</th><th>Date</th><th>Size</th><th></th>
                         </tr></thead>
-                        <tbody>${renderDocTable(clientDocs, { allowDelete: true })}</tbody>
+                        <tbody>${renderDocTable(clientDocs, { allowDelete: true, clientDownload: isClient })}</tbody>
                     </table>
                 </div>` : ''}
             `;
@@ -3599,7 +3688,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 reviewStatus: opts.reviewStatus || (uploadedBy === 'client' ? 'pending' : 'approved')
             };
             client.documents.unshift(doc);
-            if (!doc.fileData && file.size < 512000) {
+            if (!doc.fileData && file.size < 5242880) {
                 const reader = new FileReader();
                 reader.onload = e => {
                     doc.fileData = e.target.result;
@@ -3808,6 +3897,11 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                         <div class="text-xs text-slate-500 mt-1">Required fields present</div>
                     </div>
                 </div>
+                <div class="mb-6 flex flex-wrap gap-3">
+                    <button type="button" onclick="showSection('gstr-export')" class="lf-btn lf-btn--primary text-sm" data-team-visible>
+                        <i class="fa-solid fa-file-export mr-1"></i> GSTR-1 / 3B / 9 JSON &amp; CSV Export
+                    </button>
+                </div>
             `;
 
             container.innerHTML = gstHeader + `
@@ -4009,200 +4103,6 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                 frag.appendChild(row);
             });
             tbody.appendChild(frag);
-        }
-
-        function renderBankReconciliation(container) {
-            const client = getCurrentClient();
-            ensurePortalLogins(client);
-            const bookTxns = client.bankTxns.filter(t => t.source !== 'bank');
-            const bankStmt = client.bankStatement || [];
-            const bookCredits = bookTxns.filter(t => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
-            const bookDebits = bookTxns.filter(t => t.type === 'debit').reduce((s, t) => s + t.amount, 0);
-            const stmtCredits = bankStmt.filter(t => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
-            const stmtDebits = bankStmt.filter(t => t.type === 'debit').reduce((s, t) => s + t.amount, 0);
-
-            container.innerHTML = `
-                <div>
-                    <h2 class="text-2xl font-semibold tracking-tight mb-1">Bank Reconciliation</h2>
-                    <p class="text-slate-400 mb-4">Match book entries with bank statement — import CSV or use sample template</p>
-
-                    <div class="flex flex-wrap gap-3 mb-6">
-                        <a href="bank-reconciliation-sample.csv" download="bank-reconciliation-sample.csv"
-                           class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl text-sm flex items-center gap-2">
-                            <i class="fa-solid fa-download text-emerald-400"></i> Download Sample CSV
-                        </a>
-                        <button onclick="importSampleBankStatement()"
-                                class="px-4 py-2 bg-emerald-900/50 hover:bg-emerald-800 border border-emerald-700 rounded-xl text-sm flex items-center gap-2">
-                            <i class="fa-solid fa-file-import"></i> Load Sample CSV Data
-                        </button>
-                        <label class="px-4 py-2 bg-blue-900/50 hover:bg-blue-800 border border-blue-700 rounded-xl text-sm flex items-center gap-2 cursor-pointer">
-                            <i class="fa-solid fa-upload"></i> Import Your CSV
-                            <input type="file" id="bank-csv-upload" accept=".csv,.txt" class="hidden" onchange="importBankCSVFile(event)">
-                        </label>
-                    </div>
-
-                    <div class="mb-4 p-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-400">
-                        <strong class="text-slate-300">CSV format:</strong> Date, Description, Debit, Credit, Balance, Reference
-                    </div>
-                    
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="bg-slate-900 border border-slate-700 rounded-3xl p-5">
-                            <div class="font-semibold mb-3 flex items-center justify-between">
-                                <span><i class="fa-solid fa-book text-emerald-400 mr-1"></i> Book Entries</span>
-                                <button onclick="addManualBankTxn()" class="text-xs px-3 py-1 bg-emerald-600 rounded-xl">+ Add Entry</button>
-                            </div>
-                            <div class="max-h-[360px] overflow-auto custom-scroll text-sm">
-                                ${bookTxns.length ? bookTxns.map(t => `
-                                    <div class="flex justify-between items-center py-2.5 border-b border-slate-700 last:border-0">
-                                        <div>
-                                            <div class="font-medium">${t.description}</div>
-                                            <div class="text-xs text-slate-400">${t.date}</div>
-                                        </div>
-                                        <div class="text-right">
-                                            <div class="${t.type === 'credit' ? 'text-emerald-400' : 'text-red-400'} font-semibold">₹${t.amount.toLocaleString('en-IN')}</div>
-                                            <button onclick="toggleReconciled('${t.id}')" class="text-[10px] ${t.reconciled ? 'text-emerald-400' : 'text-amber-400'} hover:underline">${t.reconciled ? '✓ Reconciled' : 'Mark reconciled'}</button>
-                                        </div>
-                                    </div>
-                                `).join('') : '<div class="text-sm text-slate-400 py-4">No book entries yet.</div>'}
-                            </div>
-                        </div>
-                        
-                        <div class="bg-slate-900 border border-slate-700 rounded-3xl p-5">
-                            <div class="font-semibold mb-3"><i class="fa-solid fa-university text-blue-400 mr-1"></i> Bank Statement (${bankStmt.length} rows)</div>
-                            <div class="max-h-[360px] overflow-auto custom-scroll text-sm">
-                                ${bankStmt.length ? bankStmt.map(t => `
-                                    <div class="flex justify-between items-center py-2.5 border-b border-slate-700 last:border-0">
-                                        <div>
-                                            <div class="font-medium">${t.description}</div>
-                                            <div class="text-xs text-slate-400">${t.date} ${t.reference ? '• ' + t.reference : ''}</div>
-                                        </div>
-                                        <div class="text-right">
-                                            <div class="${t.type === 'credit' ? 'text-emerald-400' : 'text-red-400'} font-semibold">₹${t.amount.toLocaleString('en-IN')}</div>
-                                            ${t.balance != null ? `<div class="text-[10px] text-slate-500">Bal ₹${Number(t.balance).toLocaleString('en-IN')}</div>` : ''}
-                                        </div>
-                                    </div>
-                                `).join('') : '<div class="text-sm text-slate-400 py-4">Import sample CSV or upload your bank statement file.</div>'}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 text-sm">
-                            <div class="text-xs text-slate-400">Book Credits</div>
-                            <div class="font-bold text-emerald-400">₹${bookCredits.toLocaleString('en-IN')}</div>
-                        </div>
-                        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 text-sm">
-                            <div class="text-xs text-slate-400">Book Debits</div>
-                            <div class="font-bold text-red-400">₹${bookDebits.toLocaleString('en-IN')}</div>
-                        </div>
-                        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 text-sm">
-                            <div class="text-xs text-slate-400">Statement Credits</div>
-                            <div class="font-bold text-emerald-400">₹${stmtCredits.toLocaleString('en-IN')}</div>
-                        </div>
-                        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 text-sm">
-                            <div class="text-xs text-slate-400">Reconciled</div>
-                            <div class="font-bold">${bookTxns.filter(t => t.reconciled).length} / ${bookTxns.length}</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function parseBankCSV(text) {
-            const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
-            if (lines.length < 2) return [];
-            const rows = [];
-            for (let i = 1; i < lines.length; i++) {
-                const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-                if (cols.length < 4) continue;
-                const date = cols[0];
-                const description = cols[1];
-                const debit = parseFloat(cols[2]) || 0;
-                const credit = parseFloat(cols[3]) || 0;
-                const balance = cols[4] ? parseFloat(cols[4]) : null;
-                const reference = cols[5] || '';
-                if (description.toLowerCase().includes('opening balance') && !debit && !credit) continue;
-                const amount = credit || debit;
-                if (!amount) continue;
-                rows.push({
-                    id: 'bs_' + Date.now() + '_' + i,
-                    date,
-                    description,
-                    amount,
-                    type: credit > 0 ? 'credit' : 'debit',
-                    balance,
-                    reference,
-                    reconciled: false
-                });
-            }
-            return rows;
-        }
-
-        function importBankCSVFile(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = e => {
-                const rows = parseBankCSV(e.target.result);
-                if (!rows.length) { showToast('No valid rows in CSV', 'error'); return; }
-                const client = getCurrentClient();
-                ensurePortalLogins(client);
-                client.bankStatement = rows;
-                saveAppData();
-                showToast(`Imported ${rows.length} bank statement rows`);
-                showSection('bank-recon');
-            };
-            reader.readAsText(file);
-        }
-
-        function toggleReconciled(id) {
-            const client = getCurrentClient();
-            const txn = client.bankTxns.find(t => t.id === id);
-            if (txn) {
-                txn.reconciled = !txn.reconciled;
-                saveAppData();
-                showSection('bank-recon');
-            }
-        }
-
-        function addManualBankTxn() {
-            const client = getCurrentClient();
-            const desc = prompt('Description of transaction:');
-            if (!desc) return;
-            const amount = parseFloat(prompt('Amount (₹):')) || 0;
-            const type = confirm('Is this a Credit (money in)? OK = Credit, Cancel = Debit') ? 'credit' : 'debit';
-            
-            client.bankTxns.unshift({
-                id: 'bt_' + Date.now(),
-                date: new Date().toISOString().split('T')[0],
-                description: desc,
-                amount,
-                type,
-                reconciled: false
-            });
-            saveAppData();
-            showSection('bank-recon');
-        }
-
-        function importSampleBankStatement() {
-            const sampleCSV = `Date,Description,Debit,Credit,Balance,Reference
-2026-06-01,Opening Balance,,,425000,OB
-2026-06-05,NEFT CR - Metro Retail Pvt Ltd,,147500,572500,NEFT20260605001
-2026-06-10,UPI DR - Office Supplies,2450,,570050,UPI20260610002
-2026-06-15,IMPS DR - ABC Suppliers,76700,,493350,IMPS20260615003
-2026-06-18,NEFT CR - Sunrise Distributors,,103250,596600,NEFT20260618004
-2026-06-20,Cash Deposit at Branch,,50000,646600,CASH20260620005
-2026-06-22,ATM Withdrawal,10000,,636600,ATM20260622006
-2026-06-25,IMPS DR - Vendor Payment,45000,,591600,IMPS20260625007
-2026-06-28,Bank Service Charges,250,,591350,CHG20260628008
-2026-06-30,Interest Credit,,1250,592600,INT20260630009`;
-
-            const client = getCurrentClient();
-            ensurePortalLogins(client);
-            client.bankStatement = parseBankCSV(sampleCSV);
-            saveAppData();
-            showToast(`Loaded ${client.bankStatement.length} sample bank statement rows`);
-            showSection('bank-recon');
         }
 
         function renderSalesReport(container) {

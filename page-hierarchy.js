@@ -159,12 +159,12 @@
             keywords: ['admin', 'service invoice']
         },
         'buy-services': {
-            label: 'Buy Services',
+            label: 'Service Catalog',
             path: '/invoices/services',
             module: 'Invoices',
             parent: 'invoices',
             roles: ['client'],
-            keywords: ['services', 'catalog']
+            keywords: ['services', 'catalog', 'buy']
         },
         'service-orders': {
             label: 'Service Orders',
@@ -196,12 +196,12 @@
             keywords: ['purchase', 'bill', 'upload']
         },
         'portal-logins': {
-            label: 'Portal Logins',
+            label: 'Portal Login Credentials',
             path: '/documents/portal-logins',
             module: 'Documents',
             parent: 'documents',
             roles: ['firm', 'team', 'client'],
-            keywords: ['gst portal', 'credentials']
+            keywords: ['gst portal', 'credentials', 'itr', 'tan', 'mca', 'login']
         },
         'gst-calculator': {
             label: 'GST & Compliance',
@@ -220,12 +220,12 @@
             keywords: ['hsn', 'rule 46']
         },
         'bank-recon': {
-            label: 'GST Returns Tracker',
-            path: '/gst/returns',
-            module: 'GST & Compliance',
-            parent: 'gst-calculator',
-            roles: ['firm', 'team', 'client'],
-            keywords: ['gstr-1', 'gstr-3b', 'returns']
+            label: 'Bank Statement Reconciliation',
+            path: '/banking/reconciliation',
+            module: 'Banking',
+            parent: null,
+            roles: ['firm', 'team'],
+            keywords: ['bank', 'statement', 'reconciliation', 'csv', 'match', 'book']
         },
         'emi-calculator': {
             label: 'EMI Calculator',
@@ -234,6 +234,30 @@
             parent: 'gst-calculator',
             roles: ['firm'],
             keywords: ['emi', 'loan']
+        },
+        'income-computation': {
+            label: 'Income Computation',
+            path: '/gst/income-computation',
+            module: 'GST & Compliance',
+            parent: 'gst-calculator',
+            roles: ['firm'],
+            keywords: ['income', 'computation', 'itr', 'tax', 'prepare', 'pdf']
+        },
+        'itr-json-pdf': {
+            label: 'ITR JSON to PDF',
+            path: '/gst/itr-json-pdf',
+            module: 'GST & Compliance',
+            parent: 'gst-calculator',
+            roles: ['firm'],
+            keywords: ['itr', 'json', 'pdf', 'income tax', 'computation']
+        },
+        'gstr-export': {
+            label: 'GSTR Return Export',
+            path: '/gst/gstr-export',
+            module: 'GST & Compliance',
+            parent: 'gst-calculator',
+            roles: ['firm', 'team'],
+            keywords: ['gstr', 'gstr-1', 'gstr-3b', 'gstr-9', 'json', 'csv', 'filing', 'return']
         },
         requests: {
             label: 'Messages',
@@ -437,8 +461,11 @@
     registerRoute('/documents/portal-logins', 'portal-logins');
     registerRoute('/gst', 'gst-calculator');
     registerRoute('/gst/compliance', 'hsn-search');
-    registerRoute('/gst/returns', 'bank-recon');
+    registerRoute('/banking/reconciliation', 'bank-recon');
     registerRoute('/gst/emi', 'emi-calculator');
+    registerRoute('/gst/income-computation', 'income-computation');
+    registerRoute('/gst/itr-json-pdf', 'itr-json-pdf');
+    registerRoute('/gst/gstr-export', 'gstr-export');
     registerRoute('/messages', 'requests');
     registerRoute('/messages/whatsapp', 'whatsapp');
     registerRoute('/messages/approvals', 'team-approvals');
@@ -501,7 +528,7 @@
                 { label: 'Outstanding', path: '/invoices/outstanding', section: 'invoices' },
                 { label: 'Paid', path: '/invoices/paid', section: 'invoices' },
                 { label: 'All Invoices', path: '/invoices/all', section: 'invoices' },
-                { label: 'Buy Services', path: '/invoices/services', section: 'buy-services' }
+                { label: 'Service Catalog', path: '/invoices/services', section: 'buy-services' }
             ]
         },
         {
