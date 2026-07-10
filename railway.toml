@@ -1,9 +1,3 @@
+# Monorepo: per-service build/start commands are set in Railway (ledgerflow-crm, ledgerflow-api, ledgerflow-web).
 [build]
 builder = "nixpacks"
-buildCommand = "cd backend && npm install"
-
-[deploy]
-startCommand = "cd backend && node seed.js && node server.js"
-healthcheckPath = "/api/health"
-healthcheckTimeout = 120
-restartPolicyType = "on_failure"
