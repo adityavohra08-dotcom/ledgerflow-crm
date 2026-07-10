@@ -4,9 +4,12 @@
 (function (global) {
     'use strict';
 
-    const VERSION = '1.2.0';
+    const VERSION = '1.2.1';
+    const PORTAL_GSTR1_VERSION = 'GST3.2.1';
     const RETURN_TYPES = ['GSTR-1', 'GSTR-1A', 'GSTR-3B', 'GSTR-9'];
     const DOC_TYPES = { INV: 'Tax Invoice', CN: 'Credit Note', DN: 'Debit Note', BOS: 'Bill of Supply', DC: 'Delivery Challan' };
+    const VALID_GSTR_RATES = [0, 0.25, 3, 5, 12, 18, 28];
+    const B2CL_THRESHOLD = 100000;
 
     function esc(s) {
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -150,23 +153,51 @@
         return round2((half / tx) * 100);
     }
 
-    function invoiceLineItem(inv, idx) {
+    function normalizePortalRate(rt) {
+        const r = num(rt);
+        if (!r) return 0;
+        let best = VALID_GSTR_RATES[0];
+        let diff = Math.abs(r - best);
+        VALID_GSTR_RATES.forEach(v => {
+            const d = Math.abs(r - v);
+            if (d < diff) { diff = d; best = v; }
+        });
+        return best;
+    }
+
+    function sanitizeInum(s) {
+        return String(s || '').trim().replace(/[^A-Za-z0-9\-\/]/g, '').slice(0, 16);
+    }
+
+    function reconcileItemTax(txval, rt, igst, cgst, sgst, interState) {
+        const tx = round2(txval);
+        const rate = normalizePortalRate(rt);
+        if (!tx || !rate) {
+            return { txval: tx, rt: rate, iamt: 0, camt: 0, samt: 0, csamt: 0 };
+        }
+        const totalTax = round2(tx * rate / 100);
+        if (interState || (num(igst) > 0 && num(cgst) + num(sgst) === 0)) {
+            return { txval: tx, rt: rate, iamt: totalTax, camt: 0, samt: 0, csamt: 0 };
+        }
+        const half = round2(totalTax / 2);
+        return { txval: tx, rt: rate, iamt: 0, camt: half, samt: round2(totalTax - half), csamt: 0 };
+    }
+
+    function invoiceLineItem(inv, idx, interState) {
         const tx = round2(inv.taxable);
-        const rt = deriveRate(inv);
-        const cgst = round2(inv.cgst);
-        const sgst = round2(inv.sgst);
-        const igst = round2(inv.igst);
+        const rt = normalizePortalRate(deriveRate(inv));
+        const tax = reconcileItemTax(tx, rt, inv.igst, inv.cgst, inv.sgst, interState);
         return {
             num: idx,
-            itm_det: {
-                txval: tx,
-                rt,
-                iamt: igst,
-                camt: cgst,
-                samt: sgst,
-                csamt: 0
-            }
+            itm_det: tax
         };
+    }
+
+    function lookupInvoiceDate(client, invNo) {
+        if (!invNo) return '';
+        const key = sanitizeInum(invNo).toUpperCase();
+        const hit = (client.invoices || []).find(i => sanitizeInum(i.number).toUpperCase() === key);
+        return hit?.date ? toGstDate(hit.date) : '';
     }
 
     function docTypeOf(inv) {
@@ -260,20 +291,32 @@
         return entries.filter(e => e.docType === 'CN' || e.docType === 'DN');
     }
 
-    function cdnLineItem(entry) {
+    function cdnLineItem(entry, interState) {
         const tx = round2(entry.taxable);
-        const rt = entry.taxable ? round2(((entry.igst + entry.cgst + entry.sgst) / entry.taxable) * 100) : 0;
+        const rt = normalizePortalRate(entry.taxable ? ((entry.igst + entry.cgst + entry.sgst) / entry.taxable) * 100 : 0);
         return {
             num: 1,
-            itm_det: {
-                txval: tx,
-                rt,
-                iamt: round2(entry.igst),
-                camt: round2(entry.cgst),
-                samt: round2(entry.sgst),
-                csamt: 0
-            }
+            itm_det: reconcileItemTax(tx, rt, entry.igst, entry.cgst, entry.sgst, interState)
         };
+    }
+
+    function buildCdnNote(client, entry) {
+        const pos = customerPos(client, entry.partyName, client.stateCode);
+        const interState = num(entry.igst) > 0;
+        const against = sanitizeInum(entry.againstInvoice);
+        const origDate = lookupInvoiceDate(client, against);
+        const note = {
+            ntty: entry.docType === 'DN' ? 'D' : 'C',
+            nt_num: sanitizeInum(entry.number),
+            nt_dt: toGstDate(entry.date),
+            val: round2(entry.grandTotal || entry.taxable + entry.cgst + entry.sgst + entry.igst),
+            itms: [cdnLineItem(entry, interState)]
+        };
+        if (against) {
+            note.inum = against;
+            if (origDate) note.idt = origDate;
+        }
+        return { note, pos, interState };
     }
 
     function buildCdnrCdnur(client, month) {
@@ -281,22 +324,18 @@
         const cdnur = [];
         collectCdnEntries(client, month).forEach(entry => {
             const ctin = customerGstin(client, entry.partyName);
-            const nt = {
-                ntty: entry.docType === 'DN' ? 'D' : 'C',
-                nt_num: entry.number,
-                nt_dt: toGstDate(entry.date),
-                inum: entry.againstInvoice || '',
-                idt: '',
-                val: round2(entry.grandTotal || entry.taxable + entry.cgst + entry.sgst + entry.igst),
-                itms: [cdnLineItem(entry)]
-            };
+            const { note, pos, interState } = buildCdnNote(client, entry);
             if (isValidGstin(ctin)) {
                 const list = cdnrMap.get(ctin) || { ctin, nt: [] };
-                list.nt.push(nt);
+                list.nt.push(note);
                 cdnrMap.set(ctin, list);
             } else {
-                const pos = customerPos(client, entry.partyName, client.stateCode);
-                cdnur.push({ typ: 'B2CL', nt: [Object.assign({ pos }, nt)] });
+                const row = {
+                    typ: interState ? 'B2CL' : 'B2CS',
+                    pos,
+                    ...note
+                };
+                cdnur.push(row);
             }
         });
         return { cdnr: [...cdnrMap.values()], cdnur };
@@ -341,13 +380,15 @@
         const defaultHsn = (stock && stock[0]) ? { hsn: stock[0].hsn || '9983', desc: stock[0].name || 'Taxable supplies' } : { hsn: '9983', desc: 'Taxable supplies' };
         invs.forEach(inv => {
             const hsn = defaultHsn.hsn;
-            const key = `${hsn}|${deriveRate(inv)}`;
+            const interState = num(inv.igst) > 0;
+            const rt = normalizePortalRate(deriveRate(inv));
+            const key = `${hsn}|${rt}|${interState ? 'I' : 'L'}`;
             const row = map.get(key) || {
                 hsn_sc: hsn,
                 desc: defaultHsn.desc,
                 uqc: 'NOS',
                 qty: 0,
-                rt: deriveRate(inv),
+                rt,
                 txval: 0,
                 iamt: 0,
                 camt: 0,
@@ -355,13 +396,15 @@
                 csamt: 0
             };
             row.qty += num(inv.items) || 1;
-            row.txval = round2(row.txval + num(inv.taxable));
-            row.iamt = round2(row.iamt + num(inv.igst));
-            row.camt = round2(row.camt + num(inv.cgst));
-            row.samt = round2(row.samt + num(inv.sgst));
+            const tax = reconcileItemTax(num(inv.taxable), rt, inv.igst, inv.cgst, inv.sgst, interState);
+            row.txval = round2(row.txval + tax.txval);
+            row.iamt = round2(row.iamt + tax.iamt);
+            row.camt = round2(row.camt + tax.camt);
+            row.samt = round2(row.samt + tax.samt);
             map.set(key, row);
         });
-        return { data: [...map.values()] };
+        const data = [...map.values()].map((r, i) => ({ ...r, num: i + 1 }));
+        return { data };
     }
 
     function buildGstr1(client, month) {
@@ -377,46 +420,49 @@
         invs.forEach(inv => {
             const ctin = customerGstin(client, inv.partyName);
             const pos = customerPos(client, inv.partyName, client.stateCode);
+            const interState = num(inv.igst) > 0;
             const rcm = inv.reverseCharge === true || inv.rchrg === 'Y';
             const entry = {
-                inum: inv.number || inv.id,
+                inum: sanitizeInum(inv.number || inv.id),
                 idt: toGstDate(inv.date),
                 val: round2(inv.grandTotal),
                 pos,
                 rchrg: rcm ? 'Y' : 'N',
-                inv_typ: rcm ? 'DE' : 'R',
-                itms: [invoiceLineItem(inv, 1)]
+                inv_typ: 'R',
+                itms: [invoiceLineItem(inv, 1, interState)]
             };
             if (isValidGstin(ctin)) {
                 const list = b2bMap.get(ctin) || { ctin, inv: [] };
                 list.inv.push(entry);
                 b2bMap.set(ctin, list);
-            } else if (num(inv.igst) > 0 && num(inv.grandTotal) > 250000) {
+            } else if (interState && num(inv.grandTotal) > B2CL_THRESHOLD) {
                 b2cl.push({ pos, inv: [entry] });
             } else {
-                const key = `${pos}|${deriveRate(inv)}`;
+                const rt = normalizePortalRate(deriveRate(inv));
+                const key = `${pos}|${rt}|${interState ? 'INTER' : 'INTRA'}`;
                 const row = b2csMap.get(key) || {
-                    sply_ty: num(inv.igst) > 0 ? 'INTER' : 'INTRA',
+                    sply_ty: interState ? 'INTER' : 'INTRA',
                     pos,
                     typ: 'OE',
-                    rt: deriveRate(inv),
+                    rt,
                     txval: 0,
                     iamt: 0,
                     camt: 0,
                     samt: 0,
                     csamt: 0
                 };
-                row.txval = round2(row.txval + num(inv.taxable));
-                row.iamt = round2(row.iamt + num(inv.igst));
-                row.camt = round2(row.camt + num(inv.cgst));
-                row.samt = round2(row.samt + num(inv.sgst));
+                const tax = reconcileItemTax(num(inv.taxable), rt, inv.igst, inv.cgst, inv.sgst, interState);
+                row.txval = round2(row.txval + tax.txval);
+                row.iamt = round2(row.iamt + tax.iamt);
+                row.camt = round2(row.camt + tax.camt);
+                row.samt = round2(row.samt + tax.samt);
                 b2csMap.set(key, row);
             }
         });
 
         const { cdnr, cdnur } = buildCdnrCdnur(client, month);
         const totals = sumInvoices(invs);
-        const cdnCount = cdnr.reduce((n, g) => n + (g.nt?.length || 0), 0) + cdnur.reduce((n, g) => n + (g.nt?.length || 0), 0);
+        const cdnCount = cdnr.reduce((n, g) => n + (g.nt?.length || 0), 0) + cdnur.length;
 
         return {
             meta: {
@@ -432,15 +478,19 @@
             },
             gstin,
             fp,
-            version: 'GST3.2.2',
+            version: PORTAL_GSTR1_VERSION,
             b2b: [...b2bMap.values()],
             b2cl,
             b2cs: [...b2csMap.values()],
             cdnr,
             cdnur,
-            exp: [],
-            nil_exempt: bosInvs.length ? {
-                inter_sup: { txval: round2(bosInvs.reduce((s, i) => s + num(i.taxable), 0)) }
+            nil: bosInvs.length ? {
+                inv: [{
+                    sply_ty: 'INTRB2C',
+                    expt_amt: 0,
+                    nil_amt: round2(bosInvs.reduce((s, i) => s + num(i.taxable), 0)),
+                    ngsup_amt: 0
+                }]
             } : undefined,
             hsn: buildHsnSummary(invs, client.stock),
             doc_issue: {
@@ -448,8 +498,8 @@
                     doc_num: 1,
                     docs: allInvs.length ? [{
                         num: 1,
-                        from: allInvs[0].number || '1',
-                        to: allInvs[allInvs.length - 1].number || String(allInvs.length),
+                        from: sanitizeInum(allInvs[0].number || '1'),
+                        to: sanitizeInum(allInvs[allInvs.length - 1].number || String(allInvs.length)),
                         totnum: allInvs.length,
                         cancel: 0,
                         net_issue: allInvs.length
@@ -867,6 +917,53 @@
         if (!client.gstrStale[monthStr].gstr1 && !client.gstrStale[monthStr].gstr3b) delete client.gstrStale[monthStr];
     }
 
+    function sanitizeDocIssue(docIssue) {
+        if (!docIssue?.doc_det?.length) return null;
+        return {
+            doc_det: docIssue.doc_det.map(det => ({
+                doc_num: det.doc_num || 1,
+                docs: (det.docs || []).map(d => ({
+                    num: d.num || 1,
+                    from: sanitizeInum(d.from),
+                    to: sanitizeInum(d.to),
+                    totnum: num(d.totnum),
+                    cancel: num(d.cancel),
+                    net_issue: num(d.net_issue)
+                }))
+            }))
+        };
+    }
+
+    function hasGstr1SupplyData(data) {
+        return (data.b2b?.length || 0) + (data.b2cl?.length || 0) + (data.b2cs?.length || 0) +
+            (data.cdnr?.length || 0) + (data.cdnur?.length || 0) + (data.nil?.inv?.length || 0) +
+            (data.hsn?.data?.length || 0) > 0;
+    }
+
+    function toPortalGstr1(data) {
+        if (!data) return {};
+        const portal = {
+            gstin: cleanGstin(data.gstin),
+            fp: String(data.fp || ''),
+            version: PORTAL_GSTR1_VERSION
+        };
+        if (data.b2b?.length) portal.b2b = data.b2b;
+        if (data.b2cl?.length) portal.b2cl = data.b2cl;
+        if (data.b2cs?.length) portal.b2cs = data.b2cs;
+        if (data.cdnr?.length) portal.cdnr = data.cdnr;
+        if (data.cdnur?.length) portal.cdnur = data.cdnur;
+        if (data.nil?.inv?.length) portal.nil = data.nil;
+        if (data.hsn?.data?.length) portal.hsn = data.hsn;
+        const docIssue = sanitizeDocIssue(data.doc_issue);
+        if (docIssue) portal.doc_issue = docIssue;
+        return portal;
+    }
+
+    function toPortalJson(returnType, data) {
+        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A') return toPortalGstr1(data);
+        return data;
+    }
+
     function validateReturnJson(returnType, data) {
         const errors = [];
         const warnings = [];
@@ -876,18 +973,35 @@
         const gstin = cleanGstin(data.gstin);
         if (!isValidGstin(gstin)) errors.push('Invalid or missing gstin');
         if (returnType === 'GSTR-1' || returnType === 'GSTR-1A') {
+            if (data.meta || data.summary) errors.push('Portal JSON must not contain meta/summary — re-download from LedgerFlow');
             if (!data.fp || String(data.fp).length < 5) errors.push('Missing fp (MMYYYY filing period)');
-            if (!Array.isArray(data.b2b)) warnings.push('b2b array missing — will file as empty B2B');
+            if (!data.version || !String(data.version).startsWith('GST')) warnings.push(`version should be ${PORTAL_GSTR1_VERSION} for current offline tool`);
+            if (!hasGstr1SupplyData(data)) errors.push('No outward supply data — portal will reject empty GSTR-1');
             (data.cdnr || []).forEach((g, i) => {
                 if (!isValidGstin(g.ctin)) warnings.push(`CDNR[${i}] customer GSTIN invalid`);
+                (g.nt || []).forEach((nt, j) => {
+                    if (nt.inum && !nt.idt) errors.push(`CDNR[${i}].nt[${j}] has inum but missing original invoice date (idt)`);
+                });
             });
             (data.b2b || []).forEach((g, i) => {
                 if (!isValidGstin(g.ctin)) warnings.push(`B2B[${i}] customer GSTIN invalid: ${g.ctin || '—'}`);
                 (g.inv || []).forEach((inv, j) => {
                     if (!inv.inum) errors.push(`B2B[${i}].inv[${j}] missing inum`);
-                    if (!inv.idt) errors.push(`B2B[${i}].inv[${j}] missing idt (DD-MM-YYYY)`);
+                    if (inv.inum && inv.inum.length > 16) errors.push(`B2B[${i}].inv[${j}] inum exceeds 16 chars`);
+                    if (!inv.idt || !/^\d{2}-\d{2}-\d{4}$/.test(inv.idt)) errors.push(`B2B[${i}].inv[${j}] invalid idt (use DD-MM-YYYY)`);
                     if (!inv.itms?.length) warnings.push(`B2B[${i}].inv[${j}] has no line items`);
+                    (inv.itms || []).forEach((it, k) => {
+                        const d = it.itm_det || {};
+                        if (!VALID_GSTR_RATES.includes(num(d.rt))) warnings.push(`B2B[${i}].inv[${j}].itms[${k}] rate ${d.rt}% not in GST rate list`);
+                    });
                 });
+            });
+            (data.b2cs || []).forEach((r, i) => {
+                if (!['INTER', 'INTRA'].includes(r.sply_ty)) warnings.push(`B2CS[${i}] sply_ty must be INTER or INTRA`);
+                if (r.typ !== 'OE') warnings.push(`B2CS[${i}] typ should be OE`);
+            });
+            (data.hsn?.data || []).forEach((h, i) => {
+                if (!h.num) warnings.push(`HSN[${i}] missing num sequence`);
             });
         }
         if (returnType === 'GSTR-3B') {
@@ -906,18 +1020,20 @@
 
     function buildValidatedReturn(returnType, client, period, opts = {}) {
         const data = buildReturn(returnType, client, period);
-        const validation = validateReturnJson(returnType, data);
+        const portalData = toPortalJson(returnType, data);
+        const validation = validateReturnJson(returnType, portalData);
         if (!validation.valid && !opts.force) {
             throw new Error('JSON validation failed: ' + validation.errors.join('; '));
         }
         const periodLabel = returnType === 'GSTR-9' ? period.fy : monthLabel(period.month);
         const fileName = fileBase(client, returnType, periodLabel) + '.json';
-        return { data, validation, fileName, periodLabel };
+        return { data, portalData, validation, fileName, periodLabel };
     }
 
     function downloadValidatedJson(returnType, client, period, opts = {}) {
         const built = buildValidatedReturn(returnType, client, period, opts);
-        downloadText(JSON.stringify(built.data, null, 2), built.fileName, 'application/json');
+        const payload = built.portalData || built.data;
+        downloadText(JSON.stringify(payload, null, 2), built.fileName, 'application/json');
         upsertFilingRecord(client, returnType, built.periodLabel, 'Ready');
         if (returnType !== 'GSTR-9') clearPeriodStale(client, period.month, returnType);
         return built;
@@ -987,7 +1103,7 @@
                 <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
                     <div>
                         <h2 class="text-2xl font-semibold tracking-tight">GSTR Return Export</h2>
-                        <p class="text-slate-400 text-sm mt-1">Generate JSON &amp; CSV filing files for GSTR-1, GSTR-3B and GSTR-9 from ${esc(client.name)} books</p>
+                        <p class="text-slate-400 text-sm mt-1">Generate GST portal JSON (${PORTAL_GSTR1_VERSION} schema) &amp; CSV from ${esc(client.name)} books</p>
                     </div>
                     <div class="text-right text-xs text-slate-500">
                         <div>GSTIN: <span class="text-slate-300 font-mono">${esc(client.gstin || '—')}</span></div>
@@ -1018,9 +1134,10 @@
                     <button type="button" onclick="showSection('gst-returns')" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-table-columns mr-1"></i> Returns Hub</button>
                 </div>
                 <div id="gstr-validation-msg" class="mt-3 hidden"></div>
+                <div class="gstr-alert mt-4 text-xs"><i class="fa-solid fa-circle-info mr-1"></i> Downloaded GSTR-1 JSON matches GST offline-tool schema (no LedgerFlow meta/summary fields).</div>
                 <div class="gstr-preview-wrap mt-4">
-                    <div class="gstr-preview-title"><i class="fa-solid fa-code mr-1"></i> JSON Preview</div>
-                    <pre class="gstr-preview-json">${esc(JSON.stringify(preview, null, 2))}</pre>
+                    <div class="gstr-preview-title"><i class="fa-solid fa-code mr-1"></i> Portal JSON Preview</div>
+                    <pre class="gstr-preview-json">${esc(JSON.stringify(toPortalJson(meta.returnType, preview), null, 2))}</pre>
                 </div>` : `
                 <div class="gstr-alert mt-4">No data for selected period. Add invoices/purchases or change the period.</div>`}
             </div>`;
@@ -1126,6 +1243,8 @@
         collectCdnEntries,
         docTypeOf,
         validateReturnJson,
+        toPortalGstr1,
+        toPortalJson,
         buildValidatedReturn,
         downloadValidatedJson,
         upsertFilingRecord,

@@ -498,8 +498,8 @@
             if (!client) return;
             types.forEach(rt => {
                 try {
-                    const { data, validation, fileName, periodLabel } = G().buildValidatedReturn(rt, client, { month: monthStr, fy: G().defaultFy?.(client) });
-                    zip.file(fileName, JSON.stringify(data, null, 2));
+                    const { portalData, data, validation, fileName, periodLabel } = G().buildValidatedReturn(rt, client, { month: monthStr, fy: G().defaultFy?.(client) });
+                    zip.file(fileName, JSON.stringify(portalData || data, null, 2));
                     G().upsertFilingRecord(client, rt, periodLabel, 'Ready');
                     G().clearPeriodStale(client, monthStr, rt);
                     log.push(`✓ ${client.name} — ${fileName}`);
