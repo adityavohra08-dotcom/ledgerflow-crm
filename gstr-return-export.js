@@ -4,11 +4,12 @@
 (function (global) {
     'use strict';
 
-    const VERSION = '1.2.1';
-    const PORTAL_GSTR1_VERSION = 'GST3.2.1';
+    const VERSION = '1.2.2';
+    const PORTAL_GSTR1_VERSION = 'GST3.2.4';
     const RETURN_TYPES = ['GSTR-1', 'GSTR-1A', 'GSTR-3B', 'GSTR-9'];
     const DOC_TYPES = { INV: 'Tax Invoice', CN: 'Credit Note', DN: 'Debit Note', BOS: 'Bill of Supply', DC: 'Delivery Challan' };
-    const VALID_GSTR_RATES = [0, 0.25, 3, 5, 12, 18, 28];
+    const VALID_GSTR_RATES = [0, 0.25, 3, 5, 6, 12, 18, 28, 40];
+    const NIL_SPLY_TYPES = ['INTRB2B', 'INTRAB2B', 'INTRB2C', 'INTRAB2C'];
     const B2CL_THRESHOLD = 100000;
 
     function esc(s) {
@@ -165,6 +166,20 @@
         return best;
     }
 
+    /** Offline tool line-item code: 5%→501, 12%→1201, 18%→1801, 0.25%→251, 0%→1 */
+    function gstrItemNum(rt) {
+        const rate = normalizePortalRate(rt);
+        if (!rate) return 1;
+        if (rate < 1) return Math.round(rate * 1000) + 1;
+        return Math.round(rate * 100) + 1;
+    }
+
+    function hsnUserDesc(hsn) {
+        const digits = String(hsn || '').replace(/\D/g, '');
+        const n = Number(digits);
+        return Number.isFinite(n) && n > 0 ? n : String(hsn || '9983');
+    }
+
     function sanitizeInum(s) {
         return String(s || '').trim().replace(/[^A-Za-z0-9\-\/]/g, '').slice(0, 16);
     }
@@ -183,12 +198,12 @@
         return { txval: tx, rt: rate, iamt: 0, camt: half, samt: round2(totalTax - half), csamt: 0 };
     }
 
-    function invoiceLineItem(inv, idx, interState) {
+    function invoiceLineItem(inv, interState) {
         const tx = round2(inv.taxable);
         const rt = normalizePortalRate(deriveRate(inv));
         const tax = reconcileItemTax(tx, rt, inv.igst, inv.cgst, inv.sgst, interState);
         return {
-            num: idx,
+            num: gstrItemNum(rt),
             itm_det: tax
         };
     }
@@ -295,7 +310,7 @@
         const tx = round2(entry.taxable);
         const rt = normalizePortalRate(entry.taxable ? ((entry.igst + entry.cgst + entry.sgst) / entry.taxable) * 100 : 0);
         return {
-            num: 1,
+            num: gstrItemNum(rt),
             itm_det: reconcileItemTax(tx, rt, entry.igst, entry.cgst, entry.sgst, interState)
         };
     }
@@ -375,9 +390,15 @@
         }), { taxable: 0, cgst: 0, sgst: 0, igst: 0 });
     }
 
-    function buildHsnSummary(invs, stock) {
+    function defaultHsnMeta(stock) {
+        return (stock && stock[0])
+            ? { hsn: stock[0].hsn || '9983', desc: stock[0].name || 'Taxable supplies' }
+            : { hsn: '9983', desc: 'Taxable supplies' };
+    }
+
+    function buildHsnRows(invs, stock) {
         const map = new Map();
-        const defaultHsn = (stock && stock[0]) ? { hsn: stock[0].hsn || '9983', desc: stock[0].name || 'Taxable supplies' } : { hsn: '9983', desc: 'Taxable supplies' };
+        const defaultHsn = defaultHsnMeta(stock);
         invs.forEach(inv => {
             const hsn = defaultHsn.hsn;
             const interState = num(inv.igst) > 0;
@@ -385,6 +406,7 @@
             const key = `${hsn}|${rt}|${interState ? 'I' : 'L'}`;
             const row = map.get(key) || {
                 hsn_sc: hsn,
+                user_desc: hsnUserDesc(hsn),
                 desc: defaultHsn.desc,
                 uqc: 'NOS',
                 qty: 0,
@@ -403,8 +425,45 @@
             row.samt = round2(row.samt + tax.samt);
             map.set(key, row);
         });
-        const data = [...map.values()].map((r, i) => ({ ...r, num: i + 1 }));
-        return { data };
+        return [...map.values()].map((r, i) => ({ ...r, num: i + 1 }));
+    }
+
+    function buildHsnSummary(invs, stock) {
+        return { data: buildHsnRows(invs, stock) };
+    }
+
+    function buildPortalHsn(client, invs) {
+        const b2bInvs = [];
+        const b2cInvs = [];
+        invs.forEach(inv => {
+            const ctin = customerGstin(client, inv.partyName);
+            if (isValidGstin(ctin)) b2bInvs.push(inv);
+            else b2cInvs.push(inv);
+        });
+        return {
+            hsn_b2b: buildHsnRows(b2bInvs, client.stock),
+            hsn_b2c: buildHsnRows(b2cInvs, client.stock)
+        };
+    }
+
+    function buildNilSection(bosInvs, client) {
+        if (!bosInvs.length) return undefined;
+        const amounts = Object.fromEntries(NIL_SPLY_TYPES.map(t => [t, { expt_amt: 0, nil_amt: 0, ngsup_amt: 0 }]));
+        bosInvs.forEach(inv => {
+            const interState = num(inv.igst) > 0;
+            const registered = isValidGstin(customerGstin(client, inv.partyName));
+            const sply_ty = (interState ? 'INTR' : 'INTRA') + (registered ? 'B2B' : 'B2C');
+            const row = amounts[sply_ty] || amounts.INTRAB2C;
+            row.nil_amt = round2(row.nil_amt + num(inv.taxable));
+        });
+        return {
+            inv: NIL_SPLY_TYPES.map(sply_ty => ({
+                sply_ty,
+                expt_amt: amounts[sply_ty].expt_amt,
+                nil_amt: amounts[sply_ty].nil_amt,
+                ngsup_amt: amounts[sply_ty].ngsup_amt
+            }))
+        };
     }
 
     function buildGstr1(client, month) {
@@ -429,7 +488,7 @@
                 pos,
                 rchrg: rcm ? 'Y' : 'N',
                 inv_typ: 'R',
-                itms: [invoiceLineItem(inv, 1, interState)]
+                itms: [invoiceLineItem(inv, interState)]
             };
             if (isValidGstin(ctin)) {
                 const list = b2bMap.get(ctin) || { ctin, inv: [] };
@@ -484,15 +543,8 @@
             b2cs: [...b2csMap.values()],
             cdnr,
             cdnur,
-            nil: bosInvs.length ? {
-                inv: [{
-                    sply_ty: 'INTRB2C',
-                    expt_amt: 0,
-                    nil_amt: round2(bosInvs.reduce((s, i) => s + num(i.taxable), 0)),
-                    ngsup_amt: 0
-                }]
-            } : undefined,
-            hsn: buildHsnSummary(invs, client.stock),
+            nil: buildNilSection(bosInvs, client),
+            hsn: buildPortalHsn(client, invs),
             doc_issue: {
                 doc_det: [{
                     doc_num: 1,
@@ -704,7 +756,7 @@
                 }))
             },
             table17: {
-                hsn_outward: buildHsnSummary(invs, client.stock).data
+                hsn_outward: buildHsnRows(invs, client.stock)
             },
             monthlyBreakup: Object.keys(monthly).sort().map(mk => ({
                 month: monthLabel(mk),
@@ -774,11 +826,19 @@
             });
         });
         lines.push('');
-        lines.push('HSN Summary');
+        lines.push('HSN Summary (B2B)');
         lines.push('HSN,Description,UQC,Qty,Rate,Taxable,IGST,CGST,SGST');
-        (data.hsn?.data || []).forEach(h => {
+        (data.hsn?.hsn_b2b || data.hsn?.data || []).forEach(h => {
             lines.push([h.hsn_sc, h.desc, h.uqc, h.qty, h.rt, h.txval, h.iamt, h.camt, h.samt].map(csvCell).join(','));
         });
+        if (data.hsn?.hsn_b2c?.length) {
+            lines.push('');
+            lines.push('HSN Summary (B2C)');
+            lines.push('HSN,Description,UQC,Qty,Rate,Taxable,IGST,CGST,SGST');
+            data.hsn.hsn_b2c.forEach(h => {
+                lines.push([h.hsn_sc, h.desc, h.uqc, h.qty, h.rt, h.txval, h.iamt, h.camt, h.samt].map(csvCell).join(','));
+            });
+        }
         return lines.join('\n');
     }
 
@@ -934,10 +994,28 @@
         };
     }
 
+    function hsnRowCount(hsn) {
+        if (!hsn) return 0;
+        if (hsn.data?.length) return hsn.data.length;
+        return (hsn.hsn_b2b?.length || 0) + (hsn.hsn_b2c?.length || 0);
+    }
+
+    function portalHsnPayload(hsn) {
+        if (!hsn) return null;
+        const out = {};
+        const b2b = hsn.hsn_b2b || [];
+        const b2c = hsn.hsn_b2c || [];
+        if (b2b.length) out.hsn_b2b = b2b;
+        if (b2c.length) out.hsn_b2c = b2c;
+        if (!b2b.length && !b2c.length && hsn.data?.length) out.hsn_b2b = hsn.data;
+        return Object.keys(out).length ? out : null;
+    }
+
     function hasGstr1SupplyData(data) {
+        const nilAmt = (data.nil?.inv || []).some(r => num(r.nil_amt) || num(r.expt_amt) || num(r.ngsup_amt));
         return (data.b2b?.length || 0) + (data.b2cl?.length || 0) + (data.b2cs?.length || 0) +
-            (data.cdnr?.length || 0) + (data.cdnur?.length || 0) + (data.nil?.inv?.length || 0) +
-            (data.hsn?.data?.length || 0) > 0;
+            (data.cdnr?.length || 0) + (data.cdnur?.length || 0) + (nilAmt ? 1 : 0) +
+            hsnRowCount(data.hsn) > 0;
     }
 
     function toPortalGstr1(data) {
@@ -945,15 +1023,17 @@
         const portal = {
             gstin: cleanGstin(data.gstin),
             fp: String(data.fp || ''),
-            version: PORTAL_GSTR1_VERSION
+            version: PORTAL_GSTR1_VERSION,
+            hash: 'hash'
         };
         if (data.b2b?.length) portal.b2b = data.b2b;
         if (data.b2cl?.length) portal.b2cl = data.b2cl;
         if (data.b2cs?.length) portal.b2cs = data.b2cs;
         if (data.cdnr?.length) portal.cdnr = data.cdnr;
         if (data.cdnur?.length) portal.cdnur = data.cdnur;
-        if (data.nil?.inv?.length) portal.nil = data.nil;
-        if (data.hsn?.data?.length) portal.hsn = data.hsn;
+        if (data.nil?.inv?.some(r => num(r.nil_amt) || num(r.expt_amt) || num(r.ngsup_amt))) portal.nil = data.nil;
+        const hsn = portalHsnPayload(data.hsn);
+        if (hsn) portal.hsn = hsn;
         const docIssue = sanitizeDocIssue(data.doc_issue);
         if (docIssue) portal.doc_issue = docIssue;
         return portal;
@@ -1000,8 +1080,18 @@
                 if (!['INTER', 'INTRA'].includes(r.sply_ty)) warnings.push(`B2CS[${i}] sply_ty must be INTER or INTRA`);
                 if (r.typ !== 'OE') warnings.push(`B2CS[${i}] typ should be OE`);
             });
-            (data.hsn?.data || []).forEach((h, i) => {
+            const hsnRows = [...(data.hsn?.hsn_b2b || []), ...(data.hsn?.hsn_b2c || []), ...(data.hsn?.data || [])];
+            hsnRows.forEach((h, i) => {
                 if (!h.num) warnings.push(`HSN[${i}] missing num sequence`);
+                if (h.user_desc == null) warnings.push(`HSN[${i}] missing user_desc`);
+            });
+            (data.b2b || []).forEach((g, i) => {
+                (g.inv || []).forEach((inv, j) => {
+                    (inv.itms || []).forEach((it, k) => {
+                        const expected = gstrItemNum(it.itm_det?.rt);
+                        if (it.num !== expected) warnings.push(`B2B[${i}].inv[${j}].itms[${k}] num should be ${expected} for rate ${it.itm_det?.rt}%`);
+                    });
+                });
             });
         }
         if (returnType === 'GSTR-3B') {
