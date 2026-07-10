@@ -1,0 +1,408 @@
+{
+  "gstin": "18ABJFM4031F1ZF",
+  "fp": "062026",
+  "version": "GST3.2.4",
+  "hash": "hash",
+  "b2b": [
+    {
+      "ctin": "18APCPA3461Q1ZP",
+      "inv": [
+        {
+          "inum": "100",
+          "idt": "08-05-2026",
+          "val": 281,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 501,
+              "itm_det": {
+                "txval": 267,
+                "rt": 5,
+                "camt": 6.68,
+                "samt": 6.68,
+                "csamt": 0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "700",
+          "idt": "18-05-2026",
+          "val": 1949,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 501,
+              "itm_det": {
+                "txval": 1856,
+                "rt": 5,
+                "camt": 46.4,
+                "samt": 46.4,
+                "csamt": 0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "59",
+          "idt": "27-05-2026",
+          "val": 1244,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 501,
+              "itm_det": {
+                "txval": 1185,
+                "rt": 5,
+                "camt": 29.63,
+                "samt": 29.63,
+                "csamt": 0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "64",
+          "idt": "02-05-2026",
+          "val": 2481,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 501,
+              "itm_det": {
+                "txval": 2362,
+                "rt": 5,
+                "camt": 59.05,
+                "samt": 59.05,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "18BZOPB5833J1Z1",
+      "inv": [
+        {
+          "inum": "200",
+          "idt": "08-05-2026",
+          "val": 824,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 501,
+              "itm_det": {
+                "txval": 432,
+                "rt": 5,
+                "camt": 10.8,
+                "samt": 10.8,
+                "csamt": 0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "300",
+          "idt": "08-05-2026",
+          "val": 824,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1801,
+              "itm_det": {
+                "txval": 313,
+                "rt": 18,
+                "camt": 28.17,
+                "samt": 28.17,
+                "csamt": 0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "65",
+          "idt": "08-05-2026",
+          "val": 1267,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1801,
+              "itm_det": {
+                "txval": 1073,
+                "rt": 18,
+                "camt": 96.57,
+                "samt": 96.57,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "18BGSPP4817R1Z8",
+      "inv": [
+        {
+          "inum": "500",
+          "idt": "08-05-2026",
+          "val": 3600,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 501,
+              "itm_det": {
+                "txval": 3428,
+                "rt": 5,
+                "camt": 85.7,
+                "samt": 85.7,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "18BALPB7452F1ZP",
+      "inv": [
+        {
+          "inum": "800",
+          "idt": "12-05-2026",
+          "val": 10559,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 501,
+              "itm_det": {
+                "txval": 2024,
+                "rt": 5,
+                "camt": 50.6,
+                "samt": 50.6,
+                "csamt": 0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "600",
+          "idt": "12-05-2026",
+          "val": 10559,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1801,
+              "itm_det": {
+                "txval": 7147,
+                "rt": 18,
+                "camt": 643.23,
+                "samt": 643.23,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "18ASFPT6500M3Z9",
+      "inv": [
+        {
+          "inum": "56",
+          "idt": "20-05-2026",
+          "val": 282,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 501,
+              "itm_det": {
+                "txval": 268,
+                "rt": 5,
+                "camt": 6.7,
+                "samt": 6.7,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "18ACXPM6359H1ZR",
+      "inv": [
+        {
+          "inum": "55",
+          "idt": "23-05-2026",
+          "val": 978,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1801,
+              "itm_det": {
+                "txval": 828,
+                "rt": 18,
+                "camt": 74.52,
+                "samt": 74.52,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "18ABDFR3166Q1ZJ",
+      "inv": [
+        {
+          "inum": "58",
+          "idt": "23-05-2026",
+          "val": 729,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1801,
+              "itm_det": {
+                "txval": 617,
+                "rt": 18,
+                "camt": 55.53,
+                "samt": 55.53,
+                "csamt": 0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "60",
+          "idt": "29-05-2026",
+          "val": 1460,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 501,
+              "itm_det": {
+                "txval": 1390,
+                "rt": 5,
+                "camt": 34.75,
+                "samt": 34.75,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "18ACIFS1067R1ZD",
+      "inv": [
+        {
+          "inum": "62",
+          "idt": "30-05-2026",
+          "val": 1140,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1801,
+              "itm_det": {
+                "txval": 966,
+                "rt": 18,
+                "camt": 86.94,
+                "samt": 86.94,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "18AANFN4200G1ZF",
+      "inv": [
+        {
+          "inum": "63",
+          "idt": "01-05-2026",
+          "val": 5374,
+          "pos": "18",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 501,
+              "itm_det": {
+                "txval": 5117,
+                "rt": 5,
+                "camt": 127.93,
+                "samt": 127.93,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "doc_issue": {
+    "doc_det": [
+      {
+        "doc_num": 1,
+        "doc_typ": "Invoices for outward supply",
+        "docs": [
+          {
+            "num": 1,
+            "to": "800",
+            "from": "55",
+            "totnum": 16,
+            "cancel": 0,
+            "net_issue": 16
+          }
+        ]
+      }
+    ]
+  },
+  "hsn": {
+    "hsn_b2b": [
+      {
+        "num": 1,
+        "hsn_sc": "9997",
+        "desc": "Other taxable supplies",
+        "uqc": "NA",
+        "qty": 0,
+        "rt": 18,
+        "txval": 29273,
+        "iamt": 0,
+        "camt": 1443.2,
+        "samt": 1443.2,
+        "csamt": 0
+      }
+    ]
+  }
+}
