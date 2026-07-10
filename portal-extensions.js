@@ -67,7 +67,13 @@
             logo: '',
             bank: { name: 'ICICI BANK', account: '113005000905', ifsc: 'ICIC0001130', branch: 'MUKHERJEE NAGAR, DELHI-110009' },
             terms: '1. Payment due within 7 days of invoice date.\n2. All disputes subject to Delhi jurisdiction.\n3. GST as applicable.',
-            invoicePrefix: 'CA-INV'
+            invoicePrefix: 'CA-INV',
+            whiteLabel: {
+                portalTitle: 'WEALTH BUILDERS AND CONSULTANTS',
+                portalSubtitle: 'Your CA firm — documents, GST returns & support in one place',
+                accentColor: '#0d9488',
+                hideLedgerFlowBranding: false
+            }
         };
         if (!appData.firmSettings) appData.firmSettings = {};
         Object.keys(defaults).forEach(k => {
@@ -163,9 +169,9 @@
 
         container.innerHTML = `
             <div class="mb-6">
-                <h2 class="text-2xl font-semibold tracking-tight">Buy New Services</h2>
+                <h2 class="text-2xl font-semibold tracking-tight">${isClient ? 'Service Catalog' : 'Buy New Services'}</h2>
                 <p class="text-sm text-slate-400">${isClient
-                    ? 'Browse our service catalog and raise a purchase request to your CA'
+                    ? 'Browse available services and raise a purchase request to your CA'
                     : `Service catalog for ${client.name} — view client purchase requests`}</p>
             </div>
 
@@ -536,6 +542,28 @@
                         <textarea id="firm-terms" rows="4" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-xs">${esc(firm.terms)}</textarea>
                     </div>
 
+                    <div class="pt-4 border-t border-slate-700">
+                        <div class="font-semibold mb-3">Client Portal White-Label</div>
+                        <div class="grid grid-cols-1 gap-4">
+                            <div>
+                                <label class="text-xs font-medium text-slate-400 block mb-1">Portal Title</label>
+                                <input id="firm-wl-title" value="${esc(firm.whiteLabel?.portalTitle || firm.name)}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-slate-400 block mb-1">Portal Subtitle</label>
+                                <input id="firm-wl-subtitle" value="${esc(firm.whiteLabel?.portalSubtitle || '')}" class="form-input w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-slate-400 block mb-1">Accent Color</label>
+                                <input id="firm-wl-accent" type="color" value="${esc(firm.whiteLabel?.accentColor || '#0d9488')}" class="form-input w-20 h-10 bg-slate-950 border border-slate-700 rounded-xl">
+                            </div>
+                            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                <input type="checkbox" id="firm-wl-hide-brand" class="accent-teal-500" ${firm.whiteLabel?.hideLedgerFlowBranding ? 'checked' : ''}>
+                                <span class="text-slate-400 text-xs">Hide LedgerFlow branding in client portal hero</span>
+                            </label>
+                        </div>
+                    </div>
+
                     <button onclick="saveFirmProfile()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl font-semibold">
                         <i class="fa-solid fa-save mr-2"></i> Save Firm Profile
                     </button>
@@ -571,6 +599,11 @@
         firm.bank.branch = document.getElementById('firm-bank-branch').value.trim();
         firm.invoicePrefix = document.getElementById('firm-inv-prefix').value.trim() || 'CA-INV';
         firm.terms = document.getElementById('firm-terms').value;
+        if (!firm.whiteLabel) firm.whiteLabel = {};
+        firm.whiteLabel.portalTitle = document.getElementById('firm-wl-title')?.value?.trim() || firm.name;
+        firm.whiteLabel.portalSubtitle = document.getElementById('firm-wl-subtitle')?.value?.trim() || '';
+        firm.whiteLabel.accentColor = document.getElementById('firm-wl-accent')?.value || '#0d9488';
+        firm.whiteLabel.hideLedgerFlowBranding = !!document.getElementById('firm-wl-hide-brand')?.checked;
         saveAppData();
         showToast('Firm profile saved — used on all GST invoices to clients');
     };
@@ -1334,7 +1367,7 @@
         const samples = {
             customers: 'name,gstin,state_code,email,phone,address\nMetro Retail Pvt Ltd,07AABCM5678N1Z2,07,purchase@metro.in,9876543210,Delhi\nSunrise Distributors,09AABCS9876P1Z3,09,accounts@sunrise.in,,Noida',
             stock: 'name,hsn,unit,rate,gst_percent,stock_qty,reorder_level\nPremium Widget,9983,Nos,1250,18,100,20\nFastener Kit,7318,Set,380,18,50,10',
-            invoices: 'invoice_no,date,party_name,taxable,cgst,sgst,igst,grand_total,status\nINV-2026-0100,2026-06-01,ABC Corp,50000,4500,4500,0,59000,Pending\nINV-2026-0101,2026-06-05,XYZ Ltd,25000,0,0,4500,29500,Paid'
+            invoices: 'invoice_no,date,party_name,doc_type,taxable,cgst,sgst,igst,grand_total,reverse_charge,status\nINV-2026-0100,2026-06-01,ABC Corp,INV,50000,4500,4500,0,59000,N,Pending\nCN-2026-0003,2026-06-20,ABC Corp,CN,2500,225,225,0,2950,N,Pending'
         };
         const blob = new Blob([samples[type] || ''], { type: 'text/csv' });
         const a = document.createElement('a');
@@ -1345,27 +1378,75 @@
     };
 
     // ==================== DOCUMENT DOWNLOAD ====================
+    function getCaSharedDocuments(client) {
+        return (client.documents || []).filter(d =>
+            (d.uploadedBy === 'admin' || (d.uploadedBy === 'team' && d.approvalStatus === 'approved')) &&
+            (!d.approvalStatus || d.approvalStatus === 'approved')
+        );
+    }
+
+    function triggerFileDownload(href, fileName) {
+        const a = document.createElement('a');
+        a.href = href;
+        a.download = fileName;
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
+    function buildDemoDocBlob(doc, client) {
+        const firm = (typeof appData !== 'undefined' && appData.firmSettings?.name) || 'Your CA Firm';
+        const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>${esc(doc.name)}</title>
+<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1.5rem;color:#0f172a}
+h1{font-size:1.35rem;margin-bottom:.25rem}p,li{color:#475569;font-size:.95rem;line-height:1.5}
+.meta{background:#f1f5f9;border-radius:12px;padding:1rem 1.25rem;margin:1.25rem 0}
+.footer{margin-top:2rem;font-size:.8rem;color:#94a3b8}</style></head><body>
+<h1>${esc(doc.name)}</h1>
+<p>Shared by <strong>${esc(firm)}</strong> for <strong>${esc(client?.name || 'Client')}</strong></p>
+<div class="meta"><p><strong>Type:</strong> ${esc(doc.type || '—')}</p>
+<p><strong>Date:</strong> ${esc(doc.date || '—')}</p>
+<p><strong>Uploaded by:</strong> ${esc(doc.uploadedByName || doc.uploadedBy || 'CA')}</p>
+<p><strong>Size:</strong> ${esc(doc.size || '—')}</p>
+${doc.notes ? `<p><strong>Notes:</strong> ${esc(doc.notes)}</p>` : ''}</div>
+<p>This is a demo placeholder. When your CA uploads the actual file, you will receive the full document download.</p>
+<p class="footer">LedgerFlow Client Portal · ${new Date().toLocaleDateString('en-IN')}</p></body></html>`;
+        return new Blob([html], { type: 'text/html;charset=utf-8' });
+    }
+
     window.downloadDocument = function (docId) {
         const client = getCurrentClient();
-        const doc = client.documents.find(d => d.id === docId);
-        if (!doc) return;
-
-        if (doc.fileData) {
-            const a = document.createElement('a');
-            a.href = doc.fileData;
-            a.download = doc.name;
-            a.click();
+        const doc = (client.documents || []).find(d => d.id === docId);
+        if (!doc) {
+            showToast('Document not found', 'error');
             return;
         }
 
-        const content = `LedgerFlow CRM — Document Record\n\nFile: ${doc.name}\nType: ${doc.type}\nDate: ${doc.date}\nUploaded By: ${doc.uploadedByName || doc.uploadedBy}\nNotes: ${doc.notes || '—'}\nSize: ${doc.size || '—'}\n\n(This is a demo record. Re-upload the file to store downloadable content.)`;
-        const blob = new Blob([content], { type: 'text/plain' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = doc.name.replace(/\.[^.]+$/, '') + '_record.txt';
-        a.click();
-        URL.revokeObjectURL(a.href);
-        showToast('Document record downloaded');
+        if (doc.fileData) {
+            triggerFileDownload(doc.fileData, doc.name);
+            showToast(`Downloaded ${doc.name}`);
+            return;
+        }
+
+        const ext = (doc.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+        const baseName = doc.name.replace(/\.[^.]+$/, '') || 'document';
+        const blob = buildDemoDocBlob(doc, client);
+        const url = URL.createObjectURL(blob);
+        triggerFileDownload(url, baseName + (ext === '.pdf' ? '.html' : '_summary.html'));
+        URL.revokeObjectURL(url);
+        showToast(`Downloaded ${doc.name}`);
+    };
+
+    window.downloadAllCaDocuments = function () {
+        const client = getCurrentClient();
+        const docs = getCaSharedDocuments(client);
+        if (!docs.length) {
+            showToast('No documents shared by your CA yet', 'info');
+            return;
+        }
+        docs.forEach((d, i) => setTimeout(() => downloadDocument(d.id), i * 450));
+        showToast(`Downloading ${docs.length} file(s) from your CA…`);
     };
 
     window.handleProfileLogoUpload = function (input) {

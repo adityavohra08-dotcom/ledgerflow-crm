@@ -4,8 +4,9 @@
 (function (global) {
     'use strict';
 
-    const VERSION = '1.1.0';
-    const RETURN_TYPES = ['GSTR-1', 'GSTR-3B', 'GSTR-9'];
+    const VERSION = '1.2.0';
+    const RETURN_TYPES = ['GSTR-1', 'GSTR-1A', 'GSTR-3B', 'GSTR-9'];
+    const DOC_TYPES = { INV: 'Tax Invoice', CN: 'Credit Note', DN: 'Debit Note', BOS: 'Bill of Supply', DC: 'Delivery Challan' };
 
     function esc(s) {
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -168,8 +169,31 @@
         };
     }
 
+    function docTypeOf(inv) {
+        if (inv.docType) return String(inv.docType).toUpperCase();
+        const t = String(inv.type || inv.invoiceType || '').toLowerCase();
+        if (t.includes('credit')) return 'CN';
+        if (t.includes('debit')) return 'DN';
+        if (t.includes('bill of supply') || t.includes('bos')) return 'BOS';
+        if (t.includes('challan') || t.includes('dc')) return 'DC';
+        return 'INV';
+    }
+
+    function isOutwardSupply(inv) {
+        return docTypeOf(inv) !== 'DC';
+    }
+
+    function isCdnDoc(inv) {
+        const dt = docTypeOf(inv);
+        return dt === 'CN' || dt === 'DN';
+    }
+
     function filterInvoices(client, opts) {
-        const invs = (client.invoices || []).filter(i => i.status !== 'Cancelled' && i.status !== 'Draft');
+        let invs = (client.invoices || []).filter(i => i.status !== 'Cancelled' && i.status !== 'Draft');
+        if (!opts?.includeDc) invs = invs.filter(isOutwardSupply);
+        if (opts?.docType) invs = invs.filter(i => docTypeOf(i) === opts.docType);
+        if (opts?.onlyCdn) invs = invs.filter(isCdnDoc);
+        if (opts?.onlyTaxable) invs = invs.filter(i => !isCdnDoc(i) && docTypeOf(i) !== 'BOS');
         if (opts.month) {
             return invs.filter(i => monthKey(i.date) === opts.month);
         }
@@ -181,6 +205,101 @@
             });
         }
         return invs;
+    }
+
+    function collectCdnEntries(client, month) {
+        const entries = [];
+        filterInvoices(client, { month, onlyCdn: true }).forEach(inv => {
+            entries.push({
+                source: 'invoice',
+                docType: docTypeOf(inv),
+                number: inv.number || inv.id,
+                date: inv.date,
+                partyName: inv.partyName,
+                againstInvoice: inv.againstInvoice || inv.originalInvoice || '',
+                taxable: num(inv.taxable),
+                cgst: num(inv.cgst),
+                sgst: num(inv.sgst),
+                igst: num(inv.igst),
+                grandTotal: num(inv.grandTotal)
+            });
+        });
+        (client.creditNotes || []).forEach(cn => {
+            if (month && monthKey(cn.date) !== month) return;
+            const isCn = String(cn.type || '').toLowerCase().includes('credit');
+            entries.push({
+                source: 'creditNote',
+                docType: isCn ? 'CN' : 'DC',
+                number: cn.number,
+                date: cn.date,
+                partyName: cn.party || cn.customer || '',
+                againstInvoice: cn.againstInvoice || '',
+                taxable: num(cn.taxable ?? cn.amount),
+                cgst: num(cn.cgst),
+                sgst: num(cn.sgst),
+                igst: num(cn.igst),
+                grandTotal: num(cn.grandTotal ?? cn.amount)
+            });
+        });
+        (client.debitNotes || []).forEach(dn => {
+            if (month && monthKey(dn.date) !== month) return;
+            entries.push({
+                source: 'debitNote',
+                docType: 'DN',
+                number: dn.number,
+                date: dn.date,
+                partyName: dn.party || dn.customer || '',
+                againstInvoice: dn.againstInvoice || '',
+                taxable: num(dn.taxable ?? dn.amount),
+                cgst: num(dn.cgst),
+                sgst: num(dn.sgst),
+                igst: num(dn.igst),
+                grandTotal: num(dn.grandTotal ?? dn.amount)
+            });
+        });
+        return entries.filter(e => e.docType === 'CN' || e.docType === 'DN');
+    }
+
+    function cdnLineItem(entry) {
+        const tx = round2(entry.taxable);
+        const rt = entry.taxable ? round2(((entry.igst + entry.cgst + entry.sgst) / entry.taxable) * 100) : 0;
+        return {
+            num: 1,
+            itm_det: {
+                txval: tx,
+                rt,
+                iamt: round2(entry.igst),
+                camt: round2(entry.cgst),
+                samt: round2(entry.sgst),
+                csamt: 0
+            }
+        };
+    }
+
+    function buildCdnrCdnur(client, month) {
+        const cdnrMap = new Map();
+        const cdnur = [];
+        collectCdnEntries(client, month).forEach(entry => {
+            const ctin = customerGstin(client, entry.partyName);
+            const nt = {
+                ntty: entry.docType === 'DN' ? 'D' : 'C',
+                nt_num: entry.number,
+                nt_dt: toGstDate(entry.date),
+                inum: entry.againstInvoice || '',
+                idt: '',
+                val: round2(entry.grandTotal || entry.taxable + entry.cgst + entry.sgst + entry.igst),
+                itms: [cdnLineItem(entry)]
+            };
+            if (isValidGstin(ctin)) {
+                const list = cdnrMap.get(ctin) || { ctin, nt: [] };
+                list.nt.push(nt);
+                cdnrMap.set(ctin, list);
+            } else {
+                const pos = customerPos(client, entry.partyName, client.stateCode);
+                cdnur.push({ typ: 'B2CL', nt: [Object.assign({ pos }, nt)] });
+            }
+        });
+        return { cdnr: [...cdnrMap.values()], cdnur };
     }
 
     function filterPurchases(client, opts) {
@@ -246,7 +365,9 @@
     }
 
     function buildGstr1(client, month) {
-        const invs = filterInvoices(client, { month });
+        const allInvs = filterInvoices(client, { month });
+        const invs = filterInvoices(client, { month, onlyTaxable: true });
+        const bosInvs = allInvs.filter(i => docTypeOf(i) === 'BOS');
         const gstin = cleanGstin(client.gstin);
         const fp = fpFromMonth(month);
         const b2bMap = new Map();
@@ -256,13 +377,14 @@
         invs.forEach(inv => {
             const ctin = customerGstin(client, inv.partyName);
             const pos = customerPos(client, inv.partyName, client.stateCode);
+            const rcm = inv.reverseCharge === true || inv.rchrg === 'Y';
             const entry = {
                 inum: inv.number || inv.id,
                 idt: toGstDate(inv.date),
                 val: round2(inv.grandTotal),
                 pos,
-                rchrg: 'N',
-                inv_typ: 'R',
+                rchrg: rcm ? 'Y' : 'N',
+                inv_typ: rcm ? 'DE' : 'R',
                 itms: [invoiceLineItem(inv, 1)]
             };
             if (isValidGstin(ctin)) {
@@ -270,16 +392,13 @@
                 list.inv.push(entry);
                 b2bMap.set(ctin, list);
             } else if (num(inv.igst) > 0 && num(inv.grandTotal) > 250000) {
-                b2cl.push({
-                    pos,
-                    inv: [entry]
-                });
+                b2cl.push({ pos, inv: [entry] });
             } else {
                 const key = `${pos}|${deriveRate(inv)}`;
                 const row = b2csMap.get(key) || {
-                    sply_ty: 'INTRA' + (num(inv.igst) > 0 ? '' : ''),
+                    sply_ty: num(inv.igst) > 0 ? 'INTER' : 'INTRA',
                     pos,
-                    typ: num(inv.igst) > 0 ? 'OE' : 'OE',
+                    typ: 'OE',
                     rt: deriveRate(inv),
                     txval: 0,
                     iamt: 0,
@@ -287,7 +406,6 @@
                     samt: 0,
                     csamt: 0
                 };
-                if (num(inv.igst) > 0) row.sply_ty = 'INTER';
                 row.txval = round2(row.txval + num(inv.taxable));
                 row.iamt = round2(row.iamt + num(inv.igst));
                 row.camt = round2(row.camt + num(inv.cgst));
@@ -296,7 +414,10 @@
             }
         });
 
+        const { cdnr, cdnur } = buildCdnrCdnur(client, month);
         const totals = sumInvoices(invs);
+        const cdnCount = cdnr.reduce((n, g) => n + (g.nt?.length || 0), 0) + cdnur.reduce((n, g) => n + (g.nt?.length || 0), 0);
+
         return {
             meta: {
                 returnType: 'GSTR-1',
@@ -305,7 +426,9 @@
                 source: 'LedgerFlow CRM',
                 period: monthLabel(month),
                 fp,
-                invoiceCount: invs.length
+                invoiceCount: invs.length,
+                cdnCount,
+                bosCount: bosInvs.length
             },
             gstin,
             fp,
@@ -313,20 +436,23 @@
             b2b: [...b2bMap.values()],
             b2cl,
             b2cs: [...b2csMap.values()],
-            cdnr: [],
-            cdnur: [],
+            cdnr,
+            cdnur,
             exp: [],
+            nil_exempt: bosInvs.length ? {
+                inter_sup: { txval: round2(bosInvs.reduce((s, i) => s + num(i.taxable), 0)) }
+            } : undefined,
             hsn: buildHsnSummary(invs, client.stock),
             doc_issue: {
                 doc_det: [{
                     doc_num: 1,
-                    docs: invs.length ? [{
+                    docs: allInvs.length ? [{
                         num: 1,
-                        from: invs[0].number || '1',
-                        to: invs[invs.length - 1].number || String(invs.length),
-                        totnum: invs.length,
+                        from: allInvs[0].number || '1',
+                        to: allInvs[allInvs.length - 1].number || String(allInvs.length),
+                        totnum: allInvs.length,
                         cancel: 0,
-                        net_issue: invs.length
+                        net_issue: allInvs.length
                     }] : []
                 }]
             },
@@ -337,9 +463,35 @@
                 outwardIgst: round2(totals.igst),
                 b2bCount: [...b2bMap.values()].reduce((n, g) => n + g.inv.length, 0),
                 b2csCount: b2csMap.size,
-                b2clCount: b2cl.length
+                b2clCount: b2cl.length,
+                cdnCount,
+                bosCount: bosInvs.length,
+                rcmCount: invs.filter(i => i.reverseCharge || i.rchrg === 'Y').length
             }
         };
+    }
+
+    function buildGstr1A(client, month) {
+        const base = buildGstr1(client, month);
+        const amended = filterInvoices(client, { month }).filter(i =>
+            i.gstrAmended || i.amended || client.gstrStale?.[month]?.gstr1
+        );
+        base.meta.returnType = 'GSTR-1A';
+        base.amendment = {
+            org_fp: base.fp,
+            amend_typ: amended.length ? 'R' : 'N',
+            amended_count: amended.length,
+            reason: amended.length ? 'Books updated after original GSTR-1 filing' : 'No amendments pending'
+        };
+        if (amended.length) {
+            base.amended_invoices = amended.map(i => ({
+                inum: i.number || i.id,
+                idt: toGstDate(i.date),
+                val: round2(i.grandTotal),
+                docType: docTypeOf(i)
+            }));
+        }
+        return base;
     }
 
     function buildGstr3b(client, month) {
@@ -525,6 +677,7 @@
 
     function buildReturn(returnType, client, period) {
         if (returnType === 'GSTR-1') return buildGstr1(client, period.month);
+        if (returnType === 'GSTR-1A') return buildGstr1A(client, period.month);
         if (returnType === 'GSTR-3B') return buildGstr3b(client, period.month);
         if (returnType === 'GSTR-9') return buildGstr9(client, period.fy);
         throw new Error('Unknown return type');
@@ -560,6 +713,15 @@
                 'B2CS', data.gstin, '', '', '', r.pos,
                 r.txval, r.rt, r.iamt, r.camt, r.samt, round2(r.txval + r.iamt + r.camt + r.samt)
             ].map(csvCell).join(','));
+        });
+        (data.cdnr || []).forEach(g => {
+            (g.nt || []).forEach(nt => {
+                const it = nt.itms?.[0]?.itm_det || {};
+                lines.push([
+                    'CDNR', data.gstin, nt.nt_num, nt.nt_dt, g.ctin, '',
+                    it.txval, it.rt, it.iamt, it.camt, it.samt, nt.val
+                ].map(csvCell).join(','));
+            });
         });
         lines.push('');
         lines.push('HSN Summary');
@@ -713,9 +875,12 @@
         }
         const gstin = cleanGstin(data.gstin);
         if (!isValidGstin(gstin)) errors.push('Invalid or missing gstin');
-        if (returnType === 'GSTR-1') {
+        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A') {
             if (!data.fp || String(data.fp).length < 5) errors.push('Missing fp (MMYYYY filing period)');
             if (!Array.isArray(data.b2b)) warnings.push('b2b array missing — will file as empty B2B');
+            (data.cdnr || []).forEach((g, i) => {
+                if (!isValidGstin(g.ctin)) warnings.push(`CDNR[${i}] customer GSTIN invalid`);
+            });
             (data.b2b || []).forEach((g, i) => {
                 if (!isValidGstin(g.ctin)) warnings.push(`B2B[${i}] customer GSTIN invalid: ${g.ctin || '—'}`);
                 (g.inv || []).forEach((inv, j) => {
@@ -770,11 +935,12 @@
 
     function renderSummaryCards(returnType, data) {
         const s = data.summary || {};
-        if (returnType === 'GSTR-1') {
+        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A') {
             return `
                 <div class="gstr-stat"><span>Outward taxable</span><strong>${fmtINR(s.outwardTaxable)}</strong></div>
                 <div class="gstr-stat"><span>B2B invoices</span><strong>${s.b2bCount || 0}</strong></div>
-                <div class="gstr-stat"><span>B2C lines</span><strong>${(s.b2csCount || 0) + (s.b2clCount || 0)}</strong></div>
+                <div class="gstr-stat"><span>CN/DN notes</span><strong>${s.cdnCount || 0}</strong></div>
+                <div class="gstr-stat"><span>RCM invoices</span><strong>${s.rcmCount || 0}</strong></div>
                 <div class="gstr-stat"><span>Total tax</span><strong>${fmtINR((s.outwardCgst || 0) + (s.outwardSgst || 0) + (s.outwardIgst || 0))}</strong></div>`;
         }
         if (returnType === 'GSTR-3B') {
@@ -948,11 +1114,17 @@
 
     global.GstrReturnExport = {
         VERSION,
+        RETURN_TYPES,
+        DOC_TYPES,
         buildReturn,
         toCsv,
         buildGstr1,
+        buildGstr1A,
         buildGstr3b,
         buildGstr9,
+        buildCdnrCdnur,
+        collectCdnEntries,
+        docTypeOf,
         validateReturnJson,
         buildValidatedReturn,
         downloadValidatedJson,

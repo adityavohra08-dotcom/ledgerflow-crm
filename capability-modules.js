@@ -126,6 +126,7 @@
         { pillar: 'banking', name: 'Fast bank reconciliation', route: "showSection('bank-recon')", status: 'live' },
         { pillar: 'gst', name: 'GST Returns Hub (status + 2B + bulk)', route: "showSection('gst-returns')", status: 'live' },
         { pillar: 'gst', name: 'GSTR-1 / 3B / 9 JSON & CSV export', route: "showSection('gstr-export')", status: 'live' },
+        { pillar: 'gst', name: 'GST Compliance Suite (CN/DN, audit, 1A)', route: "showSection('gst-compliance')", status: 'live' },
         { pillar: 'gst', name: 'Automatic GST (CGST/SGST/IGST)', route: 'launchInvoiceMaker()', status: 'live' },
         { pillar: 'gst', name: 'HSN/SAC code support', route: "showSection('hsn-search')", status: 'live' },
         { pillar: 'gst', name: 'GST-compliant invoices', route: 'launchInvoiceMaker()', status: 'live' },
@@ -165,7 +166,7 @@
     function ensureCapabilityData(client) {
         if (!client) return;
         const defaults = {
-            quotes: [], progressBillings: [], retainers: [], creditNotes: [], deliveryChallans: [],
+            quotes: [], progressBillings: [], retainers: [], creditNotes: [], debitNotes: [], deliveryChallans: [],
             paymentLinks: [], paymentReminders: [],
             currencySettings: { base: 'INR', language: 'en', currencies: [{ code: 'INR', symbol: '₹', rate: 1 }, { code: 'USD', symbol: '$', rate: 83.5 }] },
             purchaseOrders: [], expenses: [], recurringExpenses: [], vendorCredits: [], vendors: [], mileageLogs: [],

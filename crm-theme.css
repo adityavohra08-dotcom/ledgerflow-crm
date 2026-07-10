@@ -3534,3 +3534,50 @@ a[class*="bg-emerald-600"]:hover {
     overflow-y: auto;
 }
 .grh-alert { padding: 1rem; color: #94a3b8; background: #1e293b; border-radius: 0.5rem; }
+
+/* GST Compliance Suite */
+.gcs-tool { max-width: 100%; }
+.gcs-tabs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 1rem; }
+.gcs-tab {
+    font-size: 0.8rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 0.5rem;
+    background: #1e293b;
+    color: #94a3b8;
+    border: 1px solid #334155;
+    cursor: pointer;
+}
+.gcs-tab--active { background: #0f766e; color: #fff; border-color: #0d9488; }
+.gcs-panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 0.75rem; padding: 1rem; }
+.gcs-subtitle { font-size: 0.75rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.gcs-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 900px) { .gcs-grid-2 { grid-template-columns: 1fr; } }
+.gcs-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.gcs-badge { font-size: 0.65rem; font-weight: 700; padding: 0.15rem 0.4rem; border-radius: 0.25rem; }
+.gcs-badge--inv { background: #1e3a5f; color: #93c5fd; }
+.gcs-badge--cn { background: #422006; color: #fcd34d; }
+.gcs-badge--dn { background: #450a0a; color: #fca5a5; }
+.gcs-badge--bos { background: #1e3a2f; color: #6ee7b7; }
+.gcs-badge--dc { background: #312e81; color: #a5b4fc; }
+.gcs-import-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+@media (max-width: 900px) { .gcs-import-grid { grid-template-columns: 1fr; } }
+.gcs-import-card { background: #020617; border: 1px solid #1e293b; border-radius: 0.65rem; padding: 1rem; }
+.gcs-table-wrap { overflow-x: auto; max-height: 360px; }
+.gcs-notice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.65rem; }
+.gcs-notice-card { background: #020617; border: 1px solid #334155; border-radius: 0.5rem; padding: 0.75rem; }
+.gcs-notice-preview { font-size: 0.7rem; color: #64748b; margin-top: 0.5rem; white-space: pre-wrap; }
+.gcs-mini-btn { font-size: 0.65rem; padding: 0.2rem 0.45rem; border-radius: 0.25rem; background: #334155; color: #e2e8f0; border: none; cursor: pointer; }
+.gcs-notice-output pre { background: #020617; border: 1px solid #1e293b; border-radius: 0.5rem; padding: 0.75rem; font-size: 0.75rem; white-space: pre-wrap; }
+.gcs-demo-toggle { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.gcs-demo-banner { background: #422006; border: 1px solid #b45309; color: #fcd34d; padding: 0.65rem 1rem; border-radius: 0.5rem; font-size: 0.85rem; }
+.gcs-demo-top-banner {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 500;
+    background: #422006; color: #fcd34d; text-align: center; font-size: 0.75rem; font-weight: 600;
+    padding: 0.35rem 1rem; border-bottom: 1px solid #b45309;
+}
+.gcs-wiz-step { font-size: 0.65rem; padding: 0.2rem 0.45rem; border-radius: 0.25rem; background: #1e293b; color: #64748b; }
+.gcs-wiz-step--done { background: #134e4a; color: #5eead4; }
+.gcs-pdf-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #1e293b; }
+.lf-portal-card--indigo { border-color: #4338ca; }
+.lf-portal-card--indigo .lf-portal-card-icon { color: #818cf8; }
+.lf-portal-gst-status { display: flex; flex-wrap: wrap; gap: 0.25rem; font-size: 0.7rem; }

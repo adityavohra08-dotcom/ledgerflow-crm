@@ -25,6 +25,7 @@
         'itr-json-pdf': { label: 'ITR JSON to PDF', group: 'GST & Compliance' },
         'gst-returns': { label: 'GST Returns Hub', group: 'GST & Compliance' },
         'gstr-export': { label: 'GSTR JSON / CSV Export', group: 'GST & Compliance' },
+        'gst-compliance': { label: 'GST Compliance Suite', group: 'GST & Compliance' },
         requests: { label: 'Messages & Requests', group: 'Communication' },
         whatsapp: { label: 'WhatsApp', group: 'Communication' },
         'team-approvals': { label: 'Approvals', group: 'Communication' },

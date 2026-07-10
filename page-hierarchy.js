@@ -267,6 +267,14 @@
             roles: ['firm', 'team'],
             keywords: ['gstr', 'gstr-1', 'gstr-3b', 'gstr-9', 'json', 'csv', 'filing', 'return']
         },
+        'gst-compliance': {
+            label: 'GST Compliance Suite',
+            path: '/gst/compliance-suite',
+            module: 'GST & Compliance',
+            parent: 'gst-calculator',
+            roles: ['firm', 'team'],
+            keywords: ['compliance', 'credit note', 'debit note', 'import', 'audit', 'notice', 'gstr-1a', 'demo']
+        },
         requests: {
             label: 'Messages',
             path: '/messages',
@@ -475,6 +483,7 @@
     registerRoute('/gst/itr-json-pdf', 'itr-json-pdf');
     registerRoute('/gst/returns', 'gst-returns');
     registerRoute('/gst/gstr-export', 'gstr-export');
+    registerRoute('/gst/compliance-suite', 'gst-compliance');
     registerRoute('/messages', 'requests');
     registerRoute('/messages/whatsapp', 'whatsapp');
     registerRoute('/messages/approvals', 'team-approvals');

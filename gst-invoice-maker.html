@@ -471,8 +471,18 @@
                                 </div>
                             </div>
                             
-                            <div class="mt-3 flex items-center gap-3">
-                                <div class="pt-1">
+                            <div class="mt-3 grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs font-medium text-slate-400 block mb-1">Document Type</label>
+                                    <select id="doc-type" class="form-input w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-2.5 text-sm font-medium" onchange="updatePreview()">
+                                        <option value="INV">Tax Invoice</option>
+                                        <option value="CN">Credit Note</option>
+                                        <option value="DN">Debit Note</option>
+                                        <option value="BOS">Bill of Supply</option>
+                                        <option value="DC">Delivery Challan</option>
+                                    </select>
+                                </div>
+                                <div class="pt-5">
                                     <label class="flex items-center gap-x-2 cursor-pointer text-sm">
                                         <input type="checkbox" id="reverse-charge" class="accent-emerald-500 w-4 h-4" onchange="updatePreview()">
                                         <span class="text-xs font-medium text-slate-400">Reverse Charge Applicable</span>
@@ -1708,6 +1718,7 @@
             invoiceData.invoice.dueDate = document.getElementById('invoice-due-date')?.value || '';
             invoiceData.invoice.placeOfSupplyCode = document.getElementById('place-of-supply')?.value || '07';
             invoiceData.invoice.reverseCharge = document.getElementById('reverse-charge')?.checked || false;
+            invoiceData.invoice.docType = document.getElementById('doc-type')?.value || 'INV';
             invoiceData.invoice.taxTreatment = document.getElementById('tax-treatment')?.value || 'auto';
             invoiceData.invoice.autoRoundOff = document.getElementById('auto-round-off')?.checked !== false;
             
@@ -2055,6 +2066,7 @@
             if (document.getElementById('invoice-due-date')) document.getElementById('invoice-due-date').value = invoiceData.invoice.dueDate || '';
             if (document.getElementById('place-of-supply')) document.getElementById('place-of-supply').value = invoiceData.invoice.placeOfSupplyCode || '07';
             if (document.getElementById('reverse-charge')) document.getElementById('reverse-charge').checked = invoiceData.invoice.reverseCharge || false;
+            if (document.getElementById('doc-type')) document.getElementById('doc-type').value = invoiceData.invoice.docType || 'INV';
             if (document.getElementById('tax-treatment')) document.getElementById('tax-treatment').value = invoiceData.invoice.taxTreatment || 'auto';
             if (document.getElementById('auto-round-off')) document.getElementById('auto-round-off').checked = invoiceData.invoice.autoRoundOff !== false;
             
@@ -2671,6 +2683,8 @@
                     date: document.getElementById('invoice-date').value,
                     partyName: document.getElementById('recipient-name').value,
                     partyEmail: crmClientData?.customers?.find(c => c.name === document.getElementById('recipient-name').value)?.email || '',
+                    docType: document.getElementById('doc-type')?.value || invoiceData.invoice.docType || 'INV',
+                    reverseCharge: document.getElementById('reverse-charge')?.checked || false,
                     taxable: totals.totalTaxable,
                     cgst: totals.totalCGST,
                     sgst: totals.totalSGST,

@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>LedgerFlow CRM • Client Portal | Accounting Firm</title>
-    <meta name="app-version" content="3.14.0-invoice-theme">
+    <meta name="app-version" content="3.16.0-gst-phases">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d9488">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <script>
@@ -34,8 +36,10 @@
     <script src="income-computation-tool.js?v=1.0.0"></script>
     <script src="bank-reconciliation.js?v=2.0.0"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="gstr-return-export.js?v=1.1.1"></script>
-    <script src="gstr-returns-hub.js?v=1.0.1"></script>
+    <script src="gstr-return-export.js?v=1.2.0"></script>
+    <script src="gstr-returns-hub.js?v=1.0.2"></script>
+    <script src="gst-compliance-suite.js?v=1.0.0"></script>
+    <script src="gstr-summary-pdf.js?v=1.0.0"></script>
     <script src="ewaybill-integration.js?v=2.9.0"></script>
     <script src="ledgerflow-backend.js"></script>
     <script src="google-auth-ui.js?v=3.14.4"></script>
@@ -55,7 +59,7 @@
     <script src="page-hierarchy.js?v=3.14.5"></script>
     <script src="ui-elements.js?v=3.13.1"></script>
     <script src="client-mobile.js?v=3.13.5"></script>
-    <link rel="stylesheet" href="crm-theme.css?v=3.14.5">
+    <link rel="stylesheet" href="crm-theme.css?v=3.16.0">
     <style>
         /* Critical shell layout — sidebar fixed left, main fills remainder (desktop) */
         @media (min-width: 1024px) {
@@ -489,6 +493,9 @@
                         </button>
                         <button type="button" onclick="showSection('gstr-export')" data-team-visible class="nav-item lf-nav-child w-full text-left" id="nav-gstr-export">
                             <span class="lf-nav-tree-line"></span><span>GSTR JSON / CSV Export</span>
+                        </button>
+                        <button type="button" onclick="showSection('gst-compliance')" data-team-visible class="nav-item lf-nav-child w-full text-left" id="nav-gst-compliance">
+                            <span class="lf-nav-tree-line"></span><span>GST Compliance Suite</span>
                         </button>
                     </div>
                 </div>
@@ -2141,6 +2148,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
             'nav-itr-json-pdf',
             'nav-gst-returns',
             'nav-gstr-export',
+            'nav-gst-compliance',
             'nav-sales-report',
             'nav-party-pl',
             'nav-invoices-recurring',
@@ -2560,6 +2568,10 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
 
         function openAddClientForm() {
             if (!isFirmUser()) return;
+            if (typeof GstComplianceSuite !== 'undefined' && GstComplianceSuite.openOnboardingWizard) {
+                GstComplianceSuite.openOnboardingWizard();
+                return;
+            }
             openMasterFormModal({
                 title: 'Add New Client',
                 subtitle: 'Create a client business account for your firm portal',
@@ -2801,8 +2813,21 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                     break;
                 case 'gstr-export':
                     if (!isFirmUser() && !isTeamUser()) { showToast('GSTR export is available in Admin / Team portal only', 'error'); renderDashboard(main); break; }
-                    if (typeof renderGstrReturnExport === 'function') renderGstrReturnExport(main);
-                    else { main.innerHTML = '<p class="text-red-400">GSTR export module failed to load. Hard-refresh (Ctrl+F5).</p>'; }
+                    if (typeof renderGstrReturnExport === 'function') {
+                        renderGstrReturnExport(main);
+                        const actions = main.querySelector('.gstr-actions');
+                        if (actions && typeof GstrSummaryPdf !== 'undefined') {
+                            const pdfHost = document.createElement('div');
+                            pdfHost.id = 'gstr-pdf-actions';
+                            actions.insertAdjacentElement('afterend', pdfHost);
+                            GstrSummaryPdf.renderPdfActions(pdfHost, getCurrentClient());
+                        }
+                    } else { main.innerHTML = '<p class="text-red-400">GSTR export module failed to load. Hard-refresh (Ctrl+F5).</p>'; }
+                    break;
+                case 'gst-compliance':
+                    if (!isFirmUser() && !isTeamUser()) { showToast('GST Compliance Suite is available in Admin / Team portal only', 'error'); renderDashboard(main); break; }
+                    if (typeof renderGstComplianceSuite === 'function') renderGstComplianceSuite(main);
+                    else { main.innerHTML = '<p class="text-red-400">Compliance suite failed to load. Hard-refresh (Ctrl+F5).</p>'; }
                     break;
                 case 'sales-purchase-report': renderSalesPurchaseReport(main); break;
                 case 'firm-profile': renderFirmProfile(main); break;
@@ -5125,6 +5150,7 @@ ${appData.firmSettings?.name || 'LedgerFlow'}`
                         date: e.data.invoiceDate || new Date().toISOString().split('T')[0]
                     };
                     GstrReturnsHub.onInvoiceSaved(client, inv);
+                    if (typeof logGstAudit === 'function') logGstAudit('Invoice saved', inv.number || 'invoice', client.name);
                 }
                 if (!e.data.keepOpen) closeInvoiceMaker();
             }
@@ -5915,10 +5941,17 @@ Sent via LedgerFlow CRM`;
                 history.replaceState({}, '', window.location.pathname + (urlParams.get('mode') ? '?mode=client' : ''));
             }
 
+            if (typeof GstComplianceSuite !== 'undefined') GstComplianceSuite.ensureComplianceMeta(appData);
+
             if (await restoreSession()) {
                 populateClientSwitcher();
                 applyRoleBasedUI();
                 navigateAfterLogin();
+                if (typeof GstComplianceSuite !== 'undefined') GstComplianceSuite.applyDemoBanner();
+            }
+
+            if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
             }
 
             if (typeof initGoogleAuth === 'function') await initGoogleAuth();

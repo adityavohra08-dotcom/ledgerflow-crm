@@ -14,8 +14,8 @@
         caDashboard: ['4–6 KPI cards', 'Recent activity + quick actions', 'Invoice trend chart', 'Calm shadows & muted icons'],
         clientList: ['Avatar initials', 'Outstanding + last activity', 'State/status filters', 'Hover quick actions'],
         invoiceFlow: ['Form + live preview', 'Auto IGST/CGST+SGST', 'Generate GST Invoice CTA', 'Success → send + PDF'],
-        documents: ['Drag & drop zone', 'Upload progress', 'Folder view', 'e-Signature request'],
-        clientPortal: ['Warm welcome', 'Big action cards', 'Pay Now UPI/QR', 'One-tap upload']
+        documents: ['Drag & drop zone', 'Upload progress', 'Folder view', 'Download CA-shared files', 'e-Signature request'],
+        clientPortal: ['Warm welcome', 'Big action cards', 'Pay Now UPI/QR', 'Service catalog', 'Portal login credentials', 'One-tap upload']
     };
 
     function esc(s) {
@@ -239,13 +239,49 @@
         return `${middle}${charts}`;
     }
 
+    function countPortalLogins(client) {
+        const pl = client.portalLogins;
+        if (!pl) return 0;
+        let count = 0;
+        if (pl.gst?.username || pl.gst?.password) count++;
+        if (pl.incometax?.username || pl.incometax?.password) count++;
+        if (pl.tan?.username || pl.tan?.password || pl.tan?.tan) count++;
+        if (pl.mca?.username || pl.mca?.password) count++;
+        count += (pl.other || []).length;
+        return count;
+    }
+
+    function renderGstReturnsPortalCard(client) {
+        const summary = typeof GstComplianceSuite !== 'undefined'
+            ? GstComplianceSuite.clientReturnsSummary(client)
+            : null;
+        if (!summary) return '';
+        return `
+                <article class="lf-portal-card lf-portal-card--indigo" role="button" tabindex="0">
+                    <div class="lf-portal-card-icon"><i class="fa-solid fa-file-export"></i></div>
+                    <div class="lf-portal-card-body">
+                        <div class="lf-portal-card-label">GST Returns — ${esc(summary.month)}</div>
+                        <div class="lf-portal-card-value lf-portal-gst-status">
+                            <span class="grh-status ${summary.cls1}">GSTR-1: ${esc(summary.gstr1)}</span>
+                            <span class="grh-status ${summary.cls3} ml-1">GSTR-3B: ${esc(summary.gstr3b)}</span>
+                        </div>
+                        <div class="lf-portal-card-hint">Filing status prepared by your CA from books</div>
+                    </div>
+                </article>`;
+    }
+
     function renderClientPortalBody(client, ctx) {
         const { pendingAmount, unpaidCount, adminDocCount, openRequests, recentMessages, firmName } = ctx;
+        const catalogCount = (window.SERVICE_CATALOG || []).reduce((n, c) => n + (c.services?.length || 0), 0);
+        const pendingServiceOrders = (client.serviceOrders || []).filter(o => !['rejected', 'completed'].includes(o.status)).length;
+        const portalLoginCount = countPortalLogins(client);
+        const wl = (typeof appData !== 'undefined' && appData.firmSettings?.whiteLabel) || {};
+        const portalTitle = wl.portalTitle || firmName || 'Your CA firm';
         const hero = `
             <div class="lf-portal-hero mb-6">
                 <div class="lf-portal-hero-text">
                     <h2 class="lf-text-h1">Welcome back, ${esc(client.name.split(' ')[0])}</h2>
-                    <p class="lf-portal-hero-sub">${esc(firmName || 'Your CA firm')} is here to help — everything you need is one click away.</p>
+                    <p class="lf-portal-hero-sub">${esc(wl.portalSubtitle || (portalTitle + ' is here to help — everything you need is one click away.'))}</p>
                 </div>
                 <button type="button" onclick="showDocumentsFiltered('upload')" class="lf-btn lf-btn--primary lf-portal-upload-cta lf-portal-upload-cta--hero">
                     <i class="fa-solid fa-cloud-arrow-up mr-2"></i>Upload Documents
@@ -271,7 +307,10 @@
                     <div class="lf-portal-card-body">
                         <div class="lf-portal-card-label">Recent Documents</div>
                         <div class="lf-portal-card-value">${adminDocCount}</div>
-                        <div class="lf-portal-card-hint">Files shared by your CA</div>
+                        <div class="lf-portal-card-hint">Files shared by your CA — tap to view &amp; download</div>
+                        <div class="lf-portal-card-actions">
+                            <button type="button" onclick="event.stopPropagation();showDocumentsFiltered('ca')" class="lf-btn lf-btn--primary lf-btn--sm"><i class="fa-solid fa-download mr-1"></i>Download</button>
+                        </div>
                     </div>
                 </article>
                 <article class="lf-portal-card lf-portal-card--teal" onclick="showSection('requests')" role="button" tabindex="0">
@@ -282,6 +321,23 @@
                         <div class="lf-portal-card-hint">${recentMessages || 'No new messages'}</div>
                     </div>
                 </article>
+                <article class="lf-portal-card lf-portal-card--emerald" onclick="showSection('buy-services')" role="button" tabindex="0">
+                    <div class="lf-portal-card-icon"><i class="fa-solid fa-store"></i></div>
+                    <div class="lf-portal-card-body">
+                        <div class="lf-portal-card-label">Service Catalog</div>
+                        <div class="lf-portal-card-value">${catalogCount}</div>
+                        <div class="lf-portal-card-hint">${pendingServiceOrders ? `${pendingServiceOrders} request(s) in progress` : 'Browse &amp; request CA services'}</div>
+                    </div>
+                </article>
+                <article class="lf-portal-card lf-portal-card--violet" onclick="showSection('portal-logins')" role="button" tabindex="0">
+                    <div class="lf-portal-card-icon"><i class="fa-solid fa-key"></i></div>
+                    <div class="lf-portal-card-body">
+                        <div class="lf-portal-card-label">Portal Login Credentials</div>
+                        <div class="lf-portal-card-value">${portalLoginCount}</div>
+                        <div class="lf-portal-card-hint">${portalLoginCount ? 'GST, ITR, TAN, MCA &amp; other portals saved' : 'Share government portal logins with your CA'}</div>
+                    </div>
+                </article>
+                ${renderGstReturnsPortalCard(client)}
             </div>`;
 
         return hero + bigCards;
@@ -325,8 +381,10 @@
                 ${g.items.length ? `<ul class="lf-doc-folder-list">${g.items.slice(0, 8).map(d => `
                     <li class="lf-doc-folder-item">
                         <i class="fa-solid fa-file-lines text-slate-500"></i>
-                        <span class="truncate">${esc(d.name)}</span>
-                        <span class="text-xs text-slate-500">${esc(d.date || '')}</span>
+                        <span class="truncate" title="${esc(d.name)}">${esc(d.name)}</span>
+                        ${opts.allowDownload
+                            ? `<button type="button" onclick="downloadDocument('${d.id}')" class="lf-doc-folder-dl" title="Download ${esc(d.name)}"><i class="fa-solid fa-download"></i></button>`
+                            : `<span class="text-xs text-slate-500">${esc(d.date || '')}</span>`}
                     </li>`).join('')}</ul>` : '<div class="lf-doc-folder-empty text-xs text-slate-500 px-3 py-2">No files</div>'}
             </div>`).join('');
     }
