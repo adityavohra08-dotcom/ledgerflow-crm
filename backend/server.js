@@ -255,12 +255,23 @@ function saveTenantData(tenantId, data) {
     setTenantData(tenantId, data);
 }
 
+function readGstrExportVersion() {
+    try {
+        const src = fs.readFileSync(path.join(__dirname, '..', 'gstr-return-export.js'), 'utf8');
+        const m = src.match(/const VERSION = '([^']+)'/);
+        return m ? m[1] : 'unknown';
+    } catch {
+        return 'unknown';
+    }
+}
+
 app.get('/api/health', (_req, res) => {
     res.json({
         ok: true,
         service: 'ledgerflow-crm-api',
         tenant: DEFAULT_TENANT_ID,
         version: API_VERSION,
+        gstrExportVersion: readGstrExportVersion(),
         googleAuth: !!GOOGLE_CLIENT_ID,
         otpAuth: true,
         smsConfigured: isSmsConfigured(),
@@ -422,53 +433,15 @@ app.post('/api/auth/otp/verify', authRateLimit, (req, res) => {
 });
 
 app.get('/api/auth/google-config', (_req, res) => {
+    const demo = !GOOGLE_CLIENT_ID && process.env.GOOGLE_DEMO !== 'false';
     res.json({
-        enabled: !!GOOGLE_CLIENT_ID,
-        clientId: GOOGLE_CLIENT_ID || null
+        enabled: !!GOOGLE_CLIENT_ID || demo,
+        clientId: GOOGLE_CLIENT_ID || null,
+        demo
     });
 });
 
-function issueClientAuthResponse(res, tenantId, dbUser, appData) {
-    const token = jwt.sign(
-        { userId: dbUser.id, tenantId, role: dbUser.role, clientId: dbUser.client_id },
-        JWT_SECRET,
-        { expiresIn: '7d' }
-    );
-    return res.json({
-        token,
-        user: publicUser(dbUser, appData),
-        data: prepareAppDataForRole(appData, 'client', dbUser.id)
-    });
-}
-
-app.post('/api/auth/google', authRateLimit, async (req, res) => {
-    if (!GOOGLE_CLIENT_ID) {
-        return res.status(503).json({ error: 'Google sign-in is not configured on the server' });
-    }
-
-    const credential = req.body.credential || '';
-    const mode = req.body.mode === 'signup' ? 'signup' : 'login';
-    const tenantId = DEFAULT_TENANT_ID;
-
-    if (!credential) {
-        return res.status(400).json({ error: 'Google credential required' });
-    }
-
-    let payload;
-    try {
-        payload = await verifyGoogleIdToken(credential, GOOGLE_CLIENT_ID);
-    } catch {
-        return res.status(401).json({ error: 'Invalid or expired Google sign-in' });
-    }
-
-    const email = (payload.email || '').trim().toLowerCase();
-    const displayName = (payload.name || '').trim() || email.split('@')[0];
-    const googleSub = payload.sub || '';
-
-    if (!email || payload.email_verified !== true) {
-        return res.status(400).json({ error: 'Google account must have a verified email' });
-    }
-
+function processGoogleClientAuth({ email, displayName, googleSub, mode, req, res, tenantId }) {
     const appData = ensureTenantData(tenantId);
     const dbUser = findUserByEmail(tenantId, email);
     const appUserEntry = Object.entries(appData.users || {}).find(
@@ -578,6 +551,78 @@ app.post('/api/auth/google', authRateLimit, async (req, res) => {
             emailVerified: true,
             status: signup.status
         }
+    });
+}
+
+function issueClientAuthResponse(res, tenantId, dbUser, appData) {
+    const token = jwt.sign(
+        { userId: dbUser.id, tenantId, role: dbUser.role, clientId: dbUser.client_id },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+    );
+    return res.json({
+        token,
+        user: publicUser(dbUser, appData),
+        data: prepareAppDataForRole(appData, 'client', dbUser.id)
+    });
+}
+
+app.post('/api/auth/google', authRateLimit, async (req, res) => {
+    if (!GOOGLE_CLIENT_ID) {
+        return res.status(503).json({ error: 'Google sign-in is not configured on the server' });
+    }
+
+    const credential = req.body.credential || '';
+    const mode = req.body.mode === 'signup' ? 'signup' : 'login';
+    const tenantId = DEFAULT_TENANT_ID;
+
+    if (!credential) {
+        return res.status(400).json({ error: 'Google credential required' });
+    }
+
+    let payload;
+    try {
+        payload = await verifyGoogleIdToken(credential, GOOGLE_CLIENT_ID);
+    } catch {
+        return res.status(401).json({ error: 'Invalid or expired Google sign-in' });
+    }
+
+    const email = (payload.email || '').trim().toLowerCase();
+    const displayName = (payload.name || '').trim() || email.split('@')[0];
+    const googleSub = payload.sub || '';
+
+    if (!email || payload.email_verified !== true) {
+        return res.status(400).json({ error: 'Google account must have a verified email' });
+    }
+
+    return processGoogleClientAuth({ email, displayName, googleSub, mode, req, res, tenantId });
+});
+
+app.post('/api/auth/google-demo', authRateLimit, (req, res) => {
+    if (GOOGLE_CLIENT_ID) {
+        return res.status(400).json({ error: 'Real Google OAuth is configured — use Google Sign-In button' });
+    }
+    if (process.env.GOOGLE_DEMO === 'false') {
+        return res.status(503).json({ error: 'Google demo mode is disabled' });
+    }
+
+    const email = (req.body.email || '').trim().toLowerCase();
+    const displayName = (req.body.name || '').trim() || email.split('@')[0];
+    const mode = req.body.mode === 'signup' ? 'signup' : 'login';
+    const tenantId = DEFAULT_TENANT_ID;
+
+    if (!email) {
+        return res.status(400).json({ error: 'Email required for demo Google auth' });
+    }
+
+    return processGoogleClientAuth({
+        email,
+        displayName,
+        googleSub: 'demo_' + email,
+        mode,
+        req,
+        res,
+        tenantId
     });
 });
 

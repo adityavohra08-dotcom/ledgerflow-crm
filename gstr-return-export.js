@@ -4,7 +4,7 @@
 (function (global) {
     'use strict';
 
-    const VERSION = '1.2.4';
+    const VERSION = '1.2.5';
     const PORTAL_GSTR1_VERSION = 'GST3.2.4';
     const DOC_ISSUE_TYPES = {
         1: 'Invoices for outward supply',
@@ -405,11 +405,11 @@
             val: round2(entry.grandTotal || entry.taxable + entry.cgst + entry.sgst + entry.igst),
             itms: [cdnLineItem(entry, interState, origInv)]
         };
-        if (against) {
+        if (against && origDate) {
             note.inum = against;
-            if (origDate) note.idt = origDate;
+            note.idt = origDate;
         }
-        return { note, pos, interState };
+        return { note, pos, interState, againstMissing: Boolean(against && !origDate) };
     }
 
     function buildCdnrCdnur(client, month) {
@@ -417,7 +417,8 @@
         const cdnur = [];
         collectCdnEntries(client, month).forEach(entry => {
             const ctin = customerGstin(client, entry.partyName);
-            const { note, pos, interState } = buildCdnNote(client, entry);
+            const { note, pos, interState, againstMissing } = buildCdnNote(client, entry);
+            if (againstMissing) note._againstMissing = entry.againstInvoice;
             if (isValidGstin(ctin)) {
                 const list = cdnrMap.get(ctin) || { ctin, nt: [] };
                 list.nt.push(note);
@@ -1027,6 +1028,24 @@
         return `${slug}_${gst}_${per}`;
     }
 
+    /** Offline tool export name: returns_DDMMYYYY_R1_GSTIN_offline.json */
+    function portalOfflineFileName(client, returnType) {
+        const gst = cleanGstin(client.gstin) || client.pan || client.id || 'export';
+        const now = new Date();
+        const dd = String(now.getDate()).padStart(2, '0');
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const yyyy = String(now.getFullYear());
+        const suffix = returnType === 'GSTR-1A' ? 'R1A' : 'R1';
+        return `returns_${dd}${mm}${yyyy}_${suffix}_${gst}_offline.json`;
+    }
+
+    function portalFileName(client, returnType, periodLabel) {
+        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A') {
+            return portalOfflineFileName(client, returnType);
+        }
+        return fileBase(client, returnType, periodLabel) + '.json';
+    }
+
     function upsertFilingRecord(client, returnType, periodLabel, status) {
         if (!client.gstrFilings) client.gstrFilings = [];
         const st = status || 'Ready';
@@ -1203,9 +1222,9 @@
                     val: round2(nt.val),
                     itms: sanitizePortalItms(nt.itms, inter)
                 };
-                if (nt.inum) {
+                if (nt.inum && nt.idt) {
                     row.inum = sanitizeInum(nt.inum);
-                    if (nt.idt) row.idt = nt.idt;
+                    row.idt = nt.idt;
                 }
                 return row;
             })
@@ -1226,9 +1245,9 @@
                 val: round2(row.val),
                 itms: sanitizePortalItms(row.itms, inter)
             };
-            if (row.inum) {
+            if (row.inum && row.idt) {
                 out.inum = sanitizeInum(row.inum);
-                if (row.idt) out.idt = row.idt;
+                out.idt = row.idt;
             }
             return out;
         });
@@ -1254,10 +1273,10 @@
         const cdnur = sanitizePortalCdnur(data.cdnur, gstin);
         if (cdnur.length) portal.cdnur = cdnur;
         if (data.nil?.inv?.some(r => num(r.nil_amt) || num(r.expt_amt) || num(r.ngsup_amt))) portal.nil = data.nil;
-        const hsn = portalHsnPayload(data.hsn);
-        if (hsn) portal.hsn = hsn;
         const docIssue = sanitizeDocIssue(data.doc_issue);
         if (docIssue) portal.doc_issue = docIssue;
+        const hsn = portalHsnPayload(data.hsn);
+        if (hsn) portal.hsn = hsn;
         return portal;
     }
 
@@ -1286,7 +1305,15 @@
             });
             (data.cdnur || []).forEach((row, i) => {
                 if (row.nt) errors.push(`CDNUR[${i}] uses invalid nt[] wrapper — must be flat note fields`);
-                if (row.inum && !row.idt) errors.push(`CDNUR[${i}] has inum but missing original invoice date (idt)`);
+                if (row.inum && !row.idt) errors.push(`CDNUR[${i}] has inum but missing original invoice date (idt) — link credit note to invoice in books`);
+            });
+            (data.cdnr || []).forEach((g, gi) => {
+                (g.nt || []).forEach((nt, ni) => {
+                    if (nt._againstMissing) warnings.push(`CDNR[${gi}].nt[${ni}] against invoice ${nt._againstMissing} not found — inum/idt omitted`);
+                });
+            });
+            (data.cdnur || []).forEach((row, i) => {
+                if (row._againstMissing) warnings.push(`CDNUR[${i}] against invoice ${row._againstMissing} not found — inum/idt omitted`);
             });
             (data.cdnr || []).forEach((g, i) => {
                 if (!isValidGstin(g.ctin)) warnings.push(`CDNR[${i}] customer GSTIN invalid`);
@@ -1357,15 +1384,33 @@
         return { valid: errors.length === 0, errors, warnings };
     }
 
+    function collectCdnBookWarnings(data) {
+        const warnings = [];
+        (data.cdnr || []).forEach((g, gi) => {
+            (g.nt || []).forEach((nt, ni) => {
+                if (nt._againstMissing) warnings.push(`CDNR[${gi}].nt[${ni}] against invoice ${nt._againstMissing} not in books — inum/idt omitted`);
+            });
+        });
+        (data.cdnur || []).forEach((row, i) => {
+            if (row._againstMissing) warnings.push(`CDNUR[${i}] against invoice ${row._againstMissing} not in books — inum/idt omitted`);
+        });
+        return warnings;
+    }
+
     function buildValidatedReturn(returnType, client, period, opts = {}) {
         const data = buildReturn(returnType, client, period);
         const portalData = toPortalJson(returnType, data);
         const validation = validateReturnJson(returnType, portalData);
+        if (returnType === 'GSTR-1' || returnType === 'GSTR-1A') {
+            collectCdnBookWarnings(data).forEach(w => {
+                if (!validation.warnings.includes(w)) validation.warnings.push(w);
+            });
+        }
         if (!validation.valid && !opts.force) {
             throw new Error('JSON validation failed: ' + validation.errors.join('; '));
         }
         const periodLabel = returnType === 'GSTR-9' ? period.fy : monthLabel(period.month);
-        const fileName = fileBase(client, returnType, periodLabel) + '.json';
+        const fileName = portalFileName(client, returnType, periodLabel);
         return { data, portalData, validation, fileName, periodLabel };
     }
 
@@ -1442,7 +1487,7 @@
                 <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
                     <div>
                         <h2 class="text-2xl font-semibold tracking-tight">GSTR Return Export</h2>
-                        <p class="text-slate-400 text-sm mt-1">Generate GST portal JSON (${PORTAL_GSTR1_VERSION} schema) &amp; CSV from ${esc(client.name)} books</p>
+                        <p class="text-slate-400 text-sm mt-1">Generate GST portal JSON (${PORTAL_GSTR1_VERSION} schema) &amp; CSV from ${esc(client.name)} books · <span class="text-emerald-400 font-mono">engine v${VERSION}</span></p>
                     </div>
                     <div class="text-right text-xs text-slate-500">
                         <div>GSTIN: <span class="text-slate-300 font-mono">${esc(client.gstin || '—')}</span></div>
@@ -1473,7 +1518,7 @@
                     <button type="button" onclick="showSection('gst-returns')" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-table-columns mr-1"></i> Returns Hub</button>
                 </div>
                 <div id="gstr-validation-msg" class="mt-3 hidden"></div>
-                <div class="gstr-alert mt-4 text-xs"><i class="fa-solid fa-circle-info mr-1"></i> GSTR-1 JSON v${VERSION} (${PORTAL_GSTR1_VERSION}): compact format, doc_typ, split-tax fields omitted per offline tool. <strong>JSON gstin must match your GST portal login.</strong> Hard-refresh (Ctrl+F5) before download.</div>
+                <div class="gstr-alert mt-4 text-xs"><i class="fa-solid fa-circle-info mr-1"></i> GSTR-1 downloads as <code class="font-mono">returns_DDMMYYYY_R1_GSTIN_offline.json</code> (offline tool format). Engine <strong>v${VERSION}</strong> required — if you see v1.2.3 or lower, press Ctrl+F5. JSON <strong>gstin</strong> must match portal login.</div>
                 <div class="gstr-preview-wrap mt-4">
                     <div class="gstr-preview-title"><i class="fa-solid fa-code mr-1"></i> Portal JSON Preview</div>
                     <pre class="gstr-preview-json">${esc(JSON.stringify(toPortalJson(meta.returnType, preview), null, 2))}</pre>
@@ -1599,6 +1644,8 @@
         monthKey,
         fpFromMonth,
         fileBase,
+        portalFileName,
+        portalOfflineFileName,
         downloadText,
         cleanGstin,
         isValidGstin,
