@@ -4,7 +4,7 @@
 (function (global) {
     'use strict';
 
-    const VERSION = '1.2.3';
+    const VERSION = '1.2.4';
     const PORTAL_GSTR1_VERSION = 'GST3.2.4';
     const DOC_ISSUE_TYPES = {
         1: 'Invoices for outward supply',
@@ -180,6 +180,58 @@
         return Math.round(rate * 100) + 1;
     }
 
+    /** Offline tool omits zero split-tax fields in line items (keeps csamt). */
+    function portalItemDet(det, interState) {
+        const out = {
+            txval: round2(det.txval),
+            rt: normalizePortalRate(det.rt)
+        };
+        const iamt = round2(det.iamt);
+        const camt = round2(det.camt);
+        const samt = round2(det.samt);
+        const csamt = round2(det.csamt);
+        const isInter = interState || (iamt > 0 && camt === 0 && samt === 0);
+        if (isInter) out.iamt = iamt;
+        else {
+            out.camt = camt;
+            out.samt = samt;
+        }
+        out.csamt = csamt;
+        return out;
+    }
+
+    function invInterState(inv, gstin) {
+        if (inv.itms?.some(it => num(it.itm_det?.iamt) > 0)) return true;
+        if (inv.itms?.some(it => num(it.itm_det?.camt) > 0 || num(it.itm_det?.samt) > 0)) return false;
+        const home = cleanGstin(gstin).slice(0, 2);
+        return Boolean(inv.pos && home && inv.pos !== home);
+    }
+
+    function sanitizePortalItms(itms, interState) {
+        return (itms || []).map(it => ({
+            num: it.num,
+            itm_det: portalItemDet(it.itm_det || {}, interState)
+        }));
+    }
+
+    function portalB2csRow(row) {
+        const out = {
+            sply_ty: row.sply_ty,
+            rt: normalizePortalRate(row.rt),
+            typ: row.typ || 'OE',
+            pos: row.pos,
+            txval: round2(row.txval)
+        };
+        if (row.sply_ty === 'INTRA') {
+            out.camt = round2(row.camt);
+            out.samt = round2(row.samt);
+        } else {
+            out.iamt = round2(row.iamt);
+        }
+        out.csamt = round2(row.csamt);
+        return out;
+    }
+
     function portalHsnRow(row, idx) {
         return {
             num: idx,
@@ -224,10 +276,14 @@
         };
     }
 
-    function lookupInvoiceDate(client, invNo) {
-        if (!invNo) return '';
+    function lookupOriginalInvoice(client, invNo) {
+        if (!invNo) return null;
         const key = sanitizeInum(invNo).toUpperCase();
-        const hit = (client.invoices || []).find(i => sanitizeInum(i.number).toUpperCase() === key);
+        return (client.invoices || []).find(i => sanitizeInum(i.number || i.id).toUpperCase() === key) || null;
+    }
+
+    function lookupInvoiceDate(client, invNo) {
+        const hit = lookupOriginalInvoice(client, invNo);
         return hit?.date ? toGstDate(hit.date) : '';
     }
 
@@ -322,9 +378,14 @@
         return entries.filter(e => e.docType === 'CN' || e.docType === 'DN');
     }
 
-    function cdnLineItem(entry, interState) {
-        const tx = round2(entry.taxable);
-        const rt = normalizePortalRate(entry.taxable ? ((entry.igst + entry.cgst + entry.sgst) / entry.taxable) * 100 : 0);
+    function cdnLineItem(entry, interState, origInv) {
+        let tx = round2(entry.taxable);
+        let rt = normalizePortalRate(tx ? ((entry.igst + entry.cgst + entry.sgst) / tx) * 100 : 0);
+        if (!rt && origInv && tx) {
+            rt = normalizePortalRate(deriveRate(origInv));
+            const tax = reconcileItemTax(tx, rt, origInv.igst, origInv.cgst, origInv.sgst, interState);
+            return { num: gstrItemNum(rt), itm_det: tax };
+        }
         return {
             num: gstrItemNum(rt),
             itm_det: reconcileItemTax(tx, rt, entry.igst, entry.cgst, entry.sgst, interState)
@@ -333,15 +394,16 @@
 
     function buildCdnNote(client, entry) {
         const pos = customerPos(client, entry.partyName, client.stateCode);
-        const interState = num(entry.igst) > 0;
         const against = sanitizeInum(entry.againstInvoice);
-        const origDate = lookupInvoiceDate(client, against);
+        const origInv = lookupOriginalInvoice(client, against);
+        const interState = num(entry.igst) > 0 || (origInv ? num(origInv.igst) > 0 : false);
+        const origDate = origInv?.date ? toGstDate(origInv.date) : '';
         const note = {
             ntty: entry.docType === 'DN' ? 'D' : 'C',
             nt_num: sanitizeInum(entry.number),
             nt_dt: toGstDate(entry.date),
             val: round2(entry.grandTotal || entry.taxable + entry.cgst + entry.sgst + entry.igst),
-            itms: [cdnLineItem(entry, interState)]
+            itms: [cdnLineItem(entry, interState, origInv)]
         };
         if (against) {
             note.inum = against;
@@ -419,7 +481,7 @@
             const hsn = defaultHsn.hsn;
             const interState = num(inv.igst) > 0;
             const rt = normalizePortalRate(deriveRate(inv));
-            const key = `${hsn}|${rt}|${interState ? 'I' : 'L'}`;
+            const key = `${hsn}|${rt}`;
             const row = map.get(key) || {
                 hsn_sc: hsn,
                 desc: defaultHsn.desc,
@@ -1094,19 +1156,102 @@
             hsnRowCount(data.hsn) > 0;
     }
 
+    function sanitizePortalB2b(groups, gstin) {
+        return (groups || []).map(g => ({
+            ctin: g.ctin,
+            inv: (g.inv || []).map(inv => {
+                const inter = invInterState(inv, gstin);
+                const row = {
+                    inum: sanitizeInum(inv.inum),
+                    idt: inv.idt,
+                    val: round2(inv.val),
+                    pos: inv.pos,
+                    rchrg: inv.rchrg || 'N',
+                    inv_typ: inv.inv_typ || 'R',
+                    itms: sanitizePortalItms(inv.itms, inter)
+                };
+                return row;
+            })
+        }));
+    }
+
+    function sanitizePortalB2cl(groups, gstin) {
+        return (groups || []).map(g => ({
+            pos: g.pos,
+            inv: (g.inv || []).map(inv => {
+                const inter = invInterState(inv, gstin);
+                return {
+                    inum: sanitizeInum(inv.inum),
+                    idt: inv.idt,
+                    val: round2(inv.val),
+                    itms: sanitizePortalItms(inv.itms, inter)
+                };
+            })
+        }));
+    }
+
+    function sanitizePortalCdnr(groups, gstin) {
+        return (groups || []).map(g => ({
+            ctin: g.ctin,
+            nt: (g.nt || []).map(nt => {
+                const inter = nt.itms?.some(it => num(it.itm_det?.iamt) > 0) ||
+                    (!nt.itms?.some(it => num(it.itm_det?.camt) > 0 || num(it.itm_det?.samt) > 0) && g.ctin?.slice(0, 2) !== cleanGstin(gstin).slice(0, 2));
+                const row = {
+                    ntty: nt.ntty,
+                    nt_num: sanitizeInum(nt.nt_num),
+                    nt_dt: nt.nt_dt,
+                    val: round2(nt.val),
+                    itms: sanitizePortalItms(nt.itms, inter)
+                };
+                if (nt.inum) {
+                    row.inum = sanitizeInum(nt.inum);
+                    if (nt.idt) row.idt = nt.idt;
+                }
+                return row;
+            })
+        }));
+    }
+
+    function sanitizePortalCdnur(rows, gstin) {
+        return sanitizeCdnur(rows).map(row => {
+            const inter = row.itms?.some(it => num(it.itm_det?.iamt) > 0) ||
+                (row.typ === 'B2CL') ||
+                (row.pos && row.pos !== cleanGstin(gstin).slice(0, 2));
+            const out = {
+                typ: row.typ,
+                pos: row.pos,
+                ntty: row.ntty,
+                nt_num: sanitizeInum(row.nt_num),
+                nt_dt: row.nt_dt,
+                val: round2(row.val),
+                itms: sanitizePortalItms(row.itms, inter)
+            };
+            if (row.inum) {
+                out.inum = sanitizeInum(row.inum);
+                if (row.idt) out.idt = row.idt;
+            }
+            return out;
+        });
+    }
+
     function toPortalGstr1(data) {
         if (!data) return {};
+        const gstin = cleanGstin(data.gstin);
         const portal = {
-            gstin: cleanGstin(data.gstin),
+            gstin,
             fp: String(data.fp || ''),
             version: PORTAL_GSTR1_VERSION,
             hash: 'hash'
         };
-        if (data.b2b?.length) portal.b2b = data.b2b;
-        if (data.b2cl?.length) portal.b2cl = data.b2cl;
-        if (data.b2cs?.length) portal.b2cs = data.b2cs;
-        if (data.cdnr?.length) portal.cdnr = data.cdnr;
-        const cdnur = sanitizeCdnur(data.cdnur);
+        const b2b = sanitizePortalB2b(data.b2b, gstin);
+        if (b2b.length) portal.b2b = b2b;
+        const b2cl = sanitizePortalB2cl(data.b2cl, gstin);
+        if (b2cl.length) portal.b2cl = b2cl;
+        const b2cs = (data.b2cs || []).map(portalB2csRow);
+        if (b2cs.length) portal.b2cs = b2cs;
+        const cdnr = sanitizePortalCdnr(data.cdnr, gstin);
+        if (cdnr.length) portal.cdnr = cdnr;
+        const cdnur = sanitizePortalCdnur(data.cdnur, gstin);
         if (cdnur.length) portal.cdnur = cdnur;
         if (data.nil?.inv?.some(r => num(r.nil_amt) || num(r.expt_amt) || num(r.ngsup_amt))) portal.nil = data.nil;
         const hsn = portalHsnPayload(data.hsn);
@@ -1141,6 +1286,7 @@
             });
             (data.cdnur || []).forEach((row, i) => {
                 if (row.nt) errors.push(`CDNUR[${i}] uses invalid nt[] wrapper — must be flat note fields`);
+                if (row.inum && !row.idt) errors.push(`CDNUR[${i}] has inum but missing original invoice date (idt)`);
             });
             (data.cdnr || []).forEach((g, i) => {
                 if (!isValidGstin(g.ctin)) warnings.push(`CDNR[${i}] customer GSTIN invalid`);
@@ -1155,15 +1301,33 @@
                     if (inv.inum && inv.inum.length > 16) errors.push(`B2B[${i}].inv[${j}] inum exceeds 16 chars`);
                     if (!inv.idt || !/^\d{2}-\d{2}-\d{4}$/.test(inv.idt)) errors.push(`B2B[${i}].inv[${j}] invalid idt (use DD-MM-YYYY)`);
                     if (!inv.itms?.length) warnings.push(`B2B[${i}].inv[${j}] has no line items`);
+                    const inter = invInterState(inv, gstin);
+                    const taxSum = (inv.itms || []).reduce((s, it) => {
+                        const d = it.itm_det || {};
+                        return s + num(d.txval) + num(d.iamt) + num(d.camt) + num(d.samt) + num(d.csamt);
+                    }, 0);
+                    if (Math.abs(round2(taxSum) - round2(inv.val)) > 0.02) {
+                        warnings.push(`B2B[${i}].inv[${j}] val ${inv.val} does not match line items (${round2(taxSum)})`);
+                    }
                     (inv.itms || []).forEach((it, k) => {
                         const d = it.itm_det || {};
                         if (!VALID_GSTR_RATES.includes(num(d.rt))) warnings.push(`B2B[${i}].inv[${j}].itms[${k}] rate ${d.rt}% not in GST rate list`);
+                        if (num(d.rt) > 0) {
+                            if (inter && (d.camt != null || d.samt != null)) {
+                                errors.push(`B2B[${i}].inv[${j}].itms[${k}] inter-state line must omit camt/samt (offline tool format)`);
+                            }
+                            if (!inter && d.iamt != null) {
+                                errors.push(`B2B[${i}].inv[${j}].itms[${k}] intra-state line must omit iamt (offline tool format)`);
+                            }
+                        }
                     });
                 });
             });
             (data.b2cs || []).forEach((r, i) => {
                 if (!['INTER', 'INTRA'].includes(r.sply_ty)) warnings.push(`B2CS[${i}] sply_ty must be INTER or INTRA`);
                 if (r.typ !== 'OE') warnings.push(`B2CS[${i}] typ should be OE`);
+                if (r.sply_ty === 'INTRA' && r.iamt != null) errors.push(`B2CS[${i}] INTRA row must omit iamt (offline tool format)`);
+                if (r.sply_ty === 'INTER' && (r.camt != null || r.samt != null)) errors.push(`B2CS[${i}] INTER row must omit camt/samt (offline tool format)`);
             });
             const hsnRows = [...(data.hsn?.hsn_b2b || []), ...(data.hsn?.hsn_b2c || []), ...(data.hsn?.data || [])];
             hsnRows.forEach((h, i) => {
@@ -1309,7 +1473,7 @@
                     <button type="button" onclick="showSection('gst-returns')" class="lf-btn lf-btn--secondary text-sm"><i class="fa-solid fa-table-columns mr-1"></i> Returns Hub</button>
                 </div>
                 <div id="gstr-validation-msg" class="mt-3 hidden"></div>
-                <div class="gstr-alert mt-4 text-xs"><i class="fa-solid fa-circle-info mr-1"></i> Downloaded GSTR-1 JSON matches GST offline tool ${PORTAL_GSTR1_VERSION} (compact JSON, hsn_b2b/hsn_b2c, doc_typ). Hard-refresh (Ctrl+F5) if portal rejects an older file.</div>
+                <div class="gstr-alert mt-4 text-xs"><i class="fa-solid fa-circle-info mr-1"></i> GSTR-1 JSON v${VERSION} (${PORTAL_GSTR1_VERSION}): compact format, doc_typ, split-tax fields omitted per offline tool. <strong>JSON gstin must match your GST portal login.</strong> Hard-refresh (Ctrl+F5) before download.</div>
                 <div class="gstr-preview-wrap mt-4">
                     <div class="gstr-preview-title"><i class="fa-solid fa-code mr-1"></i> Portal JSON Preview</div>
                     <pre class="gstr-preview-json">${esc(JSON.stringify(toPortalJson(meta.returnType, preview), null, 2))}</pre>
@@ -1421,6 +1585,9 @@
         toPortalGstr1,
         toPortalJson,
         portalJsonString,
+        portalItemDet,
+        portalB2csRow,
+        sanitizePortalItms,
         buildDocIssue,
         sanitizeCdnur,
         buildValidatedReturn,

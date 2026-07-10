@@ -1,4 +1,4 @@
-const CACHE = 'ledgerflow-v1';
+const CACHE = 'ledgerflow-v2';
 const PRECACHE = ['/', '/index.html', '/crm-theme.css'];
 
 self.addEventListener('install', e => {
@@ -15,13 +15,18 @@ self.addEventListener('fetch', e => {
     if (e.request.method !== 'GET') return;
     const url = new URL(e.request.url);
     if (url.pathname.startsWith('/api/')) return;
+    const isScript = /\.js(\?|$)/i.test(url.pathname);
     e.respondWith(
-        caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
-            if (res.ok && url.origin === self.location.origin && !url.pathname.includes('.')) {
-                const clone = res.clone();
-                caches.open(CACHE).then(c => c.put(e.request, clone));
-            }
-            return res;
-        }).catch(() => cached))
+        (isScript ? fetch(e.request) : caches.match(e.request)).then(cachedOrRes => {
+            if (isScript) return cachedOrRes;
+            if (cachedOrRes) return cachedOrRes;
+            return fetch(e.request).then(res => {
+                if (res.ok && url.origin === self.location.origin && !url.pathname.includes('.')) {
+                    const clone = res.clone();
+                    caches.open(CACHE).then(c => c.put(e.request, clone));
+                }
+                return res;
+            }).catch(() => cachedOrRes);
+        }).catch(() => caches.match(e.request))
     );
 });
