@@ -1,15 +1,31 @@
 {
   "name": "ledgerflow-crm",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "private": true,
-  "description": "LedgerFlow CRM — full-stack deployment",
+  "description": "LedgerFlow CRM — Zoho Books-class Indian GST accounting",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "build": "cd backend && npm install",
     "start": "cd backend && node seed.js && node server.js",
-    "web:dev": "cd apps/web && npm run dev",
+    "api:dev": "npm run dev -w @ledgerflow/api",
+    "api:build": "npm run build -w @ledgerflow/api",
+    "web:dev": "npm run dev -w @ledgerflow/web",
+    "web:build": "npm run build -w @ledgerflow/web",
+    "db:generate": "npm run generate -w @ledgerflow/db",
+    "db:migrate": "npm run migrate:dev -w @ledgerflow/db",
+    "db:seed": "npm run seed -w @ledgerflow/db",
+    "migrate:json": "tsx scripts/migrate-json-to-postgres.ts",
+    "test:accounting": "npm run test -w @ledgerflow/accounting-engine",
     "validate:gstr1": "node scripts/validate-gstr1-file.js"
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
   }
 }

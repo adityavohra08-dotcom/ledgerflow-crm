@@ -313,10 +313,30 @@ Prisma middleware injects `tenantId` + `clientId` filters on all queries. Super-
 
 ---
 
-## 9. Next coding steps (immediate)
+## 9. Quick start (all phases scaffold)
 
-1. ✅ This document + `packages/db/schema.prisma`
-2. `packages/accounting-engine` — CoA seed + posting engine
-3. `apps/api` — NestJS bootstrap with accounting module
-4. `apps/web` — shadcn init + CoA tree + journal entry page
-5. Bridge: expose posting via legacy Express for parallel run
+```bash
+# 1. Install monorepo
+npm install
+
+# 2. Postgres + Prisma
+cd packages/db && cp .env.example .env   # set DATABASE_URL
+npm run generate -w @ledgerflow/db
+npm run migrate:dev -w @ledgerflow/db
+npm run seed -w @ledgerflow/db
+
+# 3. Migrate legacy JSON store (optional)
+npm run migrate:json
+
+# 4. Run API (port 4000)
+npm run api:dev
+
+# 5. Run Next.js firm app (port 3000)
+npm run web:dev
+```
+
+**API modules:** `/v1/accounting`, `/v1/sales`, `/v1/purchases`, `/v1/banking`, `/v1/inventory`, `/v1/gst`, `/v1/projects`, `/v1/automation`
+
+**Web routes:** `/firm/*` (all modules), `/portal` (customer self-service)
+
+Legacy CRM remains at repo root + Railway until Postgres cutover.

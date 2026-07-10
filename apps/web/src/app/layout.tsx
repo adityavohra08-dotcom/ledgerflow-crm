@@ -1,16 +1,15 @@
 import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'LedgerFlow CRM — Next',
-  description: 'CompuTax-class Indian CA practice + GST CRM (migration shell)'
+  title: 'LedgerFlow Books — Indian GST Accounting',
+  description: 'Zoho Books-class accounting for CA firms'
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body style={{ margin: 0, fontFamily: 'system-ui, sans-serif', background: '#0f172a', color: '#e2e8f0' }}>
-        {children}
-      </body>
+    <html lang="en" className="dark">
+      <body>{children}</body>
     </html>
   );
 }
