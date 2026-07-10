@@ -14,6 +14,7 @@
     "api:build": "npm run build -w @ledgerflow/api",
     "web:dev": "npm run dev -w @ledgerflow/web",
     "web:build": "npm run build -w @ledgerflow/web",
+    "web:start": "npm run start -w @ledgerflow/web",
     "db:generate": "npm run generate -w @ledgerflow/db",
     "db:migrate": "npm run migrate:dev -w @ledgerflow/db",
     "db:seed": "npm run seed -w @ledgerflow/db",

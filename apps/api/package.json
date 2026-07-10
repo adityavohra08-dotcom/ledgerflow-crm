@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "tsc",
-    "start": "node dist/main.js"
+    "build": "echo \"API runs via tsx — no compile step\"",
+    "start": "tsx src/main.ts",
+    "start:prod": "tsx src/main.ts"
   },
   "dependencies": {
     "@ledgerflow/accounting-engine": "file:../../packages/accounting-engine",

@@ -1,6 +1,6 @@
 import { createApp } from './app.js';
 
-const PORT = Number(process.env.API_PORT || 4000);
+const PORT = Number(process.env.PORT || process.env.API_PORT || 4000);
 const app = createApp();
 
 app.listen(PORT, () => {
