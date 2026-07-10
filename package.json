@@ -10,6 +10,7 @@
   "scripts": {
     "build": "cd backend && npm install",
     "start": "cd backend && node seed.js && node server.js",
+    "api:start:prod": "node scripts/start-api.mjs",
     "api:dev": "npm run dev -w @ledgerflow/api",
     "api:build": "npm run build -w @ledgerflow/api",
     "web:dev": "npm run dev -w @ledgerflow/web",
@@ -25,8 +26,11 @@
   "engines": {
     "node": ">=18"
   },
-  "devDependencies": {
+  "dependencies": {
     "tsx": "^4.19.0",
+    "prisma": "^6.2.0"
+  },
+  "devDependencies": {
     "typescript": "^5.7.0"
   }
 }
